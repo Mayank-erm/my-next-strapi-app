@@ -1,0 +1,56 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@import 'tailwindcss';
+
+@theme {
+  --color-strapi-green-dark: #00382C;
+  --color-strapi-green-light: #00644B;
+  --color-strapi-gray-bg: #F0F2F5;
+  --color-strapi-light-gray: #E5E7EB;
+  --color-text-dark-gray: #374151;
+  --color-text-medium-gray: #6B7280;
+  --color-text-light-gray: #9CA3AF;
+  --color-proposal-border: #D1D5DB;
+  --color-proposal-bg: #FFFFFF;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Custom scrollbar for sidebar, if needed */
+.sidebar-scroll {
+  scrollbar-width: thin; /* For Firefox */
+  scrollbar-color: #00644B #00382C; /* Thumb and Track color for Firefox */
+}
+
+/* For Webkit browsers (Chrome, Safari) */
+.sidebar-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: #00382C;
+  border-radius: 10px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background-color: #00644B;
+  border-radius: 10px;
+  border: 2px solid #00382C;
+}
+
