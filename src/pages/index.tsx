@@ -1,9 +1,9 @@
-// src/pages/index.tsx (UPDATED)
+// src/pages/index.tsx (UPDATED for Carousel & Pagination)
 import React, { useState } from 'react';
 import Layout from '@/components/Layout';
 import Carousel from '@/components/Carousel';
 import ProposalCard from '@/components/ProposalCard';
-import Pagination from '@/components/Pagination'; // Import Pagination component
+import Pagination from '@/components/Pagination';
 import { GetServerSideProps } from 'next';
 
 interface StrapiProposal {
@@ -23,24 +23,24 @@ interface StrapiProposal {
 
 interface HomePageProps {
   proposals: StrapiProposal[];
-  totalProposals: number; // Added to handle pagination
-  currentPage: number; // Added to pass current page
+  totalProposals: number;
+  currentPage: number;
+  latestProposals: StrapiProposal[]; // New prop for carousel
   error?: string | null;
 }
 
 const ITEMS_PER_PAGE = 8; // Define how many proposals per page
 
-const HomePage: React.FC<HomePageProps> = ({ proposals, totalProposals, currentPage, error }) => {
+const HomePage: React.FC<HomePageProps> = ({ proposals, totalProposals, currentPage, latestProposals, error }) => {
   const totalPages = Math.ceil(totalProposals / ITEMS_PER_PAGE);
 
   const handlePageChange = (page: number) => {
-    // This will trigger a new getServerSideProps call with the updated page
     window.location.href = `/?page=${page}`;
   };
 
   return (
     <Layout>
-      <Carousel />
+      <Carousel latestProposals={latestProposals} /> {/* Pass latestProposals to Carousel */}
 
       <h2 className="text-2xl font-bold text-text-dark-gray mb-6">Popular resources</h2>
 
@@ -95,6 +95,7 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async (cont
   const STRAPI_API_URL = 'http://localhost:1337/api/proposals';
   let proposals: StrapiProposal[] = [];
   let totalProposals = 0;
+  let latestProposals: StrapiProposal[] = []; // Initialize for carousel
   let error: string | null = null;
 
   const page = parseInt(context.query.page as string || '1');
@@ -102,20 +103,30 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async (cont
   const start = (page - 1) * pageSize;
 
   try {
-    // Fetch paginated data
-    const response = await fetch(`${STRAPI_API_URL}?filters[publishedAt][$notNull]=true&populate=chooseEmployee&pagination[start]=${start}&pagination[limit]=${pageSize}`);
+    // Fetch paginated data for popular resources
+    const proposalsResponse = await fetch(`${STRAPI_API_URL}?filters[publishedAt][$notNull]=true&populate=chooseEmployee&pagination[start]=${start}&pagination[limit]=${pageSize}`);
     
-    if (!response.ok) {
-      throw new Error(`Strapi API returned status ${response.status}`);
+    if (!proposalsResponse.ok) {
+      throw new Error(`Strapi proposals API returned status ${proposalsResponse.status}`);
     }
-    const data = await response.json();
+    const proposalsData = await proposalsResponse.json();
     
-    proposals = data.data || [];
-    totalProposals = data.meta?.pagination?.total || 0; // Get total from Strapi meta
+    proposals = proposalsData.data || [];
+    totalProposals = proposalsData.meta?.pagination?.total || 0;
+
+    // Fetch latest 2 proposals for carousel
+    const latestProposalsResponse = await fetch(`${STRAPI_API_URL}?sort=publishedAt:desc&pagination[limit]=2`);
+    if (!latestProposalsResponse.ok) {
+      console.warn(`Strapi latest proposals API returned status ${latestProposalsResponse.status}. Carousel might not show latest data.`);
+      latestProposals = [];
+    } else {
+      const latestData = await latestProposalsResponse.json();
+      latestProposals = latestData.data || [];
+    }
 
   } catch (err: any) {
-    console.error('[getServerSideProps] Failed to fetch proposals from Strapi:', err);
-    error = `Failed to load proposals: ${err.message}. Please ensure Strapi is running and accessible at ${STRAPI_API_URL}.`;
+    console.error('[getServerSideProps] Failed to fetch data from Strapi:', err);
+    error = `Failed to load data: ${err.message}. Please ensure Strapi is running and accessible at ${STRAPI_API_URL}.`;
   }
 
   return {
@@ -123,6 +134,7 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async (cont
       proposals,
       totalProposals,
       currentPage: page,
+      latestProposals, // Pass to props
       error,
     },
   };
