@@ -7,12 +7,12 @@ const Header: React.FC = () => {
     <header className="fixed top-0 left-0 right-0 z-30 flex items-center justify-between p-4 bg-white shadow-sm border-b border-strapi-light-gray">
       {/* Left section: Logo and Title in the header */}
       <div className="flex items-center">
-        {/* Logo SVG - Directly in the header */}
-        <div className="w-8 h-8 mr-2 rounded-full overflow-hidden flex items-center justify-center">
-          <img src="/images/ERM_Vertical_Green_Black_RGB.svg" alt="ERM Logo" />
-        </div>
-        <h1 className="text-xl font-semibold text-text-dark-gray">Commercial Content Hub</h1>
-      </div>
+  {/* Logo SVG - Directly in the header */}
+  <div className="w-8 h-8 mr-2 overflow-hidden flex items-center justify-center">
+    <img src="/images/ERM_Vertical_Green_Black_RGB.svg" alt="ERM Logo" className="w-full h-full object-contain" /> {/* Enhanced img tag */}
+  </div>
+  <h1 className="text-xl font-semibold text-text-dark-gray">Commercial Content Hub</h1>
+</div>
 
       {/* Center section: Search bar */}
       <div className="flex-1 mx-8 max-w-lg">
