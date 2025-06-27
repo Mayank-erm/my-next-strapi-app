@@ -1,3 +1,4 @@
+// src/pages/index.tsx
 import React from 'react';
 import Layout from '@/components/Layout';
 import Carousel from '@/components/Carousel';
@@ -29,11 +30,14 @@ interface HomePageProps {
 
 // This component displays the main content of the home page.
 const HomePage: React.FC<HomePageProps> = ({ proposals, error }) => {
-  console.log('[HomePage Component] Props received - proposals:', proposals);
-  console.log('[HomePage Component] Props received - error:', error);
+  // console.log('[HomePage Component] Props received - proposals:', proposals);
+  // console.log('[HomePage Component] Props received - error:', error);
 
   return (
     <Layout>
+      {/* Carousel Section */}
+      <Carousel />
+
       <h2 className="text-2xl font-bold text-text-dark-gray mb-6">Popular resources</h2>
 
       {error && ( // Only show error if it's not null/undefined
@@ -45,7 +49,7 @@ const HomePage: React.FC<HomePageProps> = ({ proposals, error }) => {
 
       {/* Placeholder for Filters and Sort options */}
       <div className="flex justify-end items-center mb-4 space-x-4 text-text-medium-gray text-sm">
-        <span className="font-semibold">Filters</span>
+        <span className="font-semibold hidden sm:inline">Filters</span>
         <select className="p-2 border rounded-lg bg-white">
           <option>All Types</option>
         </select>
@@ -54,7 +58,7 @@ const HomePage: React.FC<HomePageProps> = ({ proposals, error }) => {
           <option>Published Date</option>
         </select>
         <div className="flex space-x-2">
-          {/* Grid/List view icons - replace with actual icons if needed */}
+          {/* Grid/List view icons */}
           <button className="p-2 border rounded-lg bg-white hover:bg-gray-100">
             {/* Grid Icon */}
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -70,11 +74,10 @@ const HomePage: React.FC<HomePageProps> = ({ proposals, error }) => {
         </div>
       </div>
 
-      {/* Main content grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      {/* Main content grid - adjusted for responsiveness */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
         {proposals.length > 0 ? (
           proposals.map((proposal) => (
-            // --- CHANGE 2: Pass the entire 'proposal' object directly ---
             <ProposalCard key={proposal.id} proposal={proposal} />
           ))
         ) : (
@@ -91,34 +94,24 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async () =>
   let proposals: StrapiProposal[] = [];
   let error: string | null = null;
 
-  console.log('[getServerSideProps] Attempting to fetch from Strapi:', STRAPI_API_URL);
+  // console.log('[getServerSideProps] Attempting to fetch from Strapi:', STRAPI_API_URL);
 
   try {
     const response = await fetch(`${STRAPI_API_URL}?filters[publishedAt][$notNull]=true&populate=chooseEmployee`);
     
-    console.log('[getServerSideProps] Strapi API Response Status:', response.status);
-    console.log('[getServerSideProps] Strapi API Response OK:', response.ok);
+    // console.log('[getServerSideProps] Strapi API Response Status:', response.status);
+    // console.log('[getServerSideProps] Strapi API Response OK:', response.ok);
 
     if (!response.ok) {
       throw new Error(`Strapi API returned status ${response.status}`);
     }
     const data = await response.json();
     
-    console.log('[getServerSideProps] Raw data from Strapi:', JSON.stringify(data, null, 2));
+    // console.log('[getServerSideProps] Raw data from Strapi:', JSON.stringify(data, null, 2));
     
-    proposals = data.data || []; // data.data contains the array of proposal objects
+    proposals = data.data || [];
 
-    // If Strapi returns nested `attributes` (typical for v4), we need to flatten them here
-    // However, your log shows data is ALREADY flat. So this block is probably not needed.
-    // If your Strapi config changes and it starts returning `attributes` again, uncomment this.
-    /*
-    proposals = (data.data || []).map((item: any) => ({
-      id: item.id,
-      ...item.attributes,
-    }));
-    */
-
-    console.log('[getServerSideProps] Processed proposals array (before returning):', JSON.stringify(proposals, null, 2));
+    // console.log('[getServerSideProps] Processed proposals array (before returning):', JSON.stringify(proposals, null, 2));
 
   } catch (err: any) {
     console.error('[getServerSideProps] Failed to fetch proposals from Strapi:', err);

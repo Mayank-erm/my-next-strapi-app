@@ -1,8 +1,6 @@
-import React from 'react';
-// --- Using Heroicons v1/legacy as requested ---
-import { BookmarkIcon, EllipsisHorizontalIcon } from '@heroicons/react/24/outline'
+import React, { useState } from 'react';
+import { BookmarkIcon, EllipsisHorizontalIcon, ArrowDownTrayIcon, ShareIcon } from '@heroicons/react/24/outline'
 
-// --- CHANGE 1: Updated ProposalCardProps interface to match the flat structure ---
 interface ProposalCardProps {
   proposal: {
     id: number;
@@ -28,36 +26,37 @@ const formatDate = (isoString: string) => {
 
 // Helper to extract plain text from Strapi Rich Text (Slate.js blocks)
 const getPlainTextFromRichText = (richTextBlocks: any[] | null | undefined): string => {
-  // Check if richTextBlocks is null, undefined, or an empty array
-  if (!richTextBlocks || !ArrayOfBlocks(richTextBlocks) || richTextBlocks.length === 0) { // Check for ArrayOfBlocks
+  if (!richTextBlocks || !Array.isArray(richTextBlocks) || richTextBlocks.length === 0) {
     return "";
   }
 
   return richTextBlocks.map(block => {
-    // Ensure block and block.children exist before accessing
     if (block && block.type === 'paragraph' && Array.isArray(block.children)) {
-      // Concatenate text from all children, ensuring child and child.text exist and are strings
       return block.children.map((child: any) => (child && typeof child.text === 'string') ? child.text : '').join('');
     }
-    return ''; // Return empty string for non-paragraph blocks or invalid structures
-  }).join('\n'); // Join paragraphs with newlines
+    return '';
+  }).join('\n');
 };
 
-// Type guard to ensure it's an array of objects for rich text
-function ArrayOfBlocks(value: any): value is any[] {
-  return Array.isArray(value) && value.every(item => typeof item === 'object' && item !== null);
-}
-
 const ProposalCard: React.FC<ProposalCardProps> = ({ proposal }) => {
-  // --- DEBUGGING LOGS: Check the 'proposal' object and its 'description' field directly ---
-  console.log('[ProposalCard DEBUG] Received proposal object:', proposal);
-  console.log('[ProposalCard DEBUG] Type of proposal.description:', typeof proposal?.description);
-  console.log('[ProposalCard DEBUG] Value of proposal.description:', proposal?.description);
-  // --- END DEBUGGING LOGS ---
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  // Extracting plain text from the description for display
-  // proposal.description is now correctly typed as potentially undefined/null directly
-  const plainDescription = getPlainTextFromRichText(proposal.description); // No optional chaining needed here as it's directly on the prop.
+  const toggleDropdown = (event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent card click from closing dropdown immediately
+    setIsDropdownOpen(!isDropdownOpen);
+  };
+
+  const handleShare = () => {
+    alert(`Sharing ${proposal.proposalName}`);
+    setIsDropdownOpen(false);
+  };
+
+  const handleDownload = () => {
+    alert(`Downloading ${proposal.proposalName}`);
+    setIsDropdownOpen(false);
+  };
+
+  const plainDescription = getPlainTextFromRichText(proposal.description);
 
   return (
     <div className="bg-proposal-bg rounded-lg shadow-card border border-proposal-border flex flex-col p-4 relative">
@@ -67,9 +66,28 @@ const ProposalCard: React.FC<ProposalCardProps> = ({ proposal }) => {
           <span className="px-2 py-1 bg-gray-100 rounded text-xs font-semibold text-text-medium-gray border border-gray-200">Proposal</span>
           <span className="text-text-light-gray">{formatDate(proposal.publishedAt)}</span>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 relative"> {/* Added relative for dropdown positioning */}
           <BookmarkIcon className="h-5 w-5 text-text-light-gray cursor-pointer hover:text-strapi-green-light transition-colors" />
-          <EllipsisHorizontalIcon className="h-5 w-5 text-text-light-gray cursor-pointer hover:text-text-dark-gray transition-colors" />
+          <EllipsisHorizontalIcon
+            className="h-5 w-5 text-text-light-gray cursor-pointer hover:text-text-dark-gray transition-colors"
+            onClick={toggleDropdown}
+          />
+          {isDropdownOpen && (
+            <div className="absolute right-0 mt-2 w-40 bg-white rounded-md shadow-lg z-10 top-full"> {/* Position dropdown below ellipsis */}
+              <button
+                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                onClick={handleShare}
+              >
+                <ShareIcon className="h-4 w-4 mr-2" /> Share
+              </button>
+              <button
+                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                onClick={handleDownload}
+              >
+                <ArrowDownTrayIcon className="h-4 w-4 mr-2" /> Download
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -81,8 +99,6 @@ const ProposalCard: React.FC<ProposalCardProps> = ({ proposal }) => {
       {/* Client Name and Department (simulated) */}
       <p className="text-sm text-text-medium-gray mb-2">
         <span className="font-medium">{proposal.clientName}</span> Inc.
-        {/* Assuming 'department' is part of the description or a separate field, here simulated */}
-        {/* You might fetch Employee details separately to show department */}
         <span className="block text-xs text-text-light-gray">Retail</span>
       </p>
 
@@ -96,7 +112,7 @@ const ProposalCard: React.FC<ProposalCardProps> = ({ proposal }) => {
         <button className="bg-strapi-green-light hover:bg-strapi-green-dark text-white font-semibold py-2 px-4 rounded-lg transition duration-200 ease-in-out transform hover:scale-105 shadow-md text-sm">
           Preview
         </button>
-        {/* You can add more details or actions here */}
+        {/* The download icon previously here is now part of the dropdown */}
       </div>
     </div>
   );

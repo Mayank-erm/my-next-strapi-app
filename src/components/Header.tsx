@@ -1,18 +1,15 @@
+// src/components/Header.tsx
 import React from 'react';
-// --- CHANGE: Updated SearchIcon to MagnifyingGlassIcon ---
 import { MagnifyingGlassIcon, BookmarkIcon, QuestionMarkCircleIcon, BellIcon, UserCircleIcon } from '@heroicons/react/24/outline';
 
-// Header component with search bar and user/notification icons
 const Header: React.FC = () => {
   return (
-    <header className="flex items-center justify-between p-4 bg-white shadow-sm border-b border-strapi-light-gray">
-      {/* Left section: Logo and Title */}
+    <header className="fixed top-0 left-0 right-0 z-30 flex items-center justify-between p-4 bg-white shadow-sm border-b border-strapi-light-gray">
+      {/* Left section: Logo and Title in the header */}
       <div className="flex items-center">
-        <div className="w-8 h-8 mr-2 rounded-full overflow-hidden">
-          {/* Placeholder for your logo. Replace with an actual SVG or image. */}
-          <svg className="w-full h-full text-strapi-green-dark" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 retro-reflectors01.414 0l4-4z" clipRule="evenodd" />
-          </svg>
+        {/* Logo SVG - Directly in the header */}
+        <div className="w-8 h-8 mr-2 rounded-full overflow-hidden flex items-center justify-center">
+          <img src="/images/ERM_Vertical_Green_Black_RGB.svg" alt="ERM Logo" />
         </div>
         <h1 className="text-xl font-semibold text-text-dark-gray">Commercial Content Hub</h1>
       </div>
@@ -21,7 +18,7 @@ const Header: React.FC = () => {
       <div className="flex-1 mx-8 max-w-lg">
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" /> {/* --- CHANGE: Used MagnifyingGlassIcon --- */}
+            <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
           </div>
           <input
             type="text"
