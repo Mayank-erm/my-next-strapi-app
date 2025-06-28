@@ -1,4 +1,4 @@
-// src/pages/index.tsx (UPDATED: Handles search result click, preview modal state)
+// src/pages/index.tsx (UPDATED: Handles search result click, preview modal state, List View Layout)
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '@/components/Layout';
 import Carousel from '@/components/Carousel';
@@ -85,7 +85,7 @@ const HomePage: React.FC<HomePageProps> = ({
   const [regionFilter, setRegionFilter] = useState<string[]>(initialRegionFilter);
   const [dateFilter, setDateFilter] = useState<string>(initialDateFilter);
   const [sortBy, setSortBy] = useState<string>(initialSortBy);
-  const [activeView, setActiveView] = useState('grid');
+  const [activeView, setActiveView] = useState('grid'); // Default to grid view
   const [filterSearchTerm, setFilterSearchTerm] = useState<string>('');
 
   // State for document preview modal
@@ -375,9 +375,9 @@ const HomePage: React.FC<HomePageProps> = ({
           <p className="text-xl font-medium">Loading proposals...</p>
         </div>
       ) : proposals.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+        <div className={activeView === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-6" : "flex flex-col gap-4"}>
           {proposals.map((proposal) => (
-            <ProposalCard key={proposal.id} proposal={proposal} />
+            <ProposalCard key={proposal.id} proposal={proposal} isListView={activeView === 'list'} />
           ))}
         </div>
       ) : (

@@ -1,4 +1,4 @@
-// src/components/DocumentPreviewModal.tsx (REDESIGNED & DEBUGGED: Single toggle, improved layout)
+// src/components/DocumentPreviewModal.tsx (REDESIGNED & DEBUGGED: Single toggle, improved layout, average rating)
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { XMarkIcon, ShareIcon, ArrowDownTrayIcon, StarIcon } from '@heroicons/react/24/outline';
 import { EyeIcon, DocumentTextIcon } from '@heroicons/react/20/solid';
@@ -45,6 +45,9 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({ proposal, o
   const [comment, setComment] = useState('');
   const [documentContentTop, setDocumentContentTop] = useState('0px'); // Dynamic top for content area
 
+  // Mock data for average rating, views, and downloads
+  const mockAverageRating = 4.5;
+  const mockTotalRatings = 12;
 
   // Determine the document URL for preview.
   const documentPath = useMemo(() => {
@@ -120,7 +123,7 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({ proposal, o
 
   return (
     <div
-      className="fixed inset-0 bg-gray-900 bg-opacity-75 backdrop-blur-sm flex justify-center items-start pt-10 pb-10 z-50 overflow-y-auto"
+      className="fixed inset-0 bg-custom-overlay backdrop-blur-sm flex justify-center items-start pt-10 pb-10 z-50 overflow-y-auto"
       onClick={handleOverlayClick}
     >
       <div
@@ -267,6 +270,10 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({ proposal, o
             </span>
             <span className="flex items-center">
               <DocumentTextIcon className="h-4 w-4 mr-1 text-gray-500" /> {downloadsCount} Downloads
+            </span>
+            <span className="flex items-center">
+                <StarIcon className="h-4 w-4 mr-1 text-yellow-400 fill-current" />
+                {mockAverageRating} / 5 ({mockTotalRatings} ratings)
             </span>
             <span>Owner: {authorName}</span>
             <span>Modified Date: {new Date(proposal.updatedAt).toLocaleDateString()}</span>

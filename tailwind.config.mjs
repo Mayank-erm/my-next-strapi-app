@@ -1,3 +1,4 @@
+// tailwind.config.mjs
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
@@ -8,18 +9,17 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Extend your existing color palette or add a new one for the overlay
         'custom-overlay': 'oklch(0.39 0.1 152.54 / 0.23)',
-        // Re-adding your existing custom theme colors just in case they were lost
-        'strapi-green-dark': '#00382C',
-        'strapi-green-light': '#00644B',
+        'strapi-green-dark': '#00382C', // Kept original as per instruction
+        'strapi-green-light': '#007A5F', // Updated to Green PMS 341
         'strapi-gray-bg': '#F0F2F5',
         'strapi-light-gray': '#E5E7EB',
         'text-dark-gray': '#374151',
-        'text-medium-gray': '#6B7280',
+        'text-medium-gray': '#666F74', // Updated to Grey PMS 431
         'text-light-gray': '#9CA3AF',
         'proposal-border': '#D1D5DB',
         'proposal-bg': '#FFFFFF',
+        // 'brand-blue': '#008DD6', // Removed as per instruction to only update green/grey
       },
       // You should not need to define backdropFilter explicitly for 'backdrop-blur-sm'
       // in modern Tailwind CSS, but if issues persist, uncomment the following:
@@ -31,8 +31,5 @@ export default {
   },
   plugins: [
     require('@tailwindcss/postcss'),
-    // If you need it, add a plugin for backdrop-filter if your Tailwind/PostCSS setup is older
-    // For Tailwind 3.0+ and PostCSS 8+, backdrop-blur-sm should work natively.
-    // If you had `tailwindcss-filters` for backdrop-filter, ensure it's still installed and configured.
   ],
 };
