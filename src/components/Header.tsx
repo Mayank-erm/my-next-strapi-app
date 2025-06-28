@@ -1,17 +1,43 @@
-// src/components/Header.tsx (Updated: Dividers, Bookmark and Need Help moved)
-import React, { useState, useCallback } from 'react';
-import { MagnifyingGlassIcon, BellIcon } from '@heroicons/react/24/outline'; // Removed BookmarkIcon, QuestionMarkCircleIcon
+// src/components/Header.tsx (UPDATED: Clickable search results to open DocumentPreviewModal)
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { MagnifyingGlassIcon, BellIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { MeiliSearch } from 'meilisearch';
 import UserDropdown from './UserDropdown';
 
+// Define the interface for Strapi proposals (re-defined here for clarity for click handler)
+interface StrapiProposal {
+  id: number;
+  opportunityNumber: string;
+  proposalName: string;
+  clientName: string;
+  pstatus: string; // Using pstatus as per your Strapi field
+  value: string | number; // Allow value to be string or number based on Strapi output
+  description?: any[] | null;
+  publishedAt: string;
+  createdAt: string;
+  updatedAt: string;
+  proposedBy: string | null;
+  chooseEmployee: number | null;
+}
+
+// Props for Header component - Now includes onResultClick
+interface HeaderProps {
+  searchTerm: string;
+  onSearchChange: (term: string) => void;
+  isLoading: boolean;
+  onResultClick: (proposal: StrapiProposal) => void; // New prop to handle result click
+}
+
+// --- MeiliSearch Configuration ---
 const MEILISEARCH_HOST = 'http://localhost:7700';
-const MEILISEARCH_API_KEY = 'masterKey';
+const MEILISEARCH_API_KEY = 'masterKey'; // IMPORTANT: Use your search API KEY, NOT the master key!
 
 const searchClient = new MeiliSearch({
   host: MEILISEARCH_HOST,
   apiKey: MEILISEARCH_API_KEY,
 });
 
+// Simple debouncing helper
 const debounce = (func: (...args: any[]) => void, delay: number) => {
   let timeout: NodeJS.Timeout;
   return (...args: any[]) => {
@@ -20,33 +46,108 @@ const debounce = (func: (...args: any[]) => void, delay: number) => {
   };
 };
 
-const Header: React.FC = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+const Header: React.FC<HeaderProps> = ({ searchTerm, onSearchChange, isLoading, onResultClick }) => {
+  const [autocompleteResults, setAutocompleteResults] = useState<StrapiProposal[]>([]); // Type the results
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [activeFilterPills, setActiveFilterPills] = useState<string[]>([]);
 
-  const performSearch = async (query: string) => {
-    if (query.length > 2) {
-      try {
-        const results = await searchClient.index('proposals').search(query, {
-          limit: 10,
-        });
-        setSearchResults(results.hits);
-        console.log("MeiliSearch Results:", results.hits);
-      } catch (error) {
-        console.error("MeiliSearch error during search:", error);
-        setSearchResults([]);
-      }
-    } else {
-      setSearchResults([]);
+  const filterCategories = {
+    'Service Line': ['Consulting', 'Engineering', 'Digital Solutions'],
+    'Industry': ['Retail', 'Energy', 'Healthcare'],
+    'Region': ['North America', 'Europe', 'Asia Pacific'],
+    'Client Name': ['Globex Inc.', 'Stark Industries Inc.', 'Acme Corp Inc.'], // Example client names
+  };
+
+  const handleFilterPillClick = (category: string, value: string) => {
+    const newActivePills = activeFilterPills.includes(value)
+      ? activeFilterPills.filter(pill => pill !== value)
+      : [...activeFilterPills, value];
+    setActiveFilterPills(newActivePills);
+    // Re-trigger autocomplete search with updated filters
+    debouncedAutocompleteSearch(searchTerm);
+  };
+
+  const performAutocompleteSearch = async (query: string) => {
+    // If no query and no active pills, clear results
+    if (query.length === 0 && activeFilterPills.length === 0) {
+      setAutocompleteResults([]);
+      return;
+    }
+
+    try {
+      // Build MeiliSearch filter string from active pills
+      const meiliFilters = activeFilterPills.map(pill => {
+        // This is a simplified example; you'd need to map pill values to actual MeiliSearch filterable attributes
+        // e.g., 'service_line = "Consulting"', 'industry = "Retail"'
+        // For demonstration, let's assume pills match direct field values
+        // This would require your MeiliSearch index to have these fields filterable.
+        if (filterCategories['Service Line'].includes(pill)) return `service_line = "${pill}"`;
+        if (filterCategories['Industry'].includes(pill)) return `industry = "${pill}"`;
+        if (filterCategories['Region'].includes(pill)) return `region = "${pill}"`;
+        if (filterCategories['Client Name'].includes(pill)) return `client_name = "${pill}"`;
+        return ''; // Should not happen with well-defined pills
+      }).filter(Boolean); // Remove empty strings
+
+      const results = await searchClient.index('proposals').search(query, {
+        limit: 10,
+        filter: meiliFilters.length > 0 ? meiliFilters : undefined, // Apply filters if any
+        // sort: ['_relevance:desc'] // Default sort by relevance
+      });
+      // MeiliSearch results need to be mapped to the StrapiProposal interface if structure differs
+      // Assuming MeiliSearch returns fields matching StrapiProposal structure directly for this example
+      setAutocompleteResults(results.hits as StrapiProposal[] || []);
+    } catch (error) {
+      console.error("MeiliSearch error during autocomplete search:", error);
+      setAutocompleteResults([]);
     }
   };
 
-  const debouncedSearch = useCallback(debounce(performSearch, 300), []);
+  const debouncedAutocompleteSearch = useCallback(debounce(performAutocompleteSearch, 300), [activeFilterPills]);
 
   const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
-    setSearchTerm(query);
-    debouncedSearch(query);
+    onSearchChange(query); // Updates main search term in index.tsx
+    debouncedAutocompleteSearch(query); // Trigger local autocomplete search for dropdown
+  };
+
+  const handleResultClick = (proposal: StrapiProposal) => {
+    onResultClick(proposal); // Pass the clicked proposal up to the parent
+    closeSearchModal(); // Close the search modal
+  };
+
+  // Keyboard Shortcut Logic
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
+        event.preventDefault();
+        setIsSearchModalOpen(true);
+      }
+      if (event.key === 'Escape' && isSearchModalOpen) {
+        closeSearchModal(); // Use the unified close function
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isSearchModalOpen, onSearchChange]);
+
+  // Focus search input when modal opens, and trigger an initial search if filters are already active
+  useEffect(() => {
+    if (isSearchModalOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+      debouncedAutocompleteSearch(searchTerm); // Trigger search with current term/filters when modal opens
+    }
+  }, [isSearchModalOpen, searchTerm, debouncedAutocompleteSearch]);
+
+  const closeSearchModal = () => {
+    setIsSearchModalOpen(false);
+    setAutocompleteResults([]);
+    onSearchChange(''); // Clear main search term
+    setActiveFilterPills([]); // Clear filter pills on close
   };
 
   return (
@@ -63,48 +164,116 @@ const Header: React.FC = () => {
         <h1 className="text-xl font-semibold text-text-dark-gray">Commercial Content Hub</h1>
       </div>
 
-      {/* Center section: Search bar */}
+      {/* Center section: Search bar (click to open modal) */}
       <div className="flex-1 mx-8 max-w-lg">
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
-          </div>
-          <input
-            type="text"
-            placeholder="Search by keywords, titles, client name"
-            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-gray-50 text-gray-900 placeholder-gray-500
-                       focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            value={searchTerm}
-            onChange={handleSearchInputChange}
-          />
-          {searchResults.length > 0 && searchTerm.length > 2 && (
-            <div className="absolute bg-white border border-gray-200 mt-1 w-full rounded-md shadow-lg max-h-60 overflow-y-auto z-40">
-              {searchResults.map((hit: any) => (
-                <div key={hit.id} className="p-2 border-b last:border-b-0 hover:bg-gray-100 cursor-pointer text-sm text-gray-800">
-                  {hit.proposalName} {hit.clientName ? `- ${hit.clientName}` : ''} ({hit.opportunityNumber})
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <button
+          onClick={() => setIsSearchModalOpen(true)}
+          className="block w-full pl-3 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-gray-50 text-gray-900 placeholder-gray-500 text-left
+                     focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm flex items-center justify-between"
+          aria-label="Open search"
+        >
+          <span className="flex items-center">
+            <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 mr-2" aria-hidden="true" />
+            Search by keywords, titles, client name
+          </span>
+          <span className="text-xs text-gray-400 border border-gray-300 px-2 py-0.5 rounded-md hidden md:block">
+            Ctrl K
+          </span>
+        </button>
       </div>
 
       {/* Right section: Icons and user info with dividers */}
-      {/* Applied divide-x to create vertical dividers */}
       <div className="flex items-center divide-x divide-gray-200">
-        {/* Bell Icon */}
-        <div className="pr-4"> {/* Padding before divider */}
+        <div className="pr-4">
           <BellIcon className="h-6 w-6 text-text-medium-gray cursor-pointer
                               focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:ring-offset-2"
                      tabIndex={0}
           />
         </div>
 
-        {/* User Profile Dropdown */}
-        <div className="pl-4"> {/* Padding after divider */}
+        <div className="pl-4">
           <UserDropdown />
         </div>
       </div>
+
+      {/* --- Search Modal Overlay --- */}
+      {isSearchModalOpen && (
+        <div className="fixed inset-0 bg-custom-overlay backdrop-blur-sm flex justify-center items-start pt-20 pb-10 z-50 overflow-y-auto">
+          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 my-auto overflow-hidden">
+            {/* Modal Header/Search Input */}
+            <div className="p-4 border-b border-gray-200 flex items-center">
+              <MagnifyingGlassIcon className="h-6 w-6 text-gray-500 mr-3" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Search..."
+                className="flex-1 text-lg border-none focus:ring-0 focus:outline-none"
+                value={searchTerm}
+                onChange={handleSearchInputChange}
+              />
+              <button
+                onClick={closeSearchModal}
+                className="ml-3 p-2 rounded-md hover:bg-gray-100 text-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-200"
+                aria-label="Close search"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+              <span className="ml-2 text-xs text-gray-400 border border-gray-300 px-2 py-0.5 rounded-md hidden md:inline-block">ESC</span>
+            </div>
+
+            {/* Modal Body / Search Results / Categories */}
+            <div className="p-4 max-h-96 overflow-y-auto">
+              {isLoading && searchTerm.length > 0 ? ( // Show loading only if searching for main content
+                <p className="text-gray-500 text-center py-4">Searching...</p>
+              ) : searchTerm.length > 0 && autocompleteResults.length > 0 ? (
+                <>
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Search Results</h4>
+                  {autocompleteResults.map((hit: StrapiProposal) => ( // Type the hit
+                    <div
+                      key={hit.id}
+                      className="p-2 my-1 rounded-md hover:bg-gray-100 cursor-pointer text-gray-800 text-base"
+                      onClick={() => handleResultClick(hit)} // Pass the whole hit object
+                    >
+                      {hit.proposalName} {hit.clientName ? `- ${hit.clientName}` : ''} ({hit.opportunityNumber})
+                    </div>
+                  ))}
+                </>
+              ) : searchTerm.length > 0 && autocompleteResults.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">No results found for "{searchTerm}"</p>
+              ) : (
+                <p className="text-gray-500 text-center py-4">Start typing to search...</p>
+              )}
+              
+              {/* "Narrow down by section" / Categories */}
+              <div className="mt-6 border-t border-gray-200 pt-4">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Narrow down by section</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {Object.entries(filterCategories).map(([category, options]) => (
+                    <div key={category}>
+                      <p className="text-xs font-medium text-gray-600 mb-1">{category}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {options.map(option => (
+                          <button
+                            key={option}
+                            onClick={() => handleFilterPillClick(category, option)}
+                            className={`px-3 py-1 text-sm rounded-full transition-colors
+                                        ${activeFilterPills.includes(option)
+                                          ? 'bg-strapi-green-light text-white shadow-sm'
+                                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}
+                                        focus:outline-none focus:ring-2 focus:ring-gray-300`}
+                          >
+                            {option}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 };

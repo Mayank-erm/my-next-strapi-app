@@ -1,5 +1,7 @@
+// src/components/ProposalCard.tsx (UPDATED: Triggers Preview Modal)
 import React, { useState } from 'react';
-import { BookmarkIcon, EllipsisHorizontalIcon, ArrowDownTrayIcon, ShareIcon } from '@heroicons/react/24/outline'
+import { BookmarkIcon, EllipsisHorizontalIcon, ArrowDownTrayIcon, ShareIcon } from '@heroicons/react/24/outline';
+import DocumentPreviewModal from './DocumentPreviewModal'; // Import the new modal component
 
 interface ProposalCardProps {
   proposal: {
@@ -7,11 +9,10 @@ interface ProposalCardProps {
     opportunityNumber: string;
     proposalName: string;
     clientName: string;
-    pstatus: string; // Using pstatus as per your Strapi field
-    value: string | number; // Allow value to be string or number based on Strapi output
-    description?: any[] | null; // Allow description to be optional, meaning it can be undefined or null
-    publishedAt: string; // ISO date string
-    // Add other fields like proposedBy, chooseEmployee that are now directly on the proposal object
+    pstatus: string;
+    value: string | number;
+    description?: any[] | null;
+    publishedAt: string;
     proposedBy: string | null;
     chooseEmployee: number | null;
   };
@@ -21,7 +22,7 @@ interface ProposalCardProps {
 const formatDate = (isoString: string) => {
   if (!isoString) return 'N/A';
   const date = new Date(isoString);
-  return date.toLocaleDateString('en-GB'); // Example: 20/06/2019
+  return date.toLocaleDateString('en-GB');
 };
 
 // Helper to extract plain text from Strapi Rich Text (Slate.js blocks)
@@ -40,9 +41,10 @@ const getPlainTextFromRichText = (richTextBlocks: any[] | null | undefined): str
 
 const ProposalCard: React.FC<ProposalCardProps> = ({ proposal }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false); // State for preview modal
 
   const toggleDropdown = (event: React.MouseEvent) => {
-    event.stopPropagation(); // Prevent card click from closing dropdown immediately
+    event.stopPropagation();
     setIsDropdownOpen(!isDropdownOpen);
   };
 
@@ -56,6 +58,14 @@ const ProposalCard: React.FC<ProposalCardProps> = ({ proposal }) => {
     setIsDropdownOpen(false);
   };
 
+  const handlePreviewClick = () => {
+    setIsPreviewModalOpen(true);
+  };
+
+  const closePreviewModal = () => {
+    setIsPreviewModalOpen(false);
+  };
+
   const plainDescription = getPlainTextFromRichText(proposal.description);
 
   return (
@@ -63,7 +73,6 @@ const ProposalCard: React.FC<ProposalCardProps> = ({ proposal }) => {
       {/* Header with Proposal type, Date, and Bookmark/More icons */}
       <div className="flex justify-between items-center text-sm mb-3">
         <div className="flex items-center space-x-2">
-          {/* Updated Proposal tag style */}
           <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-200 transition-colors">Proposal</span>
           <span className="text-gray-500 text-xs">{formatDate(proposal.publishedAt)}</span>
         </div>
@@ -99,7 +108,7 @@ const ProposalCard: React.FC<ProposalCardProps> = ({ proposal }) => {
 
       {/* Client Name and Department (simulated) */}
       <p className="text-sm text-gray-600 mb-2">
-        <span className="font-semibold">{proposal.clientName}</span> Inc. {/* Added Inc. back as per original design intention */}
+        <span className="font-semibold">{proposal.clientName}</span> Inc.
         <span className="block text-xs text-gray-400">({proposal.pstatus})</span>
       </p>
 
@@ -111,6 +120,7 @@ const ProposalCard: React.FC<ProposalCardProps> = ({ proposal }) => {
       {/* Footer with Preview button */}
       <div className="mt-auto pt-4 border-t border-gray-100 flex justify-end items-center">
         <button
+          onClick={handlePreviewClick} // Click to open preview modal
           className="bg-strapi-green-light hover:bg-strapi-green-dark text-white font-semibold py-2.5 px-6 rounded-lg
                      transition-all duration-200 ease-in-out transform hover:-translate-y-0.5 shadow-md text-sm
                      focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:ring-offset-2"
@@ -118,6 +128,14 @@ const ProposalCard: React.FC<ProposalCardProps> = ({ proposal }) => {
           Preview
         </button>
       </div>
+
+      {/* Document Preview Modal */}
+      {isPreviewModalOpen && (
+        <DocumentPreviewModal
+          proposal={proposal} // Pass the entire proposal object
+          onClose={closePreviewModal}
+        />
+      )}
     </div>
   );
 };
