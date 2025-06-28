@@ -59,29 +59,30 @@ const ProposalCard: React.FC<ProposalCardProps> = ({ proposal }) => {
   const plainDescription = getPlainTextFromRichText(proposal.description);
 
   return (
-    <div className="bg-proposal-bg rounded-lg shadow-card border border-proposal-border flex flex-col p-4 relative">
+    <div className="bg-white rounded-xl shadow-md border border-gray-100 flex flex-col p-5 hover:shadow-lg transition-all duration-300 ease-in-out relative group">
       {/* Header with Proposal type, Date, and Bookmark/More icons */}
-      <div className="flex justify-between items-center text-sm mb-2">
+      <div className="flex justify-between items-center text-sm mb-3">
         <div className="flex items-center space-x-2">
-          <span className="px-2 py-1 bg-gray-100 rounded text-xs font-semibold text-text-medium-gray border border-gray-200">Proposal</span>
-          <span className="text-text-light-gray">{formatDate(proposal.publishedAt)}</span>
+          {/* Updated Proposal tag style */}
+          <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-200 transition-colors">Proposal</span>
+          <span className="text-gray-500 text-xs">{formatDate(proposal.publishedAt)}</span>
         </div>
-        <div className="flex items-center space-x-2 relative"> {/* Added relative for dropdown positioning */}
-          <BookmarkIcon className="h-5 w-5 text-text-light-gray cursor-pointer hover:text-strapi-green-light transition-colors" />
+        <div className="flex items-center space-x-2 relative">
+          <BookmarkIcon className="h-5 w-5 text-gray-400 cursor-pointer hover:text-strapi-green-dark transition-colors duration-200" />
           <EllipsisHorizontalIcon
-            className="h-5 w-5 text-text-light-gray cursor-pointer hover:text-text-dark-gray transition-colors"
+            className="h-5 w-5 text-gray-400 cursor-pointer hover:text-gray-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:ring-offset-2"
             onClick={toggleDropdown}
           />
           {isDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-40 bg-white rounded-md shadow-lg z-10 top-full"> {/* Position dropdown below ellipsis */}
+            <div className="absolute right-0 mt-2 w-40 bg-white rounded-md shadow-xl py-1 z-20 top-full transform translate-y-2">
               <button
-                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-strapi-green-light"
                 onClick={handleShare}
               >
                 <ShareIcon className="h-4 w-4 mr-2" /> Share
               </button>
               <button
-                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-strapi-green-light"
                 onClick={handleDownload}
               >
                 <ArrowDownTrayIcon className="h-4 w-4 mr-2" /> Download
@@ -92,27 +93,30 @@ const ProposalCard: React.FC<ProposalCardProps> = ({ proposal }) => {
       </div>
 
       {/* Title */}
-      <h3 className="text-lg font-semibold text-text-dark-gray mb-1 truncate" title={proposal.proposalName}>
+      <h3 className="text-lg font-bold text-text-dark-gray mb-1.5 truncate" title={proposal.proposalName}>
         {proposal.proposalName}
       </h3>
 
       {/* Client Name and Department (simulated) */}
-      <p className="text-sm text-text-medium-gray mb-2">
-        <span className="font-medium">{proposal.clientName}</span> Inc.
-        <span className="block text-xs text-text-light-gray">Retail</span>
+      <p className="text-sm text-gray-600 mb-2">
+        <span className="font-semibold">{proposal.clientName}</span> Inc. {/* Added Inc. back as per original design intention */}
+        <span className="block text-xs text-gray-400">({proposal.pstatus})</span>
       </p>
 
       {/* Description preview */}
-      <p className="text-sm text-text-medium-gray line-clamp-2 mb-4">
+      <p className="text-sm text-gray-700 line-clamp-3 mb-4 flex-grow">
         {plainDescription || 'No description available.'}
       </p>
 
       {/* Footer with Preview button */}
-      <div className="mt-auto pt-3 border-t border-strapi-light-gray flex justify-between items-center">
-        <button className="bg-strapi-green-light hover:bg-strapi-green-dark text-white font-semibold py-2 px-4 rounded-lg transition duration-200 ease-in-out transform hover:scale-105 shadow-md text-sm">
+      <div className="mt-auto pt-4 border-t border-gray-100 flex justify-end items-center">
+        <button
+          className="bg-strapi-green-light hover:bg-strapi-green-dark text-white font-semibold py-2.5 px-6 rounded-lg
+                     transition-all duration-200 ease-in-out transform hover:-translate-y-0.5 shadow-md text-sm
+                     focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:ring-offset-2"
+        >
           Preview
         </button>
-        {/* The download icon previously here is now part of the dropdown */}
       </div>
     </div>
   );

@@ -1,10 +1,11 @@
-// src/pages/index.tsx (UPDATED for Carousel & Pagination)
+// src/pages/index.tsx (UPDATED: Removed Content Type pills, improved sort/view buttons)
 import React, { useState } from 'react';
 import Layout from '@/components/Layout';
 import Carousel from '@/components/Carousel';
 import ProposalCard from '@/components/ProposalCard';
 import Pagination from '@/components/Pagination';
 import { GetServerSideProps } from 'next';
+import { ChevronDownIcon } from '@heroicons/react/24/outline';
 
 interface StrapiProposal {
   id: number;
@@ -25,14 +26,15 @@ interface HomePageProps {
   proposals: StrapiProposal[];
   totalProposals: number;
   currentPage: number;
-  latestProposals: StrapiProposal[]; // New prop for carousel
+  latestProposals: StrapiProposal[];
   error?: string | null;
 }
 
-const ITEMS_PER_PAGE = 8; // Define how many proposals per page
+const ITEMS_PER_PAGE = 8;
 
 const HomePage: React.FC<HomePageProps> = ({ proposals, totalProposals, currentPage, latestProposals, error }) => {
   const totalPages = Math.ceil(totalProposals / ITEMS_PER_PAGE);
+  const [activeView, setActiveView] = useState('grid'); // State for grid/list view toggle
 
   const handlePageChange = (page: number) => {
     window.location.href = `/?page=${page}`;
@@ -40,9 +42,7 @@ const HomePage: React.FC<HomePageProps> = ({ proposals, totalProposals, currentP
 
   return (
     <Layout>
-      <Carousel latestProposals={latestProposals} /> {/* Pass latestProposals to Carousel */}
-
-      <h2 className="text-2xl font-bold text-text-dark-gray mb-6">Popular resources</h2>
+      <Carousel latestProposals={latestProposals} />
 
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
@@ -51,26 +51,51 @@ const HomePage: React.FC<HomePageProps> = ({ proposals, totalProposals, currentP
         </div>
       )}
 
-      <div className="flex justify-end items-center mb-4 space-x-4 text-text-medium-gray text-sm">
-        <span className="font-semibold hidden sm:inline">Filters</span>
-        <select className="p-2 border rounded-lg bg-white">
-          <option>All Types</option>
-        </select>
-        <span className="font-semibold">Sort by:</span>
-        <select className="p-2 border rounded-lg bg-white">
-          <option>Published Date</option>
-        </select>
-        <div className="flex space-x-2">
-          <button className="p-2 border rounded-lg bg-white hover:bg-gray-100">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM13 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2h-2zM13 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2h-2z" />
-            </svg>
-          </button>
-          <button className="p-2 border rounded-lg bg-white hover:bg-gray-100">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
-            </svg>
-          </button>
+      {/* Filter and Sort Section */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+        <h2 className="text-2xl font-bold text-text-dark-gray mb-4 sm:mb-0">Popular resources</h2>
+        <div className="flex items-center space-x-4 text-text-medium-gray text-sm flex-wrap">
+          {/* Removed Content Type Pills - filtering for content type is now solely in the Filter By sidebar */}
+          {/* The "All Types" dropdown is no longer needed here */}
+
+          <span className="font-semibold">Sort by:</span>
+          <div className="relative">
+            <select
+              className="p-2 border rounded-lg bg-white appearance-none pr-8 cursor-pointer
+                         focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:border-transparent"
+            >
+              <option>Published Date</option>
+              <option>Client Name</option>
+              <option>Opportunity Number</option>
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+              <ChevronDownIcon className="h-4 w-4" />
+            </div>
+          </div>
+          
+          {/* Grid/List view toggle buttons with active states */}
+          <div className="flex space-x-2 ml-auto sm:ml-0 mt-2 sm:mt-0">
+            <button
+              onClick={() => setActiveView('grid')}
+              className={`p-2 border rounded-lg text-gray-700 transition-colors
+                          ${activeView === 'grid' ? 'bg-strapi-green-light text-white shadow-sm' : 'bg-white hover:bg-gray-100'}
+                          focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:ring-offset-2`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM13 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2h-2zM13 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2h-2z" />
+              </svg>
+            </button>
+            <button
+              onClick={() => setActiveView('list')}
+              className={`p-2 border rounded-lg text-gray-700 transition-colors
+                          ${activeView === 'list' ? 'bg-strapi-green-light text-white shadow-sm' : 'bg-white hover:bg-gray-100'}
+                          focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:ring-offset-2`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -80,7 +105,11 @@ const HomePage: React.FC<HomePageProps> = ({ proposals, totalProposals, currentP
             <ProposalCard key={proposal.id} proposal={proposal} />
           ))
         ) : (
-          <p className="col-span-full text-center text-text-medium-gray">No published proposals found.</p>
+          <div className="col-span-full flex flex-col items-center justify-center py-10 text-gray-500">
+            <span className="text-6xl mb-4" role="img" aria-label="No results">🔍</span>
+            <p className="text-xl font-medium">No published proposals found matching your criteria.</p>
+            <p className="text-md mt-2">Try adjusting your filters or search terms.</p>
+          </div>
         )}
       </div>
 
@@ -95,7 +124,7 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async (cont
   const STRAPI_API_URL = 'http://localhost:1337/api/proposals';
   let proposals: StrapiProposal[] = [];
   let totalProposals = 0;
-  let latestProposals: StrapiProposal[] = []; // Initialize for carousel
+  let latestProposals: StrapiProposal[] = [];
   let error: string | null = null;
 
   const page = parseInt(context.query.page as string || '1');
@@ -134,7 +163,7 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async (cont
       proposals,
       totalProposals,
       currentPage: page,
-      latestProposals, // Pass to props
+      latestProposals,
       error,
     },
   };

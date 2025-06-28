@@ -1,4 +1,4 @@
-// src/components/Pagination.tsx (NEW FILE)
+// src/components/Pagination.tsx (Modified)
 import React from 'react';
 
 interface PaginationProps {
@@ -15,7 +15,7 @@ const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages, onPage
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className="px-4 py-2 bg-strapi-green-light text-white rounded-lg disabled:opacity-50"
+        className="px-4 py-2 bg-strapi-green-light text-white rounded-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-strapi-green-dark transition-colors"
       >
         Previous
       </button>
@@ -23,8 +23,8 @@ const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages, onPage
         <button
           key={page}
           onClick={() => onPageChange(page)}
-          className={`px-4 py-2 rounded-lg ${
-            currentPage === page ? 'bg-strapi-green-dark text-white' : 'bg-gray-200 text-text-dark-gray hover:bg-gray-300'
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            currentPage === page ? 'bg-strapi-green-dark text-white shadow-md' : 'bg-gray-100 text-text-dark-gray hover:bg-gray-200'
           }`}
         >
           {page}
@@ -33,7 +33,7 @@ const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages, onPage
       <button
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="px-4 py-2 bg-strapi-green-light text-white rounded-lg disabled:opacity-50"
+        className="px-4 py-2 bg-strapi-green-light text-white rounded-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-strapi-green-dark transition-colors"
       >
         Next
       </button>

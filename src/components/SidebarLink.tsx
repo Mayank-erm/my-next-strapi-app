@@ -1,20 +1,21 @@
-// src/components/SidebarLink.tsx
+// src/components/SidebarLink.tsx (Updated for visual polish)
 import React from 'react';
 
 interface SidebarLinkProps {
   icon: React.ElementType; // Icon component from Heroicons
   text: string;
   active?: boolean;
-  isSidebarExpanded: boolean; // Renamed prop to reflect hover expansion
+  isSidebarExpanded: boolean;
 }
 
 const SidebarLink: React.FC<SidebarLinkProps> = ({ icon: Icon, text, active, isSidebarExpanded }) => {
   return (
     <a
       href="#" // Replace with Next.js Link component if routing
-      className={`flex items-center p-3 rounded-lg transition-colors duration-200
+      className={`flex items-center py-2.5 rounded-lg transition-colors duration-200
         ${active ? 'bg-strapi-green-light text-white shadow-md' : 'text-gray-200 hover:bg-strapi-green-light/70 hover:text-white'}
-        ${!isSidebarExpanded ? 'justify-center' : ''}
+        ${!isSidebarExpanded ? 'justify-center px-2' : 'px-4'} // Adjust padding based on expanded state
+        focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:ring-offset-2 // Focus styles
       `}
       title={!isSidebarExpanded ? text : ''} // Add title for tooltip on collapsed icons
     >

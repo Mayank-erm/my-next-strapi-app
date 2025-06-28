@@ -1,4 +1,4 @@
-// src/components/Carousel.tsx (UPDATED for single item display)
+// src/components/Carousel.tsx (UPDATED for single item display and focus styles)
 import React, { useState } from 'react';
 
 interface CarouselProps {
@@ -28,8 +28,12 @@ const Carousel: React.FC<CarouselProps> = ({ latestProposals }) => {
   const currentProposal = latestProposals[currentIndex];
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6 mb-8 h-48 flex flex-col justify-center items-center text-text-medium-gray text-xl border border-strapi-light-gray relative overflow-hidden">
-      <h3 className="text-xl font-semibold mb-4 text-text-dark-gray">Latest Updates</h3> {/* Changed text-text-medium-gray to text-text-dark-gray */}
+    <div
+      className="bg-white rounded-lg shadow-sm p-6 mb-8 h-48 flex flex-col justify-center items-center text-text-medium-gray text-xl border border-strapi-light-gray relative overflow-hidden
+                 focus:outline-none focus:ring-0 focus:border-transparent" // Added focus styles to remove outline/ring
+      tabIndex={-1} // Ensure the div itself is not focusable by keyboard unless explicitly needed
+    >
+      <h3 className="text-xl font-semibold mb-4 text-text-dark-gray">Latest Updates</h3>
       
       {latestProposals.length > 0 && currentProposal ? (
         <div className="flex flex-col items-center justify-center text-center">
@@ -47,14 +51,16 @@ const Carousel: React.FC<CarouselProps> = ({ latestProposals }) => {
         <>
           <button
             onClick={handlePrev}
-            className="absolute left-4 p-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 focus:outline-none"
+            className="absolute left-4 p-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600
+                       focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:ring-offset-2" // Explicit focus styles
             aria-label="Previous proposal"
           >
             &larr;
           </button>
           <button
             onClick={handleNext}
-            className="absolute right-4 p-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 focus:outline-none"
+            className="absolute right-4 p-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600
+                       focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:ring-offset-2" // Explicit focus styles
             aria-label="Next proposal"
           >
             &rarr;

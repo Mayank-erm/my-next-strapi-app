@@ -32,6 +32,13 @@ a {
   box-sizing: border-box;
 }
 
+/* Global rule to remove default browser outline on focus */
+/* Individual components/elements should then apply custom focus:ring styles */
+*:focus {
+  outline: none !important; /* Using !important to ensure override */
+}
+
+
 /* Custom scrollbar for sidebar, if needed */
 .sidebar-scroll {
   scrollbar-width: thin; /* For Firefox */
@@ -54,3 +61,33 @@ a {
   border: 2px solid #00382C;
 }
 
+/* Custom scrollbar for other scrollable areas */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-strapi-green-light) var(--color-strapi-gray-bg);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: var(--color-strapi-gray-bg);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--color-strapi-green-light);
+  border-radius: 10px;
+  border: 2px solid var(--color-strapi-gray-bg);
+}
+
+/* Basic animation for dropdowns */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
