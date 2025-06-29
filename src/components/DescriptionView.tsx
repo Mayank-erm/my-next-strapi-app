@@ -1,3 +1,4 @@
+// src/components/DescriptionView.tsx
 import React from 'react';
 import DescriptionPanel from './DescriptionPanel'; // Assuming DescriptionPanel exists
 
@@ -22,15 +23,15 @@ const DescriptionView: React.FC<DescriptionViewProps> = ({ proposal, onRatingSub
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       {/* Critical Information Section - Always visible in Description View */}
-      <div className="bg-blue-50 p-4 rounded-lg mb-4 border border-blue-100 flex-shrink-0 mx-6 mt-6"> {/* Added mx, mt for consistent spacing */}
-        <p className="text-lg font-semibold text-blue-800 mb-2">{proposal.proposalName}</p>
-        <div className="grid grid-cols-2 gap-2 text-sm text-blue-700">
-          <span><span className="font-medium">Client:</span> {proposal.clientName}</span>
-          <span><span className="font-medium">Opportunity #:</span> {proposal.opportunityNumber}</span>
-          <span><span className="font-medium">Status:</span> <span className="font-semibold capitalize">{proposal.pstatus}</span></span>
-          <span><span className="font-medium">Value:</span> ${Number(proposal.value).toLocaleString()}</span>
-          <span><span className="font-medium">Proposed By:</span> {proposal.proposedBy || 'N/A'}</span>
-          <span><span className="font-medium">Published:</span> {new Date(proposal.publishedAt).toLocaleDateString()}</span>
+      <div className="bg-white p-6 rounded-lg shadow-md mb-6 mx-6 mt-6 border border-gray-200">
+        <p className="text-xl font-bold text-gray-900 mb-4">{proposal.proposalName || 'N/A'}</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-6 text-base text-gray-700">
+          <div className="flex items-center"><span className="font-semibold text-gray-800 mr-2">Client:</span> {proposal.clientName || 'N/A'}</div>
+          <div className="flex items-center"><span className="font-semibold text-gray-800 mr-2">Opportunity #:</span> {proposal.opportunityNumber || 'N/A'}</div>
+          <div className="flex items-center"><span className="font-semibold text-gray-800 mr-2">Status:</span> <span className="font-semibold capitalize text-strapi-green-dark">{proposal.pstatus || 'N/A'}</span></div>
+          <div className="flex items-center"><span className="font-semibold text-gray-800 mr-2">Value:</span> ${Number(proposal.value || 0).toLocaleString()}</div>
+          <div className="flex items-center"><span className="font-semibold text-gray-800 mr-2">Proposed By:</span> {proposal.proposedBy || 'N/A'}</div>
+          <div className="flex items-center"><span className="font-semibold text-gray-800 mr-2">Published:</span> {new Date(proposal.publishedAt || '').toLocaleDateString() || 'N/A'}</div>
         </div>
       </div>
 

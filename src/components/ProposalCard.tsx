@@ -1,7 +1,7 @@
-// src/components/ProposalCard.tsx (UPDATED: Triggers Preview Modal, Modernized Design, Status Tags, List View)
+// src/components/ProposalCard.tsx (No changes required for component extraction as DocumentPreviewModal handles its own internals)
 import React, { useState } from 'react';
 import { BookmarkIcon, EllipsisHorizontalIcon, ArrowDownTrayIcon, ShareIcon } from '@heroicons/react/24/outline';
-import DocumentPreviewModal from './DocumentPreviewModal'; // Import the new modal component
+import DocumentPreviewModal from './DocumentPreviewModal'; // Ensure this import is correct
 
 interface ProposalCardProps {
   proposal: {
@@ -16,7 +16,7 @@ interface ProposalCardProps {
     proposedBy: string | null;
     chooseEmployee: number | null;
   };
-  isListView?: boolean; // New prop for list view
+  isListView?: boolean;
 }
 
 // Helper to format date
@@ -42,7 +42,7 @@ const getPlainTextFromRichText = (richTextBlocks: any[] | null | undefined): str
 
 const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, isListView = false }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false); // State for preview modal
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
 
   const toggleDropdown = (event: React.MouseEvent) => {
     event.stopPropagation();
@@ -158,7 +158,7 @@ const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, isListView = fals
       {/* Footer with Preview button - adjusted for list view */}
       <div className={`pt-4 border-t border-gray-100 flex justify-end items-center ${isListView ? 'ml-auto pl-4 border-l' : 'mt-auto'}`}>
         <button
-          onClick={handlePreviewClick} // Click to open preview modal
+          onClick={handlePreviewClick}
           className="bg-strapi-green-light hover:bg-strapi-green-dark text-white font-semibold py-2.5 px-6 rounded-lg
                      transition-all duration-200 ease-in-out transform hover:-translate-y-0.5 shadow-md text-sm
                      focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:ring-offset-2"
@@ -170,7 +170,7 @@ const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, isListView = fals
       {/* Document Preview Modal */}
       {isPreviewModalOpen && (
         <DocumentPreviewModal
-          proposal={proposal} // Pass the entire proposal object
+          proposal={proposal}
           onClose={closePreviewModal}
         />
       )}

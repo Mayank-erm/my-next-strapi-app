@@ -1,4 +1,4 @@
-// src/components/Layout.tsx (UPDATED: Passes onResultClick to Header)
+// src/components/Layout.tsx (UPDATED: Cleaned up imports after component extraction)
 import React, { useState } from 'react';
 import Header from './Header';
 import Sidebar from './Sidebar';
@@ -50,7 +50,7 @@ const Layout: React.FC<LayoutProps> = ({
   searchTerm,
   onSearchChange,
   isLoading,
-  onSearchResultClick, // Destructure new prop
+  onSearchResultClick,
   activeContentType,
   activeServiceLines,
   activeIndustries,
@@ -84,7 +84,7 @@ const Layout: React.FC<LayoutProps> = ({
         searchTerm={searchTerm}
         onSearchChange={onSearchChange}
         isLoading={isLoading}
-        onResultClick={onSearchResultClick} // Pass the new prop
+        onResultClick={onSearchResultClick}
       />
 
       {/* Hamburger icon for mobile/tablet to toggle sidebar */}

@@ -1,8 +1,9 @@
-// src/components/Header.tsx (UPDATED: Clickable search results to open DocumentPreviewModal)
+// src/components/Header.tsx (No changes required for component extraction as DocumentPreviewModal handles its own internals)
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MagnifyingGlassIcon, BellIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { MeiliSearch } from 'meilisearch';
 import UserDropdown from './UserDropdown';
+import DocumentPreviewModal from './DocumentPreviewModal'; // Ensure this import is correct
 
 // Define the interface for Strapi proposals (re-defined here for clarity for click handler)
 interface StrapiProposal {
@@ -76,26 +77,18 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, onSearchChange, isLoading, 
     }
 
     try {
-      // Build MeiliSearch filter string from active pills
       const meiliFilters = activeFilterPills.map(pill => {
-        // This is a simplified example; you'd need to map pill values to actual MeiliSearch filterable attributes
-        // e.g., 'service_line = "Consulting"', 'industry = "Retail"'
-        // For demonstration, let's assume pills match direct field values
-        // This would require your MeiliSearch index to have these fields filterable.
         if (filterCategories['Service Line'].includes(pill)) return `service_line = "${pill}"`;
         if (filterCategories['Industry'].includes(pill)) return `industry = "${pill}"`;
         if (filterCategories['Region'].includes(pill)) return `region = "${pill}"`;
         if (filterCategories['Client Name'].includes(pill)) return `client_name = "${pill}"`;
-        return ''; // Should not happen with well-defined pills
-      }).filter(Boolean); // Remove empty strings
+        return '';
+      }).filter(Boolean);
 
       const results = await searchClient.index('proposals').search(query, {
         limit: 10,
-        filter: meiliFilters.length > 0 ? meiliFilters : undefined, // Apply filters if any
-        // sort: ['_relevance:desc'] // Default sort by relevance
+        filter: meiliFilters.length > 0 ? meiliFilters : undefined,
       });
-      // MeiliSearch results need to be mapped to the StrapiProposal interface if structure differs
-      // Assuming MeiliSearch returns fields matching StrapiProposal structure directly for this example
       setAutocompleteResults(results.hits as StrapiProposal[] || []);
     } catch (error) {
       console.error("MeiliSearch error during autocomplete search:", error);
@@ -107,13 +100,13 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, onSearchChange, isLoading, 
 
   const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
-    onSearchChange(query); // Updates main search term in index.tsx
-    debouncedAutocompleteSearch(query); // Trigger local autocomplete search for dropdown
+    onSearchChange(query);
+    debouncedAutocompleteSearch(query);
   };
 
   const handleResultClick = (proposal: StrapiProposal) => {
-    onResultClick(proposal); // Pass the clicked proposal up to the parent
-    closeSearchModal(); // Close the search modal
+    onResultClick(proposal);
+    closeSearchModal();
   };
 
   // Keyboard Shortcut Logic
@@ -124,7 +117,7 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, onSearchChange, isLoading, 
         setIsSearchModalOpen(true);
       }
       if (event.key === 'Escape' && isSearchModalOpen) {
-        closeSearchModal(); // Use the unified close function
+        closeSearchModal();
       }
     };
 
@@ -133,21 +126,21 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, onSearchChange, isLoading, 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isSearchModalOpen, onSearchChange]);
+  }, [isSearchModalOpen]);
 
   // Focus search input when modal opens, and trigger an initial search if filters are already active
   useEffect(() => {
     if (isSearchModalOpen && searchInputRef.current) {
       searchInputRef.current.focus();
-      debouncedAutocompleteSearch(searchTerm); // Trigger search with current term/filters when modal opens
+      debouncedAutocompleteSearch(searchTerm);
     }
   }, [isSearchModalOpen, searchTerm, debouncedAutocompleteSearch]);
 
   const closeSearchModal = () => {
     setIsSearchModalOpen(false);
     setAutocompleteResults([]);
-    onSearchChange(''); // Clear main search term
-    setActiveFilterPills([]); // Clear filter pills on close
+    onSearchChange('');
+    setActiveFilterPills([]);
   };
 
   return (
@@ -223,16 +216,16 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, onSearchChange, isLoading, 
 
             {/* Modal Body / Search Results / Categories */}
             <div className="p-4 max-h-96 overflow-y-auto">
-              {isLoading && searchTerm.length > 0 ? ( // Show loading only if searching for main content
+              {isLoading && searchTerm.length > 0 ? (
                 <p className="text-gray-500 text-center py-4">Searching...</p>
               ) : searchTerm.length > 0 && autocompleteResults.length > 0 ? (
                 <>
                   <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Search Results</h4>
-                  {autocompleteResults.map((hit: StrapiProposal) => ( // Type the hit
+                  {autocompleteResults.map((hit: StrapiProposal) => (
                     <div
                       key={hit.id}
                       className="p-2 my-1 rounded-md hover:bg-gray-100 cursor-pointer text-gray-800 text-base"
-                      onClick={() => handleResultClick(hit)} // Pass the whole hit object
+                      onClick={() => handleResultClick(hit)}
                     >
                       {hit.proposalName} {hit.clientName ? `- ${hit.clientName}` : ''} ({hit.opportunityNumber})
                     </div>

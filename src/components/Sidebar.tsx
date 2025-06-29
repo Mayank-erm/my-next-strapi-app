@@ -1,7 +1,17 @@
-// src/components/Sidebar.tsx (Updated: Added Bookmark Link)
+// src/components/Sidebar.tsx (Modernized Sidebar with new Bookmark link)
 import React from 'react';
-import { HomeIcon, FolderIcon, ClipboardDocumentListIcon, DocumentTextIcon, UsersIcon, CogIcon, ChartBarIcon, BookmarkIcon } from '@heroicons/react/24/outline'; // Imported BookmarkIcon
+import {
+  HomeIcon,
+  FolderIcon,
+  ClipboardDocumentListIcon,
+  DocumentTextIcon,
+  UsersIcon,
+  Cog6ToothIcon, // Updated from CogIcon for consistency with UserDropdown
+  ChartBarIcon,
+  BookmarkIcon // Imported BookmarkIcon
+} from '@heroicons/react/24/outline';
 import SidebarLink from './SidebarLink';
+import { useRouter } from 'next/router'; // To get current path for active link
 
 interface SidebarProps {
   isExpanded: boolean;
@@ -10,6 +20,9 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ isExpanded, onMouseEnter, onMouseLeave }) => {
+  const router = useRouter();
+  const currentPath = router.pathname;
+
   return (
     <aside
       className={`flex flex-col bg-strapi-green-dark text-white shadow-xl transition-all duration-200 ease-in-out
@@ -24,18 +37,64 @@ const Sidebar: React.FC<SidebarProps> = ({ isExpanded, onMouseEnter, onMouseLeav
 
       {/* Navigation Links */}
       <nav className="flex-1 space-y-2 mb-6">
-        <SidebarLink icon={HomeIcon} text="Home" active isSidebarExpanded={isExpanded} />
+        <SidebarLink
+          icon={HomeIcon}
+          text="Home"
+          href="/"
+          active={currentPath === '/'}
+          isSidebarExpanded={isExpanded}
+        />
         {/* Added Bookmark link to sidebar */}
-        <SidebarLink icon={BookmarkIcon} text="Bookmarked" isSidebarExpanded={isExpanded} />
-        <SidebarLink icon={FolderIcon} text="Content Types" isSidebarExpanded={isExpanded} />
-        <SidebarLink icon={ClipboardDocumentListIcon} text="Collection Types" isSidebarExpanded={isExpanded} />
-        <SidebarLink icon={DocumentTextIcon} text="Single Types" isSidebarExpanded={isExpanded} />
-        <SidebarLink icon={UsersIcon} text="Users" isSidebarExpanded={isExpanded} />
-        <SidebarLink icon={ChartBarIcon} text="Media Library" isSidebarExpanded={isExpanded} />
-        <SidebarLink icon={CogIcon} text="Settings" isSidebarExpanded={isExpanded} />
+        <SidebarLink
+          icon={BookmarkIcon}
+          text="Bookmarked"
+          href="/bookmarks"
+          active={currentPath === '/bookmarks'}
+          isSidebarExpanded={isExpanded}
+        />
+        <SidebarLink
+          icon={FolderIcon}
+          text="Content Types"
+          href="/content-types"
+          active={currentPath === '/content-types'}
+          isSidebarExpanded={isExpanded}
+        />
+        <SidebarLink
+          icon={ClipboardDocumentListIcon}
+          text="Collection Types"
+          href="/collection-types"
+          active={currentPath === '/collection-types'}
+          isSidebarExpanded={isExpanded}
+        />
+        <SidebarLink
+          icon={DocumentTextIcon}
+          text="Single Types"
+          href="/single-types"
+          active={currentPath === '/single-types'}
+          isSidebarExpanded={isExpanded}
+        />
+        <SidebarLink
+          icon={UsersIcon}
+          text="Users"
+          href="/users"
+          active={currentPath === '/users'}
+          isSidebarExpanded={isExpanded}
+        />
+        <SidebarLink
+          icon={ChartBarIcon}
+          text="Media Library"
+          href="/media-library"
+          active={currentPath === '/media-library'}
+          isSidebarExpanded={isExpanded}
+        />
+        <SidebarLink
+          icon={Cog6ToothIcon} // Changed to Cog6ToothIcon for consistency
+          text="Settings"
+          href="/settings"
+          active={currentPath === '/settings'}
+          isSidebarExpanded={isExpanded}
+        />
       </nav>
-
-      {/* Removed Bottom User/Logout Section for cleaner sidebar */}
     </aside>
   );
 };

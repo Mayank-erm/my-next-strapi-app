@@ -1,4 +1,4 @@
-// src/pages/index.tsx (UPDATED: Handles search result click, preview modal state, List View Layout)
+// src/pages/index.tsx (No changes required for component extraction as DocumentPreviewModal handles its own internals)
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '@/components/Layout';
 import Carousel from '@/components/Carousel';
@@ -9,7 +9,7 @@ import { useRouter } from 'next/router';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
 import Header from '@/components/Header';
 import FilterBy from '@/components/FilterBy';
-import DocumentPreviewModal from '@/components/DocumentPreviewModal'; // Import the preview modal
+import DocumentPreviewModal from '@/components/DocumentPreviewModal';
 import { MeiliSearch } from 'meilisearch';
 
 // --- MeiliSearch Configuration ---
@@ -85,7 +85,7 @@ const HomePage: React.FC<HomePageProps> = ({
   const [regionFilter, setRegionFilter] = useState<string[]>(initialRegionFilter);
   const [dateFilter, setDateFilter] = useState<string>(initialDateFilter);
   const [sortBy, setSortBy] = useState<string>(initialSortBy);
-  const [activeView, setActiveView] = useState('grid'); // Default to grid view
+  const [activeView, setActiveView] = useState('grid');
   const [filterSearchTerm, setFilterSearchTerm] = useState<string>('');
 
   // State for document preview modal
@@ -295,7 +295,7 @@ const HomePage: React.FC<HomePageProps> = ({
       searchTerm={searchTerm}
       onSearchChange={handleSearchTermChange}
       isLoading={isLoading}
-      onSearchResultClick={handleSearchResultClick} // Pass the new handler
+      onSearchResultClick={handleSearchResultClick}
       activeContentType={contentTypeFilter}
       activeServiceLines={serviceLineFilter}
       activeIndustries={industryFilter}
@@ -349,7 +349,7 @@ const HomePage: React.FC<HomePageProps> = ({
                           focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:ring-offset-2`}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM13 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2h-2zM13 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2h-2z" />
+                <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM13 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2h-2zM13 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H13z" />
               </svg>
             </button>
             <button

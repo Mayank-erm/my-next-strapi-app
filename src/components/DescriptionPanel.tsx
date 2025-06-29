@@ -1,3 +1,4 @@
+// src/components/DescriptionPanel.tsx
 import React, { useState } from 'react';
 import { StarIcon } from '@heroicons/react/24/outline';
 
@@ -17,7 +18,7 @@ const DescriptionPanel: React.FC<DescriptionPanelProps> = ({ description, onRati
   };
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-6"> {/* Added consistent padding */}
+    <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-6">
       <h3 className="text-xl font-bold text-text-dark-gray mb-4">Description</h3>
       <p className="text-gray-800 leading-relaxed whitespace-pre-wrap mb-8">
         {description || 'No detailed description available.'}

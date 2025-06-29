@@ -1,6 +1,6 @@
 // src/components/DocumentViewer.tsx
 import React, { useRef, useEffect, useState } from 'react';
-import { DocumentTextIcon } from '@heroicons/react/24/outline'; // Removed ArrowDownTrayIcon as it's not used directly here
+import { DocumentTextIcon as SolidDocumentTextIcon } from '@heroicons/react/20/solid';
 
 interface DocumentViewerProps {
   documentPath: string;
@@ -39,7 +39,6 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ documentPath, proposalN
   }, [documentPath, isDirectIframeSupported]);
 
   return (
-    // The key is that this outermost div for DocumentViewer is w-full h-full
     <div className="flex-1 flex items-center justify-center bg-gray-100 rounded-lg overflow-hidden relative w-full h-full">
       {isLoading && isDirectIframeSupported && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-100 bg-opacity-80 z-10">
@@ -53,13 +52,12 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ documentPath, proposalN
         </div>
       )}
       {isDirectIframeSupported && documentPath ? (
-        // This inner div is also crucial to ensure the iframe takes the full space of its flex parent
         <div className="w-full h-full">
           <iframe
             ref={iframeRef}
             src={documentPath}
             title={proposalName}
-            className="w-full h-full border-0" // iframe itself is w-full h-full
+            className="w-full h-full border-0"
             allowFullScreen
           >
             <p>Your browser does not support iframes, or the document could not be loaded.</p>
@@ -68,7 +66,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ documentPath, proposalN
         </div>
       ) : documentPath ? (
         <div className="flex flex-col items-center p-6 text-gray-500 text-center border border-dashed border-gray-300 rounded-lg w-full h-full justify-center">
-          <DocumentTextIcon className="h-16 w-16 text-gray-400 mb-4" />
+          <SolidDocumentTextIcon className="h-16 w-16 text-gray-400 mb-4" />
           <p className="text-lg font-medium text-gray-700 mb-2">File preview not available</p>
           <p className="text-sm text-gray-600 mb-4">This file type is not supported for direct browser preview.</p>
           <p className="text-sm text-gray-600">Please use the download button in the footer to view the document.</p>
