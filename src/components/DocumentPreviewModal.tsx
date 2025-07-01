@@ -28,17 +28,39 @@ const getPlainTextFromRichText = (richTextBlocks: any[] | null | undefined): str
 interface DocumentPreviewModalProps {
   proposal: {
     id: number;
-    opportunityNumber: string;
-    proposalName: string;
-    clientName: string;
-    pstatus: string;
-    value: string | number;
-    description?: any[] | null;
-    publishedAt: string;
+    documentId: string;
+    SF_Number: string;
+    Client_Name: string;
+    Client_Type: string;
+    Client_Contact: string;
+    Client_Contact_Title: string;
+    Client_Journey: string;
+    Document_Type: string;
+    Document_Sub_Type: string;
+    Document_Value_Range: string;
+    Document_Outcome: string;
+    Last_Stage_Change_Date: string;
+    Industry: string;
+    Sub_Industry: string;
+    Service: string;
+    Sub_Service: string;
+    Business_Unit: string;
+    Region: string;
+    Country: string;
+    State: string;
+    City: string;
+    Author: string;
+    PIC: string;
+    PM: string;
+    Keywords: string;
+    Commercial_Program: string;
+    Project_Team: null;
+    SMEs: null;
+    Competitors: string;
     createdAt: string;
     updatedAt: string;
-    proposedBy: string | null;
-    chooseEmployee: number | null;
+    publishedAt: string;
+    Description: any[];
     documentUrl?: string; // Optional document URL from data source
   };
   onClose: () => void;
@@ -93,13 +115,13 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({ proposal, o
 
     if (!path) {
       // Fallback to local test documents if no documentUrl provided by Strapi
-      if (proposal.proposalName?.includes("Excel")) {
+      if (proposal.SF_Number?.includes("Excel")) {
         path = '/documents/test_excel.xlsx';
-      } else if (proposal.proposalName?.includes("Word")) {
+      } else if (proposal.SF_Number?.includes("Word")) {
         path = '/documents/test_word.docx';
-      } else if (proposal.proposalName?.includes("PPT")) {
+      } else if (proposal.SF_Number?.includes("PPT")) {
         path = '/documents/test_ppt.pptx';
-      } else if (proposal.proposalName?.includes("HTML")) {
+      } else if (proposal.SF_Number?.includes("HTML")) {
         path = '/documents/test_html.html'; // Assuming you have a test_html.html
       } else {
         path = '/documents/test_pdf.pdf';
@@ -176,7 +198,7 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({ proposal, o
   const handleDownload = useCallback(() => {
     const link = document.createElement('a');
     link.href = documentPath;
-    link.setAttribute('download', proposal.proposalName + '.' + fileExtension);
+    link.setAttribute('download', proposal.SF_Number + '.' + fileExtension);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -185,10 +207,10 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({ proposal, o
     setToastMessage('Your document download should begin shortly.');
     setToastType('info');
     setIsToastOpen(true);
-  }, [documentPath, proposal.proposalName, fileExtension]);
+  }, [documentPath, proposal.SF_Number, fileExtension]);
 
 
-  const authorName = proposal.proposedBy || 'N/A';
+  const authorName = proposal.Author || 'N/A';
   const publishedDate = new Date(proposal.publishedAt || '').toLocaleDateString() || 'N/A';
   const updatedDate = new Date(proposal.updatedAt || '').toLocaleDateString() || 'N/A';
 
@@ -206,7 +228,7 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({ proposal, o
           {/* Modal Header */}
           <div className="flex justify-between items-center p-4 border-b border-gray-200 flex-shrink-0">
             <h2 className="text-xl font-bold text-text-dark-gray flex-1 truncate pr-4">
-              {proposal.proposalName || 'N/A'} ({proposal.opportunityNumber || 'N/A'})
+              {proposal.SF_Number || 'N/A'} 
             </h2>
 
             {/* Consolidated Toggle Buttons - Placed prominently in the header */}
@@ -245,7 +267,7 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({ proposal, o
             {showDocumentViewer ? (
               <DocumentViewer
                 documentPath={documentPath}
-                proposalName={proposal.proposalName || 'N/A'}
+                proposalName={proposal.SF_Number || 'N/A'}
                 isDirectIframeSupported={isDirectIframeSupported}
               />
             ) : (

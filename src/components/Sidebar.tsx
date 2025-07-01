@@ -1,15 +1,6 @@
-// src/components/Sidebar.tsx (Modernized Sidebar with new Bookmark link)
+// src/components/Sidebar.tsx (Updated with new CMS Page Link)
 import React from 'react';
-import {
-  HomeIcon,
-  FolderIcon,
-  ClipboardDocumentListIcon,
-  DocumentTextIcon,
-  UsersIcon,
-  Cog6ToothIcon, // Updated from CogIcon for consistency with UserDropdown
-  ChartBarIcon,
-  BookmarkIcon // Imported BookmarkIcon
-} from '@heroicons/react/24/outline';
+import { HomeIcon, FolderIcon, ClipboardDocumentListIcon, DocumentTextIcon, UsersIcon, Cog6ToothIcon, ChartBarIcon, BookmarkIcon } from '@heroicons/react/24/outline'; // Imported BookmarkIcon
 import SidebarLink from './SidebarLink';
 import { useRouter } from 'next/router'; // To get current path for active link
 
@@ -44,7 +35,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isExpanded, onMouseEnter, onMouseLeav
           active={currentPath === '/'}
           isSidebarExpanded={isExpanded}
         />
-        {/* Added Bookmark link to sidebar */}
+        <SidebarLink
+          icon={DocumentTextIcon} // Using DocumentTextIcon for All Content / CMS Page
+          text="All Content"
+          href="/content-management"
+          active={currentPath === '/content-management'}
+          isSidebarExpanded={isExpanded}
+        />
         <SidebarLink
           icon={BookmarkIcon}
           text="Bookmarked"
@@ -66,6 +63,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isExpanded, onMouseEnter, onMouseLeav
           active={currentPath === '/collection-types'}
           isSidebarExpanded={isExpanded}
         />
+        {/* You can replace the below with actual single types or manage dynamically */}
         <SidebarLink
           icon={DocumentTextIcon}
           text="Single Types"

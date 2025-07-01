@@ -6,15 +6,39 @@ import DocumentPreviewModal from './DocumentPreviewModal'; // Ensure this import
 interface ProposalCardProps {
   proposal: {
     id: number;
-    opportunityNumber: string;
-    proposalName: string;
-    clientName: string;
-    pstatus: string;
-    value: string | number;
-    description?: any[] | null;
+    documentId: string;
+    SF_Number: string;
+    Client_Name: string;
+    Client_Type: string;
+    Client_Contact: string;
+    Client_Contact_Title: string;
+    Client_Journey: string;
+    Document_Type: string;
+    Document_Sub_Type: string;
+    Document_Value_Range: string;
+    Document_Outcome: string;
+    Last_Stage_Change_Date: string;
+    Industry: string;
+    Sub_Industry: string;
+    Service: string;
+    Sub_Service: string;
+    Business_Unit: string;
+    Region: string;
+    Country: string;
+    State: string;
+    City: string;
+    Author: string;
+    PIC: string;
+    PM: string;
+    Keywords: string;
+    Commercial_Program: string;
+    Project_Team: null;
+    SMEs: null;
+    Competitors: string;
+    createdAt: string;
+    updatedAt: string;
     publishedAt: string;
-    proposedBy: string | null;
-    chooseEmployee: number | null;
+    Description: any[];
   };
   isListView?: boolean;
 }
@@ -50,12 +74,12 @@ const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, isListView = fals
   };
 
   const handleShare = () => {
-    alert(`Sharing ${proposal.proposalName}`);
+    alert(`Sharing ${proposal.SF_Number}`);
     setIsDropdownOpen(false);
   };
 
   const handleDownload = () => {
-    alert(`Downloading ${proposal.proposalName}`);
+    alert(`Downloading ${proposal.SF_Number}`);
     setIsDropdownOpen(false);
   };
 
@@ -106,20 +130,20 @@ const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, isListView = fals
         // List view header - simplified
         <div className="flex items-center space-x-4 flex-grow truncate">
           <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-md">Proposal</span>
-          <h3 className="text-lg font-bold text-text-dark-gray truncate" title={proposal.proposalName}>
-            {proposal.proposalName}
+          <h3 className="text-lg font-bold text-text-dark-gray truncate" title={proposal.SF_Number}>
+            {proposal.SF_Number}
           </h3>
           <p className="text-sm text-gray-600 whitespace-nowrap">
-            <span className="font-semibold">{proposal.clientName}</span> Inc.
+            <span className="font-semibold">{proposal.Client_Name}</span> Inc.
           </p>
           <span className={`ml-2 px-2 py-0.5 text-xs font-semibold rounded-full capitalize whitespace-nowrap
-            ${proposal.pstatus === 'pending' ? 'bg-yellow-100 text-yellow-800' : ''}
-            ${proposal.pstatus === 'approved' ? 'bg-green-100 text-green-800' : ''}
-            ${proposal.pstatus === 'rejected' ? 'bg-red-100 text-red-800' : ''}
-            ${proposal.pstatus === 'submitted' ? 'bg-blue-100 text-blue-800' : ''}
-            ${!['pending', 'approved', 'rejected', 'submitted'].includes(proposal.pstatus) ? 'bg-gray-200 text-gray-700' : ''}
+            ${proposal.Document_Outcome === 'pending' ? 'bg-yellow-100 text-yellow-800' : ''}
+            ${proposal.Document_Outcome === 'approved' ? 'bg-green-100 text-green-800' : ''}
+            ${proposal.Document_Outcome === 'rejected' ? 'bg-red-100 text-red-800' : ''}
+            ${proposal.Document_Outcome === 'submitted' ? 'bg-blue-100 text-blue-800' : ''}
+            ${!['pending', 'approved', 'rejected', 'submitted'].includes(proposal.Document_Outcome) ? 'bg-gray-200 text-gray-700' : ''}
           `}>
-            {proposal.pstatus}
+            {proposal.Document_Outcome}
           </span>
           <p className="text-sm text-gray-500 whitespace-nowrap hidden sm:block">{formatDate(proposal.publishedAt)}</p>
         </div>
@@ -128,23 +152,23 @@ const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, isListView = fals
       {!isListView && (
         <>
           {/* Title - only for grid view as it's part of list view header */}
-          <h3 className="text-lg font-bold text-text-dark-gray mb-1.5 truncate" title={proposal.proposalName}>
-            {proposal.proposalName}
+          <h3 className="text-lg font-bold text-text-dark-gray mb-1.5 truncate" title={proposal.SF_Number}>
+            {proposal.SF_Number}
           </h3>
 
           {/* Client Name and Status Tag - only for grid view */}
           <div className="flex items-baseline mb-2">
             <p className="text-sm text-gray-600">
-              <span className="font-semibold">{proposal.clientName}</span> Inc.
+              <span className="font-semibold">{proposal.Client_Name}</span> Inc.
             </p>
             <span className={`ml-2 px-2 py-0.5 text-xs font-semibold rounded-full capitalize
-              ${proposal.pstatus === 'pending' ? 'bg-yellow-100 text-yellow-800' : ''}
-              ${proposal.pstatus === 'approved' ? 'bg-green-100 text-green-800' : ''}
-              ${proposal.pstatus === 'rejected' ? 'bg-red-100 text-red-800' : ''}
-              ${proposal.pstatus === 'submitted' ? 'bg-blue-100 text-blue-800' : ''}
-              ${!['pending', 'approved', 'rejected', 'submitted'].includes(proposal.pstatus) ? 'bg-gray-200 text-gray-700' : ''}
+              ${proposal.Document_Outcome === 'pending' ? 'bg-yellow-100 text-yellow-800' : ''}
+              ${proposal.Document_Outcome === 'approved' ? 'bg-green-100 text-green-800' : ''}
+              ${proposal.Document_Outcome === 'rejected' ? 'bg-red-100 text-red-800' : ''}
+              ${proposal.Document_Outcome === 'submitted' ? 'bg-blue-100 text-blue-800' : ''}
+              ${!['pending', 'approved', 'rejected', 'submitted'].includes(proposal.Document_Outcome) ? 'bg-gray-200 text-gray-700' : ''}
             `}>
-              {proposal.pstatus}
+              {proposal.Document_Outcome}
             </span>
           </div>
 

@@ -1,18 +1,18 @@
-// src/components/Header.tsx (No changes required for component extraction as DocumentPreviewModal handles its own internals)
+// src/components/Header.tsx (UPDATED: Universal Search logic streamlined with URL query params)
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MagnifyingGlassIcon, BellIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { MeiliSearch } from 'meilisearch';
 import UserDropdown from './UserDropdown';
-import DocumentPreviewModal from './DocumentPreviewModal'; // Ensure this import is correct
+import { useRouter } from 'next/router';
 
-// Define the interface for Strapi proposals (re-defined here for clarity for click handler)
+// Define the interface for Strapi proposals
 interface StrapiProposal {
   id: number;
   opportunityNumber: string;
   proposalName: string;
   clientName: string;
-  pstatus: string; // Using pstatus as per your Strapi field
-  value: string | number; // Allow value to be string or number based on Strapi output
+  pstatus: string;
+  value: string | number;
   description?: any[] | null;
   publishedAt: string;
   createdAt: string;
@@ -21,17 +21,16 @@ interface StrapiProposal {
   chooseEmployee: number | null;
 }
 
-// Props for Header component - Now includes onResultClick
+// Props for Header component - now explicitly takes the global searchTerm from Layout
 interface HeaderProps {
-  searchTerm: string;
-  onSearchChange: (term: string) => void;
+  searchTerm: string; // The global search term from URL
   isLoading: boolean;
-  onResultClick: (proposal: StrapiProposal) => void; // New prop to handle result click
+  onResultClick?: (proposal: StrapiProposal) => void;
 }
 
 // --- MeiliSearch Configuration ---
 const MEILISEARCH_HOST = 'http://localhost:7700';
-const MEILISEARCH_API_KEY = 'masterKey'; // IMPORTANT: Use your search API KEY, NOT the master key!
+const MEILISEARCH_API_KEY = 'masterKey';
 
 const searchClient = new MeiliSearch({
   host: MEILISEARCH_HOST,
@@ -47,17 +46,26 @@ const debounce = (func: (...args: any[]) => void, delay: number) => {
   };
 };
 
-const Header: React.FC<HeaderProps> = ({ searchTerm, onSearchChange, isLoading, onResultClick }) => {
-  const [autocompleteResults, setAutocompleteResults] = useState<StrapiProposal[]>([]); // Type the results
+const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, onResultClick }) => {
+  const router = useRouter();
+  const [internalSearchTerm, setInternalSearchTerm] = useState<string>(''); // Internal state for search modal input
+  const [autocompleteResults, setAutocompleteResults] = useState<StrapiProposal[]>([]);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [activeFilterPills, setActiveFilterPills] = useState<string[]>([]);
+
+  // Initialize internalSearchTerm from prop when modal opens
+  useEffect(() => {
+    if (isSearchModalOpen) {
+      setInternalSearchTerm(searchTerm); // Sync with global search term from URL
+    }
+  }, [isSearchModalOpen, searchTerm]);
 
   const filterCategories = {
     'Service Line': ['Consulting', 'Engineering', 'Digital Solutions'],
     'Industry': ['Retail', 'Energy', 'Healthcare'],
     'Region': ['North America', 'Europe', 'Asia Pacific'],
-    'Client Name': ['Globex Inc.', 'Stark Industries Inc.', 'Acme Corp Inc.'], // Example client names
+    'Client Name': ['Globex Inc.', 'Stark Industries Inc.', 'Acme Corp Inc.'],
   };
 
   const handleFilterPillClick = (category: string, value: string) => {
@@ -65,12 +73,10 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, onSearchChange, isLoading, 
       ? activeFilterPills.filter(pill => pill !== value)
       : [...activeFilterPills, value];
     setActiveFilterPills(newActivePills);
-    // Re-trigger autocomplete search with updated filters
-    debouncedAutocompleteSearch(searchTerm);
+    debouncedAutocompleteSearch(internalSearchTerm);
   };
 
   const performAutocompleteSearch = async (query: string) => {
-    // If no query and no active pills, clear results
     if (query.length === 0 && activeFilterPills.length === 0) {
       setAutocompleteResults([]);
       return;
@@ -100,16 +106,38 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, onSearchChange, isLoading, 
 
   const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
-    onSearchChange(query);
+    setInternalSearchTerm(query);
     debouncedAutocompleteSearch(query);
   };
 
   const handleResultClick = (proposal: StrapiProposal) => {
-    onResultClick(proposal);
-    closeSearchModal();
+    if (onResultClick) {
+        onResultClick(proposal);
+    }
+    closeSearchModal(false);
   };
 
-  // Keyboard Shortcut Logic
+  // Function to close the modal and optionally trigger a global search via URL
+  const closeSearchModal = (triggerGlobalSearch: boolean = false) => {
+    setIsSearchModalOpen(false);
+    setAutocompleteResults([]);
+    setActiveFilterPills([]);
+
+    if (triggerGlobalSearch && internalSearchTerm) {
+        // Construct new query object
+        const newQuery = { ...router.query, searchTerm: internalSearchTerm };
+        // Clean up empty search term
+        if (!internalSearchTerm) delete newQuery.searchTerm;
+        
+        router.push({
+            pathname: '/content-management', // Always redirect to CMS page for global search results
+            query: newQuery
+        }, undefined, { shallow: true });
+    }
+    // internalSearchTerm is reset by useEffect when modal closes via `isSearchModalOpen` change
+  };
+
+  // Keyboard Shortcut Logic for opening/closing modal
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
@@ -117,31 +145,23 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, onSearchChange, isLoading, 
         setIsSearchModalOpen(true);
       }
       if (event.key === 'Escape' && isSearchModalOpen) {
-        closeSearchModal();
+        closeSearchModal(false);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
-
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isSearchModalOpen]);
 
-  // Focus search input when modal opens, and trigger an initial search if filters are already active
+  // Focus search input when modal opens
   useEffect(() => {
     if (isSearchModalOpen && searchInputRef.current) {
       searchInputRef.current.focus();
-      debouncedAutocompleteSearch(searchTerm);
     }
-  }, [isSearchModalOpen, searchTerm, debouncedAutocompleteSearch]);
+  }, [isSearchModalOpen]);
 
-  const closeSearchModal = () => {
-    setIsSearchModalOpen(false);
-    setAutocompleteResults([]);
-    onSearchChange('');
-    setActiveFilterPills([]);
-  };
 
   return (
     <header
@@ -149,7 +169,7 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, onSearchChange, isLoading, 
                  focus:outline-none focus:ring-0 focus:border-transparent"
       tabIndex={-1}
     >
-      {/* Left section: Logo and Title in the header */}
+      {/* Left section: Logo and Title */}
       <div className="flex items-center">
         <div className="w-8 h-8 mr-2 overflow-hidden flex items-center justify-center">
           <img src="/images/ERM_Vertical_Green_Black_RGB.svg" alt="ERM Logo" className="w-full h-full object-contain" />
@@ -175,7 +195,7 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, onSearchChange, isLoading, 
         </button>
       </div>
 
-      {/* Right section: Icons and user info with dividers */}
+      {/* Right section: Icons and user info */}
       <div className="flex items-center divide-x divide-gray-200">
         <div className="pr-4">
           <BellIcon className="h-6 w-6 text-text-medium-gray cursor-pointer
@@ -201,11 +221,16 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, onSearchChange, isLoading, 
                 type="text"
                 placeholder="Search..."
                 className="flex-1 text-lg border-none focus:ring-0 focus:outline-none"
-                value={searchTerm}
+                value={internalSearchTerm}
                 onChange={handleSearchInputChange}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                        closeSearchModal(true); // Trigger global search on Enter
+                    }
+                }}
               />
               <button
-                onClick={closeSearchModal}
+                onClick={() => closeSearchModal(false)}
                 className="ml-3 p-2 rounded-md hover:bg-gray-100 text-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-200"
                 aria-label="Close search"
               >
@@ -216,9 +241,9 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, onSearchChange, isLoading, 
 
             {/* Modal Body / Search Results / Categories */}
             <div className="p-4 max-h-96 overflow-y-auto">
-              {isLoading && searchTerm.length > 0 ? (
+              {propIsLoading && internalSearchTerm.length > 0 ? (
                 <p className="text-gray-500 text-center py-4">Searching...</p>
-              ) : searchTerm.length > 0 && autocompleteResults.length > 0 ? (
+              ) : internalSearchTerm.length > 0 && autocompleteResults.length > 0 ? (
                 <>
                   <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Search Results</h4>
                   {autocompleteResults.map((hit: StrapiProposal) => (
@@ -231,8 +256,8 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, onSearchChange, isLoading, 
                     </div>
                   ))}
                 </>
-              ) : searchTerm.length > 0 && autocompleteResults.length === 0 ? (
-                <p className="text-gray-500 text-center py-4">No results found for "{searchTerm}"</p>
+              ) : internalSearchTerm.length > 0 && autocompleteResults.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">No results found for "{internalSearchTerm}"</p>
               ) : (
                 <p className="text-gray-500 text-center py-4">Start typing to search...</p>
               )}

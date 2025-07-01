@@ -1,4 +1,4 @@
-// src/pages/index.tsx (No changes required for component extraction as DocumentPreviewModal handles its own internals)
+// src/pages/index.tsx (UPDATED: Reads searchTerm from URL, simplifies Layout props)
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '@/components/Layout';
 import Carousel from '@/components/Carousel';
@@ -7,8 +7,8 @@ import Pagination from '@/components/Pagination';
 import { GetServerSideProps } from 'next';
 import { useRouter } from 'next/router';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
-import Header from '@/components/Header';
-import FilterBy from '@/components/FilterBy';
+import Header from '@/components/Header'; // Keep import for context
+import FilterBy from '@/components/FilterBy'; // Keep import for context
 import DocumentPreviewModal from '@/components/DocumentPreviewModal';
 import { MeiliSearch } from 'meilisearch';
 
@@ -24,17 +24,39 @@ const meiliSearchClient = new MeiliSearch({
 // Define the interface for Strapi proposals
 interface StrapiProposal {
   id: number;
-  opportunityNumber: string;
-  proposalName: string;
-  clientName: string;
-  pstatus: string;
-  value: string | number;
-  description?: any[] | null;
-  publishedAt: string;
+  documentId: string;
+  SF_Number: string;
+  Client_Name: string;
+  Client_Type: string;
+  Client_Contact: string;
+  Client_Contact_Title: string;
+  Client_Journey: string;
+  Document_Type: string;
+  Document_Sub_Type: string;
+  Document_Value_Range: string;
+  Document_Outcome: string;
+  Last_Stage_Change_Date: string;
+  Industry: string;
+  Sub_Industry: string;
+  Service: string;
+  Sub_Service: string;
+  Business_Unit: string;
+  Region: string;
+  Country: string;
+  State: string;
+  City: string;
+  Author: string;
+  PIC: string;
+  PM: string;
+  Keywords: string;
+  Commercial_Program: string;
+  Project_Team: null;
+  SMEs: null;
+  Competitors: string;
   createdAt: string;
   updatedAt: string;
-  proposedBy: string | null;
-  chooseEmployee: number | null;
+  publishedAt: string;
+  Description: any[];
 }
 
 // Define props for the HomePage component
@@ -44,7 +66,7 @@ interface HomePageProps {
   initialCurrentPage: number;
   initialLatestProposals: StrapiProposal[];
   initialError?: string | null;
-  initialSearchTerm?: string;
+  // initialSearchTerm?: string; // Removed, now read from URL
   initialContentTypeFilter?: string;
   initialServiceLineFilter?: string[];
   initialIndustryFilter?: string[];
@@ -61,7 +83,7 @@ const HomePage: React.FC<HomePageProps> = ({
   initialCurrentPage,
   initialLatestProposals,
   initialError,
-  initialSearchTerm = '',
+  // initialSearchTerm = '', // Removed
   initialContentTypeFilter = 'Proposals',
   initialServiceLineFilter = [],
   initialIndustryFilter = [],
@@ -70,6 +92,7 @@ const HomePage: React.FC<HomePageProps> = ({
   initialSortBy = 'publishedAt:desc',
 }) => {
   const router = useRouter();
+  const searchTerm = (router.query.searchTerm as string) || ''; // Read searchTerm from URL
 
   const [proposals, setProposals] = useState<StrapiProposal[]>(initialProposals);
   const [totalProposals, setTotalProposals] = useState<number>(initialTotalProposals);
@@ -78,7 +101,7 @@ const HomePage: React.FC<HomePageProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState<number>(initialCurrentPage);
 
-  const [searchTerm, setSearchTerm] = useState<string>(initialSearchTerm);
+  // const [searchTerm, setSearchTerm] = useState<string>(initialSearchTerm); // Removed, now from URL
   const [contentTypeFilter, setContentTypeFilter] = useState<string>(initialContentTypeFilter);
   const [serviceLineFilter, setServiceLineFilter] = useState<string[]>(initialServiceLineFilter);
   const [industryFilter, setIndustryFilter] = useState<string[]>(initialIndustryFilter);
@@ -86,14 +109,13 @@ const HomePage: React.FC<HomePageProps> = ({
   const [dateFilter, setDateFilter] = useState<string>(initialDateFilter);
   const [sortBy, setSortBy] = useState<string>(initialSortBy);
   const [activeView, setActiveView] = useState('grid');
-  const [filterSearchTerm, setFilterSearchTerm] = useState<string>('');
+  const [filterSearchTerm, setFilterSearchTerm] = useState<string>(''); // For FilterBy search within filters
 
   // State for document preview modal
   const [isDocumentPreviewOpen, setIsDocumentPreviewOpen] = useState(false);
   const [selectedProposalForPreview, setSelectedProposalForPreview] = useState<StrapiProposal | null>(null);
 
-
-  // Debounce for search term
+  // Debounce for URL search term (if index.tsx also needs debounced URL term for its primary fetch)
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -116,12 +138,13 @@ const HomePage: React.FC<HomePageProps> = ({
     setIsLoading(true);
     setError(null);
 
-    const strapiApiUrl = 'http://localhost:1337/api/proposals';
+    const strapiApiUrl = 'http://localhost:1337/api/document-stores';
     let proposalsData: any = {};
 
     try {
       if (currentSearchTerm) {
         // Perform MeiliSearch when a search term is present
+        // HomePage's MeiliSearch only does q search, not filter/sort on other attributes
         const meiliSearchResults = await meiliSearchClient.index('proposals').search(currentSearchTerm, {
           offset: (page - 1) * ITEMS_PER_PAGE,
           limit: ITEMS_PER_PAGE,
@@ -132,11 +155,9 @@ const HomePage: React.FC<HomePageProps> = ({
 
       } else {
         // Fallback to Strapi API for general listing when no search term
-        const offset = (page - 1) * ITEMS_PER_PAGE;
         const queryParams = new URLSearchParams();
-        queryParams.append('pagination[start]', String(offset));
-        queryParams.append('pagination[limit]', String(ITEMS_PER_PAGE));
-        queryParams.append('populate', 'chooseEmployee');
+        queryParams.append('pagination[page]', String(page));
+        queryParams.append('pagination[pageSize]', String(ITEMS_PER_PAGE));
         queryParams.append('filters[publishedAt][$notNull]', 'true');
         queryParams.append('sort', currentSortBy);
 
@@ -160,10 +181,11 @@ const HomePage: React.FC<HomePageProps> = ({
 
 
   // Effect to re-fetch data and update URL when relevant state changes
+  // Now also reacts to changes in URL searchTerm
   useEffect(() => {
     const newQuery: { [key: string]: string | string[] } = {
       page: String(currentPage),
-      searchTerm: debouncedSearchTerm,
+      searchTerm: searchTerm, // Use searchTerm from URL
       contentType: contentTypeFilter,
       serviceLine: serviceLineFilter.join(','),
       industry: industryFilter.join(','),
@@ -205,7 +227,7 @@ const HomePage: React.FC<HomePageProps> = ({
 
     fetchProposals(
       currentPage,
-      debouncedSearchTerm,
+      searchTerm, // Use searchTerm from URL
       contentTypeFilter,
       serviceLineFilter,
       industryFilter,
@@ -215,7 +237,7 @@ const HomePage: React.FC<HomePageProps> = ({
     );
   }, [
     currentPage,
-    debouncedSearchTerm,
+    searchTerm, // Now reacts to URL searchTerm
     contentTypeFilter,
     JSON.stringify(serviceLineFilter),
     JSON.stringify(industryFilter),
@@ -252,7 +274,8 @@ const HomePage: React.FC<HomePageProps> = ({
   }, []);
   
   const handleClearFilters = useCallback(() => {
-    setSearchTerm('');
+    // setSearchTerm(''); // No longer needed, URL controls this
+    router.replace({ pathname: router.pathname, query: {} }, undefined, { shallow: true }); // Clear all URL params
     setContentTypeFilter('Proposals');
     setServiceLineFilter([]);
     setIndustryFilter([]);
@@ -260,13 +283,9 @@ const HomePage: React.FC<HomePageProps> = ({
     setDateFilter('');
     setSortBy('publishedAt:desc');
     setCurrentPage(1);
-  }, []);
+  }, [router]);
 
-  const handleSearchTermChange = useCallback((term: string) => {
-    setSearchTerm(term);
-    setCurrentPage(1);
-  }, []);
-
+  // handleSearchTermChange is removed as Header directly controls URL searchTerm
   const handleSearchInFiltersChange = useCallback((term: string) => {
     setFilterSearchTerm(term);
   }, []);
@@ -276,13 +295,11 @@ const HomePage: React.FC<HomePageProps> = ({
     setCurrentPage(1);
   }, []);
 
-  // Handler for when a search result is clicked in the Header modal
   const handleSearchResultClick = useCallback((proposal: StrapiProposal) => {
     setSelectedProposalForPreview(proposal);
     setIsDocumentPreviewOpen(true);
   }, []);
 
-  // Handler to close the Document Preview Modal
   const closeDocumentPreview = useCallback(() => {
     setIsDocumentPreviewOpen(false);
     setSelectedProposalForPreview(null);
@@ -292,8 +309,8 @@ const HomePage: React.FC<HomePageProps> = ({
 
   return (
     <Layout
-      searchTerm={searchTerm}
-      onSearchChange={handleSearchTermChange}
+      searchTerm={searchTerm} // Pass searchTerm from URL
+      // onSearchChange is no longer passed to Layout -> Header
       isLoading={isLoading}
       onSearchResultClick={handleSearchResultClick}
       activeContentType={contentTypeFilter}
@@ -331,10 +348,9 @@ const HomePage: React.FC<HomePageProps> = ({
             >
               <option value="publishedAt:desc">Published Date (Newest)</option>
               <option value="publishedAt:asc">Published Date (Oldest)</option>
-              <option value="proposalName:asc">Proposal Name (A-Z)</option>
-              <option value="proposalName:desc">Proposal Name (Z-A)</option>
-              <option value="clientName:asc">Client Name (A-Z)</option>
-              <option value="opportunityNumber:asc">Opportunity Number (Asc)</option>
+              <option value="SF_Number:asc">SF Number (A-Z)</option>
+              <option value="SF_Number:desc">SF Number (Z-A)</option>
+              <option value="Client_Name:asc">Client Name (A-Z)</option>
             </select>
             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
               <ChevronDownIcon className="h-4 w-4" />
@@ -349,7 +365,7 @@ const HomePage: React.FC<HomePageProps> = ({
                           focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:ring-offset-2`}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM13 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2h-2zM13 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H13z" />
+                <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM13 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2h-2zM13 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2h-2z" />
               </svg>
             </button>
             <button
@@ -404,7 +420,7 @@ const HomePage: React.FC<HomePageProps> = ({
 };
 
 export const getServerSideProps: GetServerSideProps<HomePageProps> = async (context) => {
-  const STRAPI_API_URL = 'http://localhost:1337/api/proposals';
+  const STRAPI_API_URL = 'http://localhost:1337/api/document-stores';
   let initialProposals: StrapiProposal[] = [];
   let initialTotalProposals = 0;
   let initialLatestProposals: StrapiProposal[] = [];
@@ -412,7 +428,7 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async (cont
 
   const query = context.query;
   const page = parseInt(query.page as string || '1');
-  const searchTerm = (query.searchTerm as string) || '';
+  const searchTerm = (query.searchTerm as string) || ''; // Read searchTerm from URL
   const contentType = (query.contentType as string) || 'Proposals';
   const serviceLine = query.serviceLine
     ? (Array.isArray(query.serviceLine) ? query.serviceLine : String(query.serviceLine).split(','))
@@ -427,27 +443,57 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async (cont
   const sortBy = (query.sortBy as string) || 'publishedAt:desc';
 
 
-  const offset = (page - 1) * ITEMS_PER_PAGE;
-
   const ssrQueryParams = new URLSearchParams();
-  ssrQueryParams.append('pagination[start]', String(offset));
-  ssrQueryParams.append('pagination[limit]', String(ITEMS_PER_PAGE));
-  ssrQueryParams.append('populate', 'chooseEmployee');
+  ssrQueryParams.append('pagination[page]', String(page));
+  ssrQueryParams.append('pagination[pageSize]', String(ITEMS_PER_PAGE));
   ssrQueryParams.append('filters[publishedAt][$notNull]', 'true');
   ssrQueryParams.append('sort', sortBy);
 
+  // Apply searchTerm filter if present in URL
+  if (searchTerm) {
+      // Assuming MeiliSearch is used for keyword search on homepage also
+      // This part might need adjustment if MeiliSearch indexing is limited
+      const meiliSearchClient = new MeiliSearch({
+        host: MEILISEARCH_HOST,
+        apiKey: MEILISEARCH_API_KEY,
+      });
+      try {
+        const meiliSearchResults = await meiliSearchClient.index('proposals').search(searchTerm, {
+          offset: offset,
+          limit: ITEMS_PER_PAGE,
+          sort: [sortBy],
+        });
+        initialProposals = meiliSearchResults.hits as StrapiProposal[] || [];
+        initialTotalProposals = meiliSearchResults.estimatedTotalHits || 0;
+      } catch (meiliError: any) {
+        console.error('[getServerSideProps] MeiliSearch failed for Homepage:', meiliError);
+        initialError = `Search failed: ${meiliError.message}. Falling back to general listing.`;
+        // Fallback to Strapi API if MeiliSearch fails
+        const response = await fetch(`${STRAPI_API_URL}?${ssrQueryParams.toString()}`);
+        const data = await response.json();
+        initialProposals = data.data || [];
+        initialTotalProposals = data.meta?.pagination?.total || 0;
+      }
+
+  } else {
+    try {
+      const proposalsResponse = await fetch(`${STRAPI_API_URL}?${ssrQueryParams.toString()}`);
+      
+      if (!proposalsResponse.ok) {
+        throw new Error(`Strapi proposals API returned status ${proposalsResponse.status}`);
+      }
+      const proposalsData = await proposalsResponse.json();
+      
+      initialProposals = proposalsData.data || [];
+      initialTotalProposals = proposalsData.meta?.pagination?.total || 0;
+    } catch (err: any) {
+      console.error('[getServerSideProps] Failed to fetch data from Strapi:', err);
+      initialError = `Failed to load data: ${err.message}. Please ensure Strapi is running and accessible at ${STRAPI_API_URL}.`;
+    }
+  }
+
 
   try {
-    const proposalsResponse = await fetch(`${STRAPI_API_URL}?${ssrQueryParams.toString()}`);
-    
-    if (!proposalsResponse.ok) {
-      throw new Error(`Strapi proposals API returned status ${proposalsResponse.status}`);
-    }
-    const proposalsData = await proposalsResponse.json();
-    
-    initialProposals = proposalsData.data || [];
-    initialTotalProposals = proposalsData.meta?.pagination?.total || 0;
-
     const latestProposalsResponse = await fetch(`${STRAPI_API_URL}?sort=publishedAt:desc&pagination[limit]=2`);
     if (!latestProposalsResponse.ok) {
       console.warn(`Strapi latest proposals API returned status ${latestProposalsResponse.status}. Carousel might not show latest data.`);
@@ -458,8 +504,8 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async (cont
     }
 
   } catch (err: any) {
-    console.error('[getServerSideProps] Failed to fetch data from Strapi:', err);
-    initialError = `Failed to load data: ${err.message}. Please ensure Strapi is running and accessible at ${STRAPI_API_URL}.`;
+    console.error('[getServerSideProps] Failed to fetch latest data from Strapi:', err);
+    // initialError might be overwritten, but this is for carousel, so perhaps less critical
   }
 
   return {
@@ -469,7 +515,7 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async (cont
       initialCurrentPage: page,
       initialLatestProposals,
       initialError,
-      initialSearchTerm: searchTerm,
+      // initialSearchTerm is now read from URL directly
       initialContentTypeFilter: contentType,
       initialServiceLineFilter: serviceLine as string[],
       initialIndustryFilter: industry as string[],

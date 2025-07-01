@@ -1,10 +1,11 @@
-// src/components/Layout.tsx (UPDATED: Cleaned up imports after component extraction)
+// src/components/Layout.tsx (UPDATED: Passes searchTerm from URL to Header, removes onSearchChange prop)
 import React, { useState } from 'react';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import FilterBy from './FilterBy';
 import Footer from './Footer';
 import { Bars3Icon } from '@heroicons/react/24/outline';
+import { useRouter } from 'next/router'; // Import useRouter
 
 // Define the interface for Strapi proposals (re-defined for prop types)
 interface StrapiProposal {
@@ -22,15 +23,17 @@ interface StrapiProposal {
   chooseEmployee: number | null;
 }
 
-// Define the props that Layout now expects from HomePage (index.tsx)
+// Define the props that Layout now expects from HomePage (index.tsx) or CmsPage (content-management.tsx)
 interface LayoutProps {
   children: React.ReactNode;
-  // Props for Header
-  searchTerm: string;
-  onSearchChange: (term: string) => void;
-  isLoading: boolean;
-  onSearchResultClick: (proposal: StrapiProposal) => void; // New prop for search result click
-  // Props for FilterBy
+  // Props for Header (searchTerm will come from URL via router.query)
+  // searchTerm: string; // Removed as Header will manage its own internal/URL state for search
+  // onSearchChange: (term: string) => void; // Removed as Header now controls URL directly
+  // isLoading is still used by Header for its internal autocomplete state
+  isLoading: boolean; // Prop for internal search modal loading in Header
+  onSearchResultClick: (proposal: StrapiProposal) => void; // Prop for search result click in Header
+
+  // Props for FilterBy (if still used on homepage)
   activeContentType: string;
   activeServiceLines: string[];
   activeIndustries: string[];
@@ -47,8 +50,8 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({
   children,
-  searchTerm,
-  onSearchChange,
+  // searchTerm, // Removed from destructuring
+  // onSearchChange, // Removed from destructuring
   isLoading,
   onSearchResultClick,
   activeContentType,
@@ -64,6 +67,9 @@ const Layout: React.FC<LayoutProps> = ({
   onSearchInFiltersChange,
   onClearAllFilters,
 }) => {
+  const router = useRouter();
+  const currentSearchTerm = (router.query.searchTerm as string) || ''; // Get searchTerm directly from URL
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
@@ -79,10 +85,10 @@ const Layout: React.FC<LayoutProps> = ({
 
   return (
     <div className="flex flex-col min-h-screen bg-strapi-gray-bg font-inter">
-      {/* Header component, passing searchTerm, onSearchChange, isLoading, and onResultClick */}
+      {/* Header component, now receives searchTerm from URL */}
       <Header
-        searchTerm={searchTerm}
-        onSearchChange={onSearchChange}
+        searchTerm={currentSearchTerm} // Pass searchTerm from URL query
+        // onSearchChange is no longer passed as Header controls its own URL redirect
         isLoading={isLoading}
         onResultClick={onSearchResultClick}
       />
@@ -99,14 +105,14 @@ const Layout: React.FC<LayoutProps> = ({
 
       {/* Main content area below the header */}
       <div className="flex flex-1" style={{ paddingTop: `${HEADER_HEIGHT_PX}px` }}>
-        {/* Collapsible Sidebar, managing its expanded state based on Layout's state */}
+        {/* Collapsible Sidebar */}
         <Sidebar
           isExpanded={isSidebarOpen}
           onMouseEnter={() => window.innerWidth >= 768 && setIsSidebarOpen(true)}
           onMouseLeave={() => window.innerWidth >= 768 && setIsSidebarOpen(false)}
         />
 
-        {/* Overlay for mobile when sidebar is open, click to close */}
+        {/* Overlay for mobile when sidebar is open */}
         {isSidebarOpen && (
           <div
             className="fixed inset-0 bg-black bg-opacity-50 z-10 md:hidden"
@@ -119,7 +125,7 @@ const Layout: React.FC<LayoutProps> = ({
           className="flex flex-1 transition-all duration-300 ease-in-out"
           style={{ paddingLeft: `${totalLeftOffset}px` }}
         >
-          {/* Filter By Component, passing all active filter states and change handlers */}
+          {/* Filter By Component (likely for homepage specific filters) */}
           <FilterBy
             isSidebarExpanded={isSidebarOpen}
             activeContentType={activeContentType}
@@ -136,7 +142,7 @@ const Layout: React.FC<LayoutProps> = ({
             onClearAllFilters={onClearAllFilters}
           />
 
-          {/* Main Page Content - children from index.tsx */}
+          {/* Main Page Content - children from index.tsx or content-management.tsx */}
           <main className="flex-1 p-8 overflow-auto">
             {children}
           </main>
