@@ -1,0 +1,14 @@
+// src/config/apiConfig.ts
+
+/**
+ * @file This file centralizes all API-related configuration details.
+ * Using a single source for API constants makes it easier to manage
+ * and update endpoints, keys, and other settings across the application.
+ */
+
+// MeiliSearch Configuration
+export const MEILISEARCH_HOST = 'http://localhost:7700';
+export const MEILISEARCH_API_KEY = 'masterKey'; // Consider using environment variables for production
+
+// Strapi API Configuration
+export const STRAPI_API_URL = 'http://localhost:1337/api/document-stores';

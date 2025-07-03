@@ -1,24 +1,39 @@
-// src/components/Header.tsx (UPDATED: Universal Search logic streamlined with URL query params)
+// src/components/Header.tsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MagnifyingGlassIcon, BellIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { MeiliSearch } from 'meilisearch';
 import UserDropdown from './UserDropdown';
 import { useRouter } from 'next/router';
+import { MEILISEARCH_HOST, MEILISEARCH_API_KEY } from '@/config/apiConfig'; // Import API constants
 
 // Define the interface for Strapi proposals
 interface StrapiProposal {
   id: number;
-  opportunityNumber: string;
-  proposalName: string;
-  clientName: string;
+  opportunityNumber?: string; // Made optional for safer access
+  proposalName?: string;      // Made optional for safer access
+  clientName?: string;        // Made optional for safer access
   pstatus: string;
   value: string | number;
   description?: any[] | null;
-  publishedAt: string;
+  publishedAt?: string;           // Made optional for safer access; used for year
   createdAt: string;
   updatedAt: string;
-  proposedBy: string | null;
+  proposedBy?: string | null;
   chooseEmployee: number | null;
+  
+  Document_Type?: string;         // Added for display format
+  Document_Sub_Type?: string;     // Added for display format
+  Region?: string;                // Added for display format
+
+  // Potentially MeiliSearch specific snake_case fields if auto-indexed
+  opportunity_number?: string;
+  proposal_name?: string;
+  client_name?: string;
+  service_line?: string; // For Header's internal filters
+  industry?: string;      // For Header's internal filters
+  region?: string;        // For Header's internal filters (snake_case fallback)
+  document_type?: string; // For Header's internal filters (snake_case fallback)
+  document_sub_type?: string; // For Header's internal filters (snake_case fallback)
 }
 
 // Props for Header component - now explicitly takes the global searchTerm from Layout
@@ -27,10 +42,6 @@ interface HeaderProps {
   isLoading: boolean;
   onResultClick?: (proposal: StrapiProposal) => void;
 }
-
-// --- MeiliSearch Configuration ---
-const MEILISEARCH_HOST = 'http://localhost:7700';
-const MEILISEARCH_API_KEY = 'masterKey';
 
 const searchClient = new MeiliSearch({
   host: MEILISEARCH_HOST,
@@ -52,7 +63,15 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
   const [autocompleteResults, setAutocompleteResults] = useState<StrapiProposal[]>([]);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const [activeFilterPills, setActiveFilterPills] = useState<string[]>([]);
+  const [activeFilterPills, setActiveFilterPills] = useState<string[]>([]); 
+  
+  const filterCategories = {
+    'Service Line': ['Consulting', 'Engineering', 'Digital Solutions'],
+    'Industry': ['Retail', 'Energy', 'Healthcare'],
+    'Region': ['North America', 'Europe', 'Asia Pacific'],
+    'Client Name': ['Globex Inc.', 'Stark Industries Inc.', 'Acme Corp Inc.'],
+  };
+
 
   // Initialize internalSearchTerm from prop when modal opens
   useEffect(() => {
@@ -61,14 +80,7 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
     }
   }, [isSearchModalOpen, searchTerm]);
 
-  const filterCategories = {
-    'Service Line': ['Consulting', 'Engineering', 'Digital Solutions'],
-    'Industry': ['Retail', 'Energy', 'Healthcare'],
-    'Region': ['North America', 'Europe', 'Asia Pacific'],
-    'Client Name': ['Globex Inc.', 'Stark Industries Inc.', 'Acme Corp Inc.'],
-  };
-
-  const handleFilterPillClick = (category: string, value: string) => {
+  const handleFilterPillClick = (category: string, value: string) => { 
     const newActivePills = activeFilterPills.includes(value)
       ? activeFilterPills.filter(pill => pill !== value)
       : [...activeFilterPills, value];
@@ -77,7 +89,7 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
   };
 
   const performAutocompleteSearch = async (query: string) => {
-    if (query.length === 0 && activeFilterPills.length === 0) {
+    if (query.length === 0 && activeFilterPills.length === 0) { 
       setAutocompleteResults([]);
       return;
     }
@@ -91,9 +103,9 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
         return '';
       }).filter(Boolean);
 
-      const results = await searchClient.index('proposals').search(query, {
+      const results = await searchClient.index('document_stores').search(query, { 
         limit: 10,
-        filter: meiliFilters.length > 0 ? meiliFilters : undefined,
+        filter: meiliFilters.length > 0 ? meiliFilters : undefined, 
       });
       setAutocompleteResults(results.hits as StrapiProposal[] || []);
     } catch (error) {
@@ -102,7 +114,7 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
     }
   };
 
-  const debouncedAutocompleteSearch = useCallback(debounce(performAutocompleteSearch, 300), [activeFilterPills]);
+  const debouncedAutocompleteSearch = useCallback(debounce(performAutocompleteSearch, 300), [activeFilterPills]); 
 
   const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
@@ -121,20 +133,17 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
   const closeSearchModal = (triggerGlobalSearch: boolean = false) => {
     setIsSearchModalOpen(false);
     setAutocompleteResults([]);
-    setActiveFilterPills([]);
+    setActiveFilterPills([]); 
 
     if (triggerGlobalSearch && internalSearchTerm) {
-        // Construct new query object
         const newQuery = { ...router.query, searchTerm: internalSearchTerm };
-        // Clean up empty search term
         if (!internalSearchTerm) delete newQuery.searchTerm;
         
         router.push({
-            pathname: '/content-management', // Always redirect to CMS page for global search results
+            pathname: '/content-management', 
             query: newQuery
         }, undefined, { shallow: true });
     }
-    // internalSearchTerm is reset by useEffect when modal closes via `isSearchModalOpen` change
   };
 
   // Keyboard Shortcut Logic for opening/closing modal
@@ -162,6 +171,12 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
     }
   }, [isSearchModalOpen]);
 
+  // Helper to extract year from publishedAt
+  const getYearFromPublishedAt = (publishedAt?: string) => {
+    if (!publishedAt) return 'N/A Year';
+    const date = new Date(publishedAt);
+    return isNaN(date.getFullYear()) ? 'N/A Year' : date.getFullYear().toString();
+  };
 
   return (
     <header
@@ -225,7 +240,7 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
                 onChange={handleSearchInputChange}
                 onKeyDown={(e) => {
                     if (e.key === 'Enter') {
-                        closeSearchModal(true); // Trigger global search on Enter
+                        closeSearchModal(true); 
                     }
                 }}
               />
@@ -252,7 +267,11 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
                       className="p-2 my-1 rounded-md hover:bg-gray-100 cursor-pointer text-gray-800 text-base"
                       onClick={() => handleResultClick(hit)}
                     >
-                      {hit.proposalName} {hit.clientName ? `- ${hit.clientName}` : ''} ({hit.opportunityNumber})
+                      {/* NEW DISPLAY FORMAT: Year(publishedAt)-Document_Type-Document_Sub_Type-Region */}
+                      {`${getYearFromPublishedAt(hit.publishedAt) || 'N/A Year'}-` +
+                       `${hit.Document_Type || (hit as any).document_type || 'N/A Type'}-` + // Added snake_case fallback
+                       `${hit.Document_Sub_Type || (hit as any).document_sub_type || 'N/A SubType'}-` + // Added snake_case fallback
+                       `${hit.Region || (hit as any).region || 'N/A Region'}`} {/* Added snake_case fallback */}
                     </div>
                   ))}
                 </>
@@ -262,7 +281,7 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
                 <p className="text-gray-500 text-center py-4">Start typing to search...</p>
               )}
               
-              {/* "Narrow down by section" / Categories */}
+              {/* "Narrow down by section" / Categories were correctly re-added in the last good version. */}
               <div className="mt-6 border-t border-gray-200 pt-4">
                 <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Narrow down by section</h4>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

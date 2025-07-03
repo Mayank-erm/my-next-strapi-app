@@ -1,4 +1,4 @@
-// src/components/Sidebar.tsx (Updated with new CMS Page Link)
+// src/components/Sidebar.tsx
 import React from 'react';
 import { HomeIcon, FolderIcon, ClipboardDocumentListIcon, DocumentTextIcon, UsersIcon, Cog6ToothIcon, ChartBarIcon, BookmarkIcon } from '@heroicons/react/24/outline'; // Imported BookmarkIcon
 import SidebarLink from './SidebarLink';
@@ -49,49 +49,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isExpanded, onMouseEnter, onMouseLeav
           active={currentPath === '/bookmarks'}
           isSidebarExpanded={isExpanded}
         />
-        <SidebarLink
-          icon={FolderIcon}
-          text="Content Types"
-          href="/content-types"
-          active={currentPath === '/content-types'}
-          isSidebarExpanded={isExpanded}
-        />
-        <SidebarLink
-          icon={ClipboardDocumentListIcon}
-          text="Collection Types"
-          href="/collection-types"
-          active={currentPath === '/collection-types'}
-          isSidebarExpanded={isExpanded}
-        />
-        {/* You can replace the below with actual single types or manage dynamically */}
-        <SidebarLink
-          icon={DocumentTextIcon}
-          text="Single Types"
-          href="/single-types"
-          active={currentPath === '/single-types'}
-          isSidebarExpanded={isExpanded}
-        />
-        <SidebarLink
-          icon={UsersIcon}
-          text="Users"
-          href="/users"
-          active={currentPath === '/users'}
-          isSidebarExpanded={isExpanded}
-        />
-        <SidebarLink
-          icon={ChartBarIcon}
-          text="Media Library"
-          href="/media-library"
-          active={currentPath === '/media-library'}
-          isSidebarExpanded={isExpanded}
-        />
-        <SidebarLink
-          icon={Cog6ToothIcon} // Changed to Cog6ToothIcon for consistency
-          text="Settings"
-          href="/settings"
-          active={currentPath === '/settings'}
-          isSidebarExpanded={isExpanded}
-        />
+        {/* Removed other SidebarLinks as per request */}
       </nav>
     </aside>
   );

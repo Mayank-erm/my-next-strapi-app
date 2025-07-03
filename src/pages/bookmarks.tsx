@@ -5,10 +5,9 @@ import Layout from '@/components/Layout'; // Assuming Layout handles common page
 const BookmarksPage: React.FC = () => {
   // Placeholder props for Layout. In a real app, these would come from state/API.
   const layoutProps = {
-    searchTerm: '',
-    onSearchChange: () => {},
     isLoading: false,
     onSearchResultClick: () => {},
+    // Removed FilterBy related props as the component is removed
     activeContentType: 'Proposals',
     activeServiceLines: [],
     activeIndustries: [],

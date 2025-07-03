@@ -1,8 +1,7 @@
-// src/components/Layout.tsx (UPDATED: Passes searchTerm from URL to Header, removes onSearchChange prop)
+// src/components/Layout.tsx
 import React, { useState } from 'react';
 import Header from './Header';
 import Sidebar from './Sidebar';
-import FilterBy from './FilterBy';
 import Footer from './Footer';
 import { Bars3Icon } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/router'; // Import useRouter
@@ -26,14 +25,9 @@ interface StrapiProposal {
 // Define the props that Layout now expects from HomePage (index.tsx) or CmsPage (content-management.tsx)
 interface LayoutProps {
   children: React.ReactNode;
-  // Props for Header (searchTerm will come from URL via router.query)
-  // searchTerm: string; // Removed as Header will manage its own internal/URL state for search
-  // onSearchChange: (term: string) => void; // Removed as Header now controls URL directly
-  // isLoading is still used by Header for its internal autocomplete state
   isLoading: boolean; // Prop for internal search modal loading in Header
   onSearchResultClick: (proposal: StrapiProposal) => void; // Prop for search result click in Header
-
-  // Props for FilterBy (if still used on homepage)
+  // FilterBy related props were correctly removed as the component is removed
   activeContentType: string;
   activeServiceLines: string[];
   activeIndustries: string[];
@@ -50,8 +44,6 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({
   children,
-  // searchTerm, // Removed from destructuring
-  // onSearchChange, // Removed from destructuring
   isLoading,
   onSearchResultClick,
   activeContentType,
@@ -77,18 +69,17 @@ const Layout: React.FC<LayoutProps> = ({
   const HEADER_HEIGHT_PX = 64;
   const SIDEBAR_COLLAPSED_WIDTH_PX = 80;
   const SIDEBAR_EXPANDED_WIDTH_PX = 256;
-  const FILTER_BY_WIDTH_PX = 256;
+  // FILTER_BY_WIDTH_PX removed as FilterBy is removed from the codebase
 
   const totalLeftOffset = isSidebarOpen
-    ? SIDEBAR_EXPANDED_WIDTH_PX + FILTER_BY_WIDTH_PX
-    : SIDEBAR_COLLAPSED_WIDTH_PX + FILTER_BY_WIDTH_PX;
+    ? SIDEBAR_EXPANDED_WIDTH_PX
+    : SIDEBAR_COLLAPSED_WIDTH_PX; // Adjusted calculation as FilterBy is no longer a sidebar component
 
   return (
     <div className="flex flex-col min-h-screen bg-strapi-gray-bg font-inter">
       {/* Header component, now receives searchTerm from URL */}
       <Header
         searchTerm={currentSearchTerm} // Pass searchTerm from URL query
-        // onSearchChange is no longer passed as Header controls its own URL redirect
         isLoading={isLoading}
         onResultClick={onSearchResultClick}
       />
@@ -120,28 +111,12 @@ const Layout: React.FC<LayoutProps> = ({
           ></div>
         )}
 
-        {/* Content wrapper for FilterBy and Main Content */}
+        {/* Content wrapper for Main Content */}
         <div
           className="flex flex-1 transition-all duration-300 ease-in-out"
-          style={{ paddingLeft: `${totalLeftOffset}px` }}
+          style={{ paddingLeft: `${totalLeftOffset}px` }} // Padding adjusted
         >
-          {/* Filter By Component (likely for homepage specific filters) */}
-          <FilterBy
-            isSidebarExpanded={isSidebarOpen}
-            activeContentType={activeContentType}
-            activeServiceLines={activeServiceLines}
-            activeIndustries={activeIndustries}
-            activeRegions={activeRegions}
-            activeDate={activeDate}
-            onContentTypeChange={onContentTypeChange}
-            onServiceLineChange={onServiceLineChange}
-            onIndustryChange={onIndustryChange}
-            onRegionChange={onRegionChange}
-            onDateChange={onDateChange}
-            onSearchInFiltersChange={onSearchInFiltersChange}
-            onClearAllFilters={onClearAllFilters}
-          />
-
+          {/* FilterBy component removed from here as per request */}
           {/* Main Page Content - children from index.tsx or content-management.tsx */}
           <main className="flex-1 p-8 overflow-auto">
             {children}

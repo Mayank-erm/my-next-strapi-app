@@ -1,4 +1,4 @@
-// src/pages/index.tsx (UPDATED: Reads searchTerm from URL, simplifies Layout props)
+// src/pages/index.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '@/components/Layout';
 import Carousel from '@/components/Carousel';
@@ -7,8 +7,7 @@ import Pagination from '@/components/Pagination';
 import { GetServerSideProps } from 'next';
 import { useRouter } from 'next/router';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
-import Header from '@/components/Header'; // Keep import for context
-import FilterBy from '@/components/FilterBy'; // Keep import for context
+// Removed: import FilterBy from '@/components/FilterBy'; // FilterBy component is explicitly removed
 import DocumentPreviewModal from '@/components/DocumentPreviewModal';
 import { MeiliSearch } from 'meilisearch';
 
@@ -66,13 +65,8 @@ interface HomePageProps {
   initialCurrentPage: number;
   initialLatestProposals: StrapiProposal[];
   initialError?: string | null;
-  // initialSearchTerm?: string; // Removed, now read from URL
-  initialContentTypeFilter?: string;
-  initialServiceLineFilter?: string[];
-  initialIndustryFilter?: string[];
-  initialRegionFilter?: string[];
-  initialDateFilter?: string;
   initialSortBy?: string;
+  // FilterBy related props are no longer part of HomePageProps as the component is removed
 }
 
 const ITEMS_PER_PAGE = 8;
@@ -83,12 +77,6 @@ const HomePage: React.FC<HomePageProps> = ({
   initialCurrentPage,
   initialLatestProposals,
   initialError,
-  // initialSearchTerm = '', // Removed
-  initialContentTypeFilter = 'Proposals',
-  initialServiceLineFilter = [],
-  initialIndustryFilter = [],
-  initialRegionFilter = [],
-  initialDateFilter = '',
   initialSortBy = 'publishedAt:desc',
 }) => {
   const router = useRouter();
@@ -101,21 +89,15 @@ const HomePage: React.FC<HomePageProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState<number>(initialCurrentPage);
 
-  // const [searchTerm, setSearchTerm] = useState<string>(initialSearchTerm); // Removed, now from URL
-  const [contentTypeFilter, setContentTypeFilter] = useState<string>(initialContentTypeFilter);
-  const [serviceLineFilter, setServiceLineFilter] = useState<string[]>(initialServiceLineFilter);
-  const [industryFilter, setIndustryFilter] = useState<string[]>(initialIndustryFilter);
-  const [regionFilter, setRegionFilter] = useState<string[]>(initialRegionFilter);
-  const [dateFilter, setDateFilter] = useState<string>(initialDateFilter);
+  // Filter-related states removed as FilterBy is removed and these are not used on homepage
   const [sortBy, setSortBy] = useState<string>(initialSortBy);
   const [activeView, setActiveView] = useState('grid');
-  const [filterSearchTerm, setFilterSearchTerm] = useState<string>(''); // For FilterBy search within filters
 
   // State for document preview modal
   const [isDocumentPreviewOpen, setIsDocumentPreviewOpen] = useState(false);
   const [selectedProposalForPreview, setSelectedProposalForPreview] = useState<StrapiProposal | null>(null);
 
-  // Debounce for URL search term (if index.tsx also needs debounced URL term for its primary fetch)
+  // Debounce for URL search term
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -128,11 +110,6 @@ const HomePage: React.FC<HomePageProps> = ({
   const fetchProposals = useCallback(async (
     page: number,
     currentSearchTerm: string,
-    currentContentType: string,
-    currentServiceLines: string[],
-    currentIndustries: string[],
-    currentRegions: string[],
-    currentDate: string,
     currentSortBy: string
   ) => {
     setIsLoading(true);
@@ -144,10 +121,10 @@ const HomePage: React.FC<HomePageProps> = ({
     try {
       if (currentSearchTerm) {
         // Perform MeiliSearch when a search term is present
-        // HomePage's MeiliSearch only does q search, not filter/sort on other attributes
-        const meiliSearchResults = await meiliSearchClient.index('proposals').search(currentSearchTerm, {
+        const meiliSearchResults = await meiliSearchClient.index('document_stores').search(currentSearchTerm, {
           offset: (page - 1) * ITEMS_PER_PAGE,
           limit: ITEMS_PER_PAGE,
+          sort: [currentSortBy],
         });
 
         setProposals(meiliSearchResults.hits as StrapiProposal[] || []);
@@ -181,16 +158,10 @@ const HomePage: React.FC<HomePageProps> = ({
 
 
   // Effect to re-fetch data and update URL when relevant state changes
-  // Now also reacts to changes in URL searchTerm
   useEffect(() => {
     const newQuery: { [key: string]: string | string[] } = {
       page: String(currentPage),
       searchTerm: searchTerm, // Use searchTerm from URL
-      contentType: contentTypeFilter,
-      serviceLine: serviceLineFilter.join(','),
-      industry: industryFilter.join(','),
-      region: regionFilter.join(','),
-      date: dateFilter,
       sortBy: sortBy,
     };
     
@@ -199,7 +170,6 @@ const HomePage: React.FC<HomePageProps> = ({
         const value = newQuery[key];
         if (value !== '' && value !== null && value !== undefined && !(Array.isArray(value) && value.length === 0)) {
             if (key === 'page' && value === '1') continue;
-            if (key === 'contentType' && value === 'Proposals') continue;
             if (key === 'sortBy' && value === 'publishedAt:desc') continue;
             cleanedQuery[key] = value;
         }
@@ -209,7 +179,7 @@ const HomePage: React.FC<HomePageProps> = ({
     Object.keys(currentRouterQueryCopy).forEach(key => {
         const value = currentRouterQueryCopy[key];
         if (!Object.prototype.hasOwnProperty.call(cleanedQuery, key) && 
-            (value === '1' || value === 'Proposals' || value === 'publishedAt:desc' || 
+            (value === '1' || value === 'publishedAt:desc' || 
              (Array.isArray(value) && value.length === 0) || value === '')) {
             delete currentRouterQueryCopy[key];
         }
@@ -228,67 +198,25 @@ const HomePage: React.FC<HomePageProps> = ({
     fetchProposals(
       currentPage,
       searchTerm, // Use searchTerm from URL
-      contentTypeFilter,
-      serviceLineFilter,
-      industryFilter,
-      regionFilter,
-      dateFilter,
       sortBy
     );
   }, [
     currentPage,
     searchTerm, // Now reacts to URL searchTerm
-    contentTypeFilter,
-    JSON.stringify(serviceLineFilter),
-    JSON.stringify(industryFilter),
-    JSON.stringify(regionFilter),
-    dateFilter,
     sortBy,
     router,
     fetchProposals
   ]);
 
-  const handleContentTypeChange = useCallback((type: string) => { 
-    setContentTypeFilter(type); 
-    setCurrentPage(1); 
-  }, []);
-
-  const handleServiceLineChange = useCallback((lines: string[]) => { 
-    setServiceLineFilter(lines); 
-    setCurrentPage(1); 
-  }, []);
-
-  const handleIndustryChange = useCallback((industries: string[]) => { 
-    setIndustryFilter(industries); 
-    setCurrentPage(1); 
-  }, []);
-
-  const handleRegionChange = useCallback((regions: string[]) => { 
-    setRegionFilter(regions); 
-    setCurrentPage(1); 
-  }, []);
-
-  const handleDateChange = useCallback((date: string) => { 
-    setDateFilter(date); 
-    setCurrentPage(1); 
-  }, []);
+  // Removed all filter-related handlers (e.g., handleContentTypeChange, etc.)
   
   const handleClearFilters = useCallback(() => {
-    // setSearchTerm(''); // No longer needed, URL controls this
     router.replace({ pathname: router.pathname, query: {} }, undefined, { shallow: true }); // Clear all URL params
-    setContentTypeFilter('Proposals');
-    setServiceLineFilter([]);
-    setIndustryFilter([]);
-    setRegionFilter([]);
-    setDateFilter('');
     setSortBy('publishedAt:desc');
     setCurrentPage(1);
   }, [router]);
 
-  // handleSearchTermChange is removed as Header directly controls URL searchTerm
-  const handleSearchInFiltersChange = useCallback((term: string) => {
-    setFilterSearchTerm(term);
-  }, []);
+  // handleSearchInFiltersChange is removed as FilterBy component is removed
 
   const handleSortByChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     setSortBy(e.target.value);
@@ -310,21 +238,21 @@ const HomePage: React.FC<HomePageProps> = ({
   return (
     <Layout
       searchTerm={searchTerm} // Pass searchTerm from URL
-      // onSearchChange is no longer passed to Layout -> Header
       isLoading={isLoading}
       onSearchResultClick={handleSearchResultClick}
-      activeContentType={contentTypeFilter}
-      activeServiceLines={serviceLineFilter}
-      activeIndustries={industryFilter}
-      activeRegions={regionFilter}
-      activeDate={dateFilter}
-      onContentTypeChange={handleContentTypeChange}
-      onServiceLineChange={handleServiceLineChange}
-      onIndustryChange={handleIndustryChange}
-      onRegionChange={handleRegionChange}
-      onDateChange={handleDateChange}
-      onSearchInFiltersChange={handleSearchInFiltersChange}
-      onClearAllFilters={handleClearFilters}
+      // FilterBy related props are no longer passed
+      activeContentType="Proposals" // Default value, since no filter is applied here
+      activeServiceLines={[]}
+      activeIndustries={[]}
+      activeRegions={[]}
+      activeDate=""
+      onContentTypeChange={() => {}}
+      onServiceLineChange={() => {}}
+      onIndustryChange={() => {}}
+      onRegionChange={() => {}}
+      onDateChange={() => {}}
+      onSearchInFiltersChange={() => {}}
+      onClearAllFilters={() => {}}
     >
       <Carousel latestProposals={latestProposals} />
 
@@ -429,18 +357,9 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async (cont
   const query = context.query;
   const page = parseInt(query.page as string || '1');
   const searchTerm = (query.searchTerm as string) || ''; // Read searchTerm from URL
-  const contentType = (query.contentType as string) || 'Proposals';
-  const serviceLine = query.serviceLine
-    ? (Array.isArray(query.serviceLine) ? query.serviceLine : String(query.serviceLine).split(','))
-    : [];
-  const industry = query.industry
-    ? (Array.isArray(query.industry) ? query.industry : String(query.industry).split(','))
-    : [];
-  const region = query.region
-    ? (Array.isArray(query.region) ? query.region : String(query.region).split(','))
-    : [];
-  const date = (query.date as string) || '';
   const sortBy = (query.sortBy as string) || 'publishedAt:desc';
+
+  const offset = (page - 1) * ITEMS_PER_PAGE;
 
 
   const ssrQueryParams = new URLSearchParams();
@@ -452,13 +371,12 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async (cont
   // Apply searchTerm filter if present in URL
   if (searchTerm) {
       // Assuming MeiliSearch is used for keyword search on homepage also
-      // This part might need adjustment if MeiliSearch indexing is limited
       const meiliSearchClient = new MeiliSearch({
         host: MEILISEARCH_HOST,
         apiKey: MEILISEARCH_API_KEY,
       });
       try {
-        const meiliSearchResults = await meiliSearchClient.index('proposals').search(searchTerm, {
+        const meiliSearchResults = await meiliSearchClient.index('document_stores').search(searchTerm, {
           offset: offset,
           limit: ITEMS_PER_PAGE,
           sort: [sortBy],
@@ -515,12 +433,6 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async (cont
       initialCurrentPage: page,
       initialLatestProposals,
       initialError,
-      // initialSearchTerm is now read from URL directly
-      initialContentTypeFilter: contentType,
-      initialServiceLineFilter: serviceLine as string[],
-      initialIndustryFilter: industry as string[],
-      initialRegionFilter: region as string[],
-      initialDateFilter: date,
       initialSortBy: sortBy,
     },
   };

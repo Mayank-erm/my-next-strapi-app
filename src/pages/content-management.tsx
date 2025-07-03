@@ -1,12 +1,12 @@
-// src/pages/content-management.tsx (UPDATED: ActiveFilterPills moved back into FilterSection)
+// src/pages/content-management.tsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Layout from '@/components/Layout';
-import FilterSection from '@/components/cms/FilterSection';
+import FilterSection from '@/components/cms/FilterSection'; // Re-added: FilterSection component
 import ContentDisplay from '@/components/cms/ContentDisplay';
 import Pagination from '@/components/Pagination';
 import { MeiliSearch } from 'meilisearch';
 import { useRouter } from 'next/router';
-// Removed: import ActiveFilterPills from '@/components/cms/ActiveFilterPills'; // No longer rendered here directly
+// No longer needed: import ActiveFilterPills from '@/components/cms/ActiveFilterPills'; // Now imported directly in FilterSection
 
 // Define the interface for Strapi proposals (aligned with MeiliSearch schema provided)
 interface StrapiProposal {
@@ -41,7 +41,7 @@ const CmsPage: React.FC = () => {
   const router = useRouter();
   const urlSearchTerm = (router.query.searchTerm as string) || '';
 
-  // Filter States - Managed by FilterSection and passed up
+  // Filter States - Re-added as per the user's clarification
   const [proposalStatuses, setProposalStatuses] = useState<string[]>([]);
   const [proposedByUsers, setProposedByUsers] = useState<string[]>([]);
   // Placeholder Multi-selects (require MeiliSearch schema update)
@@ -103,7 +103,7 @@ const CmsPage: React.FC = () => {
     const offset = (currentPage - 1) * ITEMS_PER_PAGE;
 
     try {
-      // --- Build MeiliSearch filter string ---
+      // --- Build MeiliSearch filter string --- Re-added filter building
       const meiliFilters: string[] = [];
 
       // Date Range Filter (publishedAt)
@@ -146,7 +146,7 @@ const CmsPage: React.FC = () => {
       console.log("MeiliSearch Query (sort):", searchOptions.sort);
 
 
-      const meiliSearchResults = await meiliSearchClient.index('proposals').search(debouncedSearchTerm, searchOptions);
+      const meiliSearchResults = await meiliSearchClient.index('document_stores').search(debouncedSearchTerm, searchOptions); // Index changed to document_stores
 
       // Map MeiliSearch results to StrapiProposal interface structure
       const fetchedProposals: StrapiProposal[] = (meiliSearchResults.hits || []).map((hit: any) => {
@@ -207,14 +207,14 @@ const CmsPage: React.FC = () => {
   }, [currentPage, fetchContent]);
 
 
-  const handleApplyFilters = useCallback(() => {
+  const handleApplyFilters = useCallback(() => { // Re-added
     setCurrentPage(1);
   }, []);
 
   const handleClearAllFilters = useCallback(() => {
     router.replace({ pathname: router.pathname, query: {} }, undefined, { shallow: true });
 
-    setProposalStatuses([]);
+    setProposalStatuses([]); // Re-added filter state resets
     setProposedByUsers([]);
     setContentTypes([]);
     setServiceLines([]);
@@ -255,18 +255,21 @@ const CmsPage: React.FC = () => {
     onSearchChange: (term: string) => router.replace({ pathname: router.pathname, query: { ...router.query, searchTerm: term } }, undefined, { shallow: true }),
     isLoading: isLoading,
     onResultClick: (proposal: StrapiProposal) => router.push(`/content-management?proposalId=${proposal.id}`),
-    activeContentType: 'Proposals',
-    activeServiceLines: [],
-    activeIndustries: [],
-    activeRegions: [],
-    activeDate: '',
-    onContentTypeChange: () => {},
-    onServiceLineChange: () => {},
-    onIndustryChange: () => {},
-    onRegionChange: () => {},
-    onDateChange: () => {},
-    onSearchInFiltersChange: () => {},
-    onClearAllFilters: () => {},
+    activeContentType: 'Proposals', // Re-added Filter-related props to LayoutProps
+    activeServiceLines: serviceLines, // Pass actual state
+    activeIndustries: industries,     // Pass actual state
+    activeRegions: regions,         // Pass actual state
+    activeDate: dateRange[0]?.toISOString().split('T')[0] || '', // Pass actual state
+    onContentTypeChange: setContentTypes, // Pass setters
+    onServiceLineChange: setServiceLines, // Pass setters
+    onIndustryChange: setIndustries,     // Pass setters
+    onRegionChange: setRegions,         // Pass setters
+    onDateChange: (date: string) => { // Custom handler for date string
+      const newDate = date ? new Date(date) : null;
+      setDateRange([newDate, dateRange[1]]);
+    },
+    onSearchInFiltersChange: () => {}, // This is for internal filter search, not main search
+    onClearAllFilters: handleClearAllFilters,
   };
 
 
@@ -275,7 +278,7 @@ const CmsPage: React.FC = () => {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-3xl font-bold text-text-dark-gray mb-6">Content Management</h1>
 
-        <FilterSection
+        <FilterSection // Re-added FilterSection component
           proposalStatuses={proposalStatuses}
           setProposalStatuses={setProposalStatuses}
           proposedByUsers={proposedByUsers}
