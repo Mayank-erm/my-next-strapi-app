@@ -1,15 +1,16 @@
-// src/components/DocumentPreviewModal.tsx (Updated after component extraction)
+// src/components/DocumentPreviewModal.tsx
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { XMarkIcon, ShareIcon, ArrowDownTrayIcon, StarIcon } from '@heroicons/react/24/outline';
 import { EyeIcon } from '@heroicons/react/20/solid';
 import { Bars3BottomLeftIcon } from '@heroicons/react/24/outline';
 import { DocumentTextIcon as SolidDocumentTextIcon } from '@heroicons/react/20/solid';
 
-// Import the extracted components
 import Toast from './Toast';
 import DocumentViewer from './DocumentViewer';
 import DescriptionPanel from './DescriptionPanel';
 import DescriptionView from './DescriptionView';
+import { getDocumentUrl } from '@/config/documentMapping';
+import { StrapiProposal } from '@/types/strapi';
 
 
 // Helper to extract plain text from Strapi Rich Text
@@ -26,48 +27,23 @@ const getPlainTextFromRichText = (richTextBlocks: any[] | null | undefined): str
 };
 
 interface DocumentPreviewModalProps {
-  proposal: {
-    id: number;
-    documentId: string;
-    SF_Number: string;
-    Client_Name: string;
-    Client_Type: string;
-    Client_Contact: string;
-    Client_Contact_Title: string;
-    Client_Journey: string;
-    Document_Type: string;
-    Document_Sub_Type: string;
-    Document_Value_Range: string;
-    Document_Outcome: string;
-    Last_Stage_Change_Date: string;
-    Industry: string;
-    Sub_Industry: string;
-    Service: string;
-    Sub_Service: string;
-    Business_Unit: string;
-    Region: string;
-    Country: string;
-    State: string;
-    City: string;
-    Author: string;
-    PIC: string;
-    PM: string;
-    Keywords: string;
-    Commercial_Program: string;
-    Project_Team: null;
-    SMEs: null;
-    Competitors: string;
-    createdAt: string;
-    updatedAt: string;
-    publishedAt: string;
-    Description: any[];
-    documentUrl?: string; // Optional document URL from data source
-  };
+  proposal: StrapiProposal; // Use centralized StrapiProposal interface
   onClose: () => void;
 }
 
 const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({ proposal, onClose }) => {
-  // Ensure proposal is not undefined or null early
+  console.log("DocumentPreviewModal: Proposal received:", proposal);
+  console.log("DocumentPreviewModal: proposal.Description received:", proposal.Description);
+
+  // Effect to control body scrolling
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'; // Hide body scroll when modal is open
+    return () => {
+      document.body.style.overflow = ''; // Restore body scroll when modal closes
+    };
+  }, []);
+
+
   if (!proposal) {
     console.error("DocumentPreviewModal received undefined or null proposal prop.");
     return (
@@ -90,49 +66,23 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({ proposal, o
   const modalRef = useRef<HTMLDivElement>(null);
   const [showDocumentViewer, setShowDocumentViewer] = useState(true);
 
-  // State for the Toast notification
   const [isToastOpen, setIsToastOpen] = useState(false);
   const [toastTitle, setToastTitle] = useState('');
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'info' | 'error'>('info');
 
-  // Mock data for average rating, views, and downloads (replace with actual data later)
   const mockAverageRating = 4.5;
   const mockTotalRatings = 12;
   const viewsCount = 30;
   const downloadsCount = 25;
 
-  // Determine the document URL for preview.
   const documentPath = useMemo(() => {
-    // Add an explicit check for proposal being defined within useMemo
-    if (!proposal) {
-      console.warn("DocumentPreviewModal: proposal is null/undefined during useMemo evaluation.");
-      return ''; // Return an empty path or handle as per your app's logic
-    }
+    const identifier = proposal.SF_Number || proposal.unique_id || '';
+    const path = proposal.documentUrl || getDocumentUrl(identifier, proposal.documentId);
+    console.log("DocumentPreviewModal: Calculated documentPath:", path);
+    return path;
+  }, [proposal]);
 
-    const base = typeof window !== 'undefined' ? window.location.origin : '';
-    let path = proposal.documentUrl; // Access proposal.documentUrl here now that proposal is guaranteed not null/undefined
-
-    if (!path) {
-      // Fallback to local test documents if no documentUrl provided by Strapi
-      if (proposal.SF_Number?.includes("Excel")) {
-        path = '/documents/test_excel.xlsx';
-      } else if (proposal.SF_Number?.includes("Word")) {
-        path = '/documents/test_word.docx';
-      } else if (proposal.SF_Number?.includes("PPT")) {
-        path = '/documents/test_ppt.pptx';
-      } else if (proposal.SF_Number?.includes("HTML")) {
-        path = '/documents/test_html.html'; // Assuming you have a test_html.html
-      } else {
-        path = '/documents/test_pdf.pdf';
-      }
-    }
-    const finalPath = path.startsWith('http') ? path : `${base}${path}`;
-    console.log("Calculated documentPath for iframe preview:", finalPath);
-    return finalPath;
-  }, [proposal]); // Dependency remains just `proposal`
-
-  // Determine supported preview types for direct iframe
   const fileExtension = documentPath.split('.').pop()?.toLowerCase();
   const isDirectIframeSupported = ['pdf', 'htm', 'html'].includes(fileExtension || '');
 
@@ -165,7 +115,6 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({ proposal, o
     const shareLink = documentPath;
 
     try {
-      // Modern way to copy text to clipboard
       navigator.clipboard.writeText(shareLink).then(() => {
         setToastTitle('Link Copied!');
         setToastMessage('The document link has been copied to your clipboard.');
@@ -173,7 +122,6 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({ proposal, o
         setIsToastOpen(true);
       }).catch(err => {
         console.error('Failed to copy text (navigator.clipboard): ', err);
-        // Fallback for older browsers or if permission is denied
         const tempInput = document.createElement('textarea');
         tempInput.value = shareLink;
         document.body.appendChild(tempInput);
@@ -198,7 +146,8 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({ proposal, o
   const handleDownload = useCallback(() => {
     const link = document.createElement('a');
     link.href = documentPath;
-    link.setAttribute('download', proposal.SF_Number + '.' + fileExtension);
+    const filename = proposal.unique_id || proposal.SF_Number || 'document';
+    link.setAttribute('download', `${filename}.${fileExtension}`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -207,7 +156,7 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({ proposal, o
     setToastMessage('Your document download should begin shortly.');
     setToastType('info');
     setIsToastOpen(true);
-  }, [documentPath, proposal.SF_Number, fileExtension]);
+  }, [documentPath, proposal.unique_id, proposal.SF_Number, fileExtension]);
 
 
   const authorName = proposal.Author || 'N/A';
@@ -227,11 +176,11 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({ proposal, o
         >
           {/* Modal Header */}
           <div className="flex justify-between items-center p-4 border-b border-gray-200 flex-shrink-0">
+            {/* Display only Unique_Id in the modal header as the primary identifier */}
             <h2 className="text-xl font-bold text-text-dark-gray flex-1 truncate pr-4">
-              {proposal.SF_Number || 'N/A'} 
+              {proposal.unique_id || 'N/A'}
             </h2>
 
-            {/* Consolidated Toggle Buttons - Placed prominently in the header */}
             <div className="bg-white p-1 rounded-lg shadow-sm border border-gray-200 flex space-x-1 mr-4">
                 <button
                     onClick={() => setShowDocumentViewer(false)}
@@ -262,12 +211,11 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({ proposal, o
             </button>
           </div>
 
-          {/* Main Content Area - This flex-1 div will now host either DescriptionView or DocumentViewer */}
           <div className="flex-1 flex flex-col overflow-hidden">
             {showDocumentViewer ? (
               <DocumentViewer
                 documentPath={documentPath}
-                proposalName={proposal.SF_Number || 'N/A'}
+                proposalName={proposal.unique_id || proposal.SF_Number || 'N/A'}
                 isDirectIframeSupported={isDirectIframeSupported}
               />
             ) : (
@@ -279,7 +227,6 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({ proposal, o
             )}
           </div>
 
-          {/* Modal Footer - Beautified */}
           <div className="flex flex-col md:flex-row justify-between items-center p-4 border-t border-gray-200 bg-gray-50 flex-shrink-0 text-text-medium-gray text-sm">
             <div className="flex flex-wrap justify-center md:justify-start items-center gap-x-4 gap-y-2 mb-3 md:mb-0">
               <span className="flex items-center">

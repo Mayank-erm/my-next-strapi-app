@@ -7,13 +7,13 @@ import Pagination from '@/components/Pagination';
 import { GetServerSideProps } from 'next';
 import { useRouter } from 'next/router';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
-// Removed: import FilterBy from '@/components/FilterBy'; // FilterBy component is explicitly removed
 import DocumentPreviewModal from '@/components/DocumentPreviewModal';
 import { MeiliSearch } from 'meilisearch';
+import { getDocumentUrl } from '@/config/documentMapping'; // Import the new mapping helper
 
 // --- MeiliSearch Configuration ---
 const MEILISEARCH_HOST = 'http://localhost:7700';
-const MEILISEARCH_API_KEY = 'masterKey';
+export const MEILISEARCH_API_KEY = 'masterKey'; // Exported for potential use in Header or other components
 
 const meiliSearchClient = new MeiliSearch({
   host: MEILISEARCH_HOST,
@@ -24,7 +24,8 @@ const meiliSearchClient = new MeiliSearch({
 interface StrapiProposal {
   id: number;
   documentId: string;
-  SF_Number: string;
+  unique_id: string; // Added unique_id - this is the *interface property name*
+  SF_Number: string; // Still keep SF_Number for now as it's used in DocumentPreviewModal
   Client_Name: string;
   Client_Type: string;
   Client_Contact: string;
@@ -56,18 +57,52 @@ interface StrapiProposal {
   updatedAt: string;
   publishedAt: string;
   Description: any[];
+  documentUrl?: string; // Optional document URL from data source
+  proposalName?: string; // Added for robustness in DocumentPreviewModal title fallback
 }
 
-// Define props for the HomePage component
-interface HomePageProps {
-  initialProposals: StrapiProposal[];
-  initialTotalProposals: number;
-  initialCurrentPage: number;
-  initialLatestProposals: StrapiProposal[];
-  initialError?: string | null;
-  initialSortBy?: string;
-  // FilterBy related props are no longer part of HomePageProps as the component is removed
-}
+// Helper to extract data regardless of Strapi 'attributes' nesting
+const extractProposalData = (item: any): Omit<StrapiProposal, 'id' | 'documentId'> => {
+  const data = item.attributes || item; // Use attributes if present, otherwise the item itself
+
+  return {
+    unique_id: data.Unique_Id || data.SF_Number || 'N/A', // Prefer Unique_Id, fallback to SF_Number
+    SF_Number: data.SF_Number || data.Unique_Id || 'N/A', // Ensure SF_Number is populated
+    Client_Name: data.Client_Name || 'N/A',
+    Client_Type: data.Client_Type || 'N/A',
+    Client_Contact: data.Client_Contact || 'N/A',
+    Client_Contact_Title: data.Client_Contact_Title || 'N/A',
+    Client_Journey: data.Client_Journey || 'N/A',
+    Document_Type: data.Document_Type || 'N/A',
+    Document_Sub_Type: data.Document_Sub_Type || 'N/A',
+    Document_Value_Range: data.Document_Value_Range || 'N/A',
+    Document_Outcome: data.Document_Outcome || 'N/A',
+    Last_Stage_Change_Date: data.Last_Stage_Change_Date || 'N/A',
+    Industry: data.Industry || 'N/A',
+    Sub_Industry: data.Sub_Industry || 'N/A',
+    Service: data.Service || 'N/A',
+    Sub_Service: data.Sub_Service || 'N/A',
+    Business_Unit: data.Business_Unit || 'N/A',
+    Region: data.Region || 'N/A',
+    Country: data.Country || 'N/A',
+    State: data.State || 'N/A',
+    City: data.City || 'N/A',
+    Author: data.Author || 'N/A',
+    PIC: data.PIC || 'N/A',
+    PM: data.PM || 'N/A',
+    Keywords: data.Keywords || 'N/A',
+    Commercial_Program: data.Commercial_Program || 'N/A',
+    Project_Team: data.Project_Team || null,
+    SMEs: data.SMEs || null,
+    Competitors: data.Competitors || 'N/A',
+    createdAt: data.createdAt || new Date().toISOString(),
+    updatedAt: data.updatedAt || new Date().toISOString(),
+    publishedAt: data.publishedAt || new Date().toISOString(),
+    Description: data.Description || [],
+    documentUrl: data.documentUrl,
+    proposalName: data.proposalName || data.SF_Number || data.Unique_Id || 'N/A', // Added for robustness
+  };
+};
 
 const ITEMS_PER_PAGE = 8;
 
@@ -89,7 +124,6 @@ const HomePage: React.FC<HomePageProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState<number>(initialCurrentPage);
 
-  // Filter-related states removed as FilterBy is removed and these are not used on homepage
   const [sortBy, setSortBy] = useState<string>(initialSortBy);
   const [activeView, setActiveView] = useState('grid');
 
@@ -127,7 +161,15 @@ const HomePage: React.FC<HomePageProps> = ({
           sort: [currentSortBy],
         });
 
-        setProposals(meiliSearchResults.hits as StrapiProposal[] || []);
+        // Map MeiliSearch results using the new helper
+        const fetchedProposals: StrapiProposal[] = (meiliSearchResults.hits || []).map((hit: any) => ({
+          ...extractProposalData(hit),
+          id: hit.id,
+          documentId: hit.id.toString(),
+          documentUrl: getDocumentUrl(hit.SF_Number || hit.Unique_Id, hit.id.toString()),
+        }));
+
+        setProposals(fetchedProposals);
         setTotalProposals(meiliSearchResults.estimatedTotalHits || 0);
 
       } else {
@@ -143,7 +185,14 @@ const HomePage: React.FC<HomePageProps> = ({
           throw new Error(`Strapi API returned status ${response.status}`);
         }
         proposalsData = await response.json();
-        setProposals(proposalsData.data || []);
+        const fetchedProposals: StrapiProposal[] = (proposalsData.data || []).map((item: any) => ({
+          // Map Strapi API results using the new helper
+          ...extractProposalData(item),
+          id: item.id,
+          documentId: item.id.toString(),
+          documentUrl: item.attributes?.documentUrl || getDocumentUrl(item.attributes?.SF_Number || item.attributes?.Unique_Id, item.id.toString()),
+        }));
+        setProposals(fetchedProposals);
         setTotalProposals(proposalsData.meta?.pagination?.total || 0);
       }
     } catch (err: any) {
@@ -207,8 +256,6 @@ const HomePage: React.FC<HomePageProps> = ({
     router,
     fetchProposals
   ]);
-
-  // Removed all filter-related handlers (e.g., handleContentTypeChange, etc.)
   
   const handleClearFilters = useCallback(() => {
     router.replace({ pathname: router.pathname, query: {} }, undefined, { shallow: true }); // Clear all URL params
@@ -216,16 +263,35 @@ const HomePage: React.FC<HomePageProps> = ({
     setCurrentPage(1);
   }, [router]);
 
-  // handleSearchInFiltersChange is removed as FilterBy component is removed
-
   const handleSortByChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     setSortBy(e.target.value);
     setCurrentPage(1);
   }, []);
 
-  const handleSearchResultClick = useCallback((proposal: StrapiProposal) => {
-    setSelectedProposalForPreview(proposal);
-    setIsDocumentPreviewOpen(true);
+  const handleSearchResultClick = useCallback(async (proposal: StrapiProposal) => {
+    // When a preview is requested, fetch the full proposal data from Strapi
+    // to ensure we have the most up-to-date documentUrl and Description.
+    setIsLoading(true);
+    try {
+      const response = await fetch(`http://localhost:1337/api/document-stores/${proposal.id}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch full proposal details for ID: ${proposal.id}`);
+      }
+      const fullProposalData = await response.json();
+      const fetchedProposal: StrapiProposal = {
+        ...extractProposalData(fullProposalData.data), // Use the helper for consistency
+        id: fullProposalData.data.id,
+        documentId: fullProposalData.data.id.toString(),
+        documentUrl: fullProposalData.data.attributes?.documentUrl || getDocumentUrl(fullProposalData.data.attributes?.SF_Number || fullProposalData.data.attributes?.Unique_Id, fullProposalData.data.id.toString()),
+      };
+      setSelectedProposalForPreview(fetchedProposal);
+      setIsDocumentPreviewOpen(true);
+    } catch (err: any) {
+      console.error("Error fetching full proposal for preview:", err);
+      setError(`Failed to load document for preview: ${err.message}`);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   const closeDocumentPreview = useCallback(() => {
@@ -240,7 +306,6 @@ const HomePage: React.FC<HomePageProps> = ({
       searchTerm={searchTerm} // Pass searchTerm from URL
       isLoading={isLoading}
       onSearchResultClick={handleSearchResultClick}
-      // FilterBy related props are no longer passed
       activeContentType="Proposals" // Default value, since no filter is applied here
       activeServiceLines={[]}
       activeIndustries={[]}
@@ -276,8 +341,9 @@ const HomePage: React.FC<HomePageProps> = ({
             >
               <option value="publishedAt:desc">Published Date (Newest)</option>
               <option value="publishedAt:asc">Published Date (Oldest)</option>
-              <option value="SF_Number:asc">SF Number (A-Z)</option>
-              <option value="SF_Number:desc">SF Number (Z-A)</option>
+              {/* Changed SF_Number to unique_id for sorting options if MeiliSearch supports it */}
+              <option value="unique_id:asc">Unique ID (A-Z)</option>
+              <option value="unique_id:desc">Unique ID (Z-A)</option>
               <option value="Client_Name:asc">Client Name (A-Z)</option>
             </select>
             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
@@ -381,7 +447,12 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async (cont
           limit: ITEMS_PER_PAGE,
           sort: [sortBy],
         });
-        initialProposals = meiliSearchResults.hits as StrapiProposal[] || [];
+        initialProposals = meiliSearchResults.hits.map((hit: any) => ({
+          ...extractProposalData(hit), // Use the helper for consistency
+          id: hit.id,
+          documentId: hit.id.toString(),
+          documentUrl: getDocumentUrl(hit.SF_Number || hit.Unique_Id, hit.id.toString()),
+        })) as StrapiProposal[] || [];
         initialTotalProposals = meiliSearchResults.estimatedTotalHits || 0;
       } catch (meiliError: any) {
         console.error('[getServerSideProps] MeiliSearch failed for Homepage:', meiliError);
@@ -389,7 +460,12 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async (cont
         // Fallback to Strapi API if MeiliSearch fails
         const response = await fetch(`${STRAPI_API_URL}?${ssrQueryParams.toString()}`);
         const data = await response.json();
-        initialProposals = data.data || [];
+        initialProposals = (data.data || []).map((item: any) => ({
+          ...extractProposalData(item), // Use the helper for consistency
+          id: item.id,
+          documentId: item.id.toString(),
+          documentUrl: item.attributes?.documentUrl || getDocumentUrl(item.attributes?.SF_Number || item.attributes?.Unique_Id, item.id.toString()),
+        })) as StrapiProposal[] || [];
         initialTotalProposals = data.meta?.pagination?.total || 0;
       }
 
@@ -402,7 +478,12 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async (cont
       }
       const proposalsData = await proposalsResponse.json();
       
-      initialProposals = proposalsData.data || [];
+      initialProposals = (proposalsData.data || []).map((item: any) => ({
+        ...extractProposalData(item), // Use the helper for consistency
+        id: item.id,
+        documentId: item.id.toString(),
+        documentUrl: item.attributes?.documentUrl || getDocumentUrl(item.attributes?.SF_Number || item.attributes?.Unique_Id, item.id.toString()),
+      })) as StrapiProposal[] || [];
       initialTotalProposals = proposalsData.meta?.pagination?.total || 0;
     } catch (err: any) {
       console.error('[getServerSideProps] Failed to fetch data from Strapi:', err);
@@ -412,18 +493,23 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async (cont
 
 
   try {
-    const latestProposalsResponse = await fetch(`${STRAPI_API_URL}?sort=publishedAt:desc&pagination[limit]=2`);
+    // Fetching latest 3 proposals for the carousel
+    const latestProposalsResponse = await fetch(`${STRAPI_API_URL}?sort=publishedAt:desc&pagination[limit]=3`);
     if (!latestProposalsResponse.ok) {
       console.warn(`Strapi latest proposals API returned status ${latestProposalsResponse.status}. Carousel might not show latest data.`);
       initialLatestProposals = [];
     } else {
       const latestData = await latestProposalsResponse.json();
-      initialLatestProposals = latestData.data || [];
+      initialLatestProposals = (latestData.data || []).map((item: any) => ({
+        ...extractProposalData(item), // Use the helper for consistency
+        id: item.id,
+        documentId: item.id.toString(),
+        documentUrl: item.attributes?.documentUrl || getDocumentUrl(item.attributes?.SF_Number || item.attributes?.Unique_Id, item.id.toString()),
+      })) as StrapiProposal[] || [];
     }
 
   } catch (err: any) {
     console.error('[getServerSideProps] Failed to fetch latest data from Strapi:', err);
-    // initialError might be overwritten, but this is for carousel, so perhaps less critical
   }
 
   return {

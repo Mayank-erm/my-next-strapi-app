@@ -1,23 +1,49 @@
-// src/components/cms/ContentDisplay.tsx (UPDATED: Sorting options reflect new sortable fields)
+// src/components/cms/ContentDisplay.tsx (UPDATED: StrapiProposal interface and sorting options)
 import React from 'react';
-import { ListBulletIcon, Squares2X2Icon, TrashIcon, ArchiveBoxIcon, PencilIcon, ChevronDownIcon } from '@heroicons/react/24/outline'; // ADD ChevronDownIcon here
+import { ListBulletIcon, Squares2X2Icon, TrashIcon, ArchiveBoxIcon, PencilIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import ProposalCard from '@/components/ProposalCard';
 import BulkActionsBar from './BulkActionsBar';
 
+// Define the comprehensive StrapiProposal interface, matching the one in index.tsx
 interface StrapiProposal {
   id: number;
-  opportunityNumber: string;
-  proposalName: string;
-  clientName: string;
-  pstatus: string;
-  value: number; // Changed to number
-  description?: string | null; // Changed to string
-  publishedAt: string;
+  documentId: string;
+  unique_id: string; // Added unique_id
+  SF_Number: string;
+  Client_Name: string;
+  Client_Type: string;
+  Client_Contact: string;
+  Client_Contact_Title: string;
+  Client_Journey: string;
+  Document_Type: string;
+  Document_Sub_Type: string;
+  Document_Value_Range: string;
+  Document_Outcome: string;
+  Last_Stage_Change_Date: string;
+  Industry: string;
+  Sub_Industry: string;
+  Service: string;
+  Sub_Service: string;
+  Business_Unit: string;
+  Region: string;
+  Country: string;
+  State: string;
+  City: string;
+  Author: string;
+  PIC: string;
+  PM: string;
+  Keywords: string;
+  Commercial_Program: string;
+  Project_Team: null;
+  SMEs: null;
+  Competitors: string;
   createdAt: string;
   updatedAt: string;
-  proposedBy: string | null;
-  chooseEmployee: number | null;
-  documentUrl?: string; // Added documentUrl for preview
+  publishedAt: string;
+  Description: any[];
+  documentUrl?: string;
+  value: number; // Ensure this matches the numerical 'value' used for filtering
+  proposalName?: string; // Add proposalName if it's used as a display fallback
 }
 
 interface ContentDisplayProps {
@@ -78,12 +104,12 @@ const ContentDisplay: React.FC<ContentDisplayProps> = ({
             >
               <option value="publishedAt:desc">Published Date (Newest)</option>
               <option value="publishedAt:asc">Published Date (Oldest)</option>
-              <option value="proposalName:asc">Name (A-Z)</option>
-              <option value="proposalName:desc">Name (Z-A)</option>
-              <option value="value:desc">Value (High to Low)</option> {/* New sort option */}
-              <option value="value:asc">Value (Low to High)</option> {/* New sort option */}
-              <option value="clientName:asc">Client Name (A-Z)</option> {/* Existing sort option */}
-              <option value="opportunityNumber:asc">Opportunity Number (Asc)</option> {/* Existing sort option */}
+              {/* Updated sorting options to reflect unique_id */}
+              <option value="unique_id:asc">Unique ID (A-Z)</option>
+              <option value="unique_id:desc">Unique ID (Z-A)</option>
+              <option value="value:desc">Value (High to Low)</option>
+              <option value="value:asc">Value (Low to High)</option>
+              <option value="clientName:asc">Client Name (A-Z)</option>
             </select>
             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
               <ChevronDownIcon className="h-4 w-4" />
@@ -141,7 +167,7 @@ const ContentDisplay: React.FC<ContentDisplayProps> = ({
                   checked={selectedItems.includes(proposal.id)}
                   onChange={(e) => onSelectItem(proposal.id, e.target.checked)}
                   onClick={(e) => e.stopPropagation()}
-                  aria-label={`Select ${proposal.proposalName}`}
+                  aria-label={`Select ${proposal.proposalName || proposal.unique_id}`}
                 />
                 <ProposalCard
                   proposal={proposal}
@@ -150,8 +176,6 @@ const ContentDisplay: React.FC<ContentDisplayProps> = ({
                   onArchive={handleArchive}
                   onDelete={handleDelete}
                 />
-                {/* Individual Action Buttons (visible on hover/focus in grid, always in list) */}
-                {/* These are now directly within ProposalCard when passed */}
               </div>
             ))}
           </div>

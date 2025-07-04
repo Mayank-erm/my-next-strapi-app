@@ -4,44 +4,8 @@ import { MagnifyingGlassIcon, BellIcon, XMarkIcon } from '@heroicons/react/24/ou
 import { MeiliSearch } from 'meilisearch';
 import UserDropdown from './UserDropdown';
 import { useRouter } from 'next/router';
-import { MEILISEARCH_HOST, MEILISEARCH_API_KEY } from '@/config/apiConfig'; // Import API constants
-
-// Define the interface for Strapi proposals
-interface StrapiProposal {
-  id: number;
-  opportunityNumber?: string; // Made optional for safer access
-  proposalName?: string;      // Made optional for safer access
-  clientName?: string;        // Made optional for safer access
-  pstatus: string;
-  value: string | number;
-  description?: any[] | null;
-  publishedAt?: string;           // Made optional for safer access; used for year
-  createdAt: string;
-  updatedAt: string;
-  proposedBy?: string | null;
-  chooseEmployee: number | null;
-  
-  Document_Type?: string;         // Added for display format
-  Document_Sub_Type?: string;     // Added for display format
-  Region?: string;                // Added for display format
-
-  // Potentially MeiliSearch specific snake_case fields if auto-indexed
-  opportunity_number?: string;
-  proposal_name?: string;
-  client_name?: string;
-  service_line?: string; // For Header's internal filters
-  industry?: string;      // For Header's internal filters
-  region?: string;        // For Header's internal filters (snake_case fallback)
-  document_type?: string; // For Header's internal filters (snake_case fallback)
-  document_sub_type?: string; // For Header's internal filters (snake_case fallback)
-}
-
-// Props for Header component - now explicitly takes the global searchTerm from Layout
-interface HeaderProps {
-  searchTerm: string; // The global search term from URL
-  isLoading: boolean;
-  onResultClick?: (proposal: StrapiProposal) => void;
-}
+import { MEILISEARCH_HOST, MEILISEARCH_API_KEY } from '@/config/apiConfig';
+import { StrapiProposal } from '@/types/strapi'; // Import centralized StrapiProposal interface
 
 const searchClient = new MeiliSearch({
   host: MEILISEARCH_HOST,
@@ -59,11 +23,11 @@ const debounce = (func: (...args: any[]) => void, delay: number) => {
 
 const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, onResultClick }) => {
   const router = useRouter();
-  const [internalSearchTerm, setInternalSearchTerm] = useState<string>(''); // Internal state for search modal input
+  const [internalSearchTerm, setInternalSearchTerm] = useState<string>('');
   const [autocompleteResults, setAutocompleteResults] = useState<StrapiProposal[]>([]);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const [activeFilterPills, setActiveFilterPills] = useState<string[]>([]); 
+  const [activeFilterPills, setActiveFilterPills] = useState<string[]>([]);
   
   const filterCategories = {
     'Service Line': ['Consulting', 'Engineering', 'Digital Solutions'],
@@ -76,11 +40,11 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
   // Initialize internalSearchTerm from prop when modal opens
   useEffect(() => {
     if (isSearchModalOpen) {
-      setInternalSearchTerm(searchTerm); // Sync with global search term from URL
+      setInternalSearchTerm(searchTerm);
     }
   }, [isSearchModalOpen, searchTerm]);
 
-  const handleFilterPillClick = (category: string, value: string) => { 
+  const handleFilterPillClick = (category: string, value: string) => {
     const newActivePills = activeFilterPills.includes(value)
       ? activeFilterPills.filter(pill => pill !== value)
       : [...activeFilterPills, value];
@@ -89,7 +53,7 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
   };
 
   const performAutocompleteSearch = async (query: string) => {
-    if (query.length === 0 && activeFilterPills.length === 0) { 
+    if (query.length === 0 && activeFilterPills.length === 0) {
       setAutocompleteResults([]);
       return;
     }
@@ -103,18 +67,18 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
         return '';
       }).filter(Boolean);
 
-      const results = await searchClient.index('document_stores').search(query, { 
+      const results = await searchClient.index('document_stores').search(query, {
         limit: 10,
-        filter: meiliFilters.length > 0 ? meiliFilters : undefined, 
+        filter: meiliFilters.length > 0 ? meiliFilters : undefined,
       });
-      setAutocompleteResults(results.hits as StrapiProposal[] || []);
+      setAutocompleteResults(results.hits as StrapiProposal[] || []); // Cast to StrapiProposal
     } catch (error) {
       console.error("MeiliSearch error during autocomplete search:", error);
       setAutocompleteResults([]);
     }
   };
 
-  const debouncedAutocompleteSearch = useCallback(debounce(performAutocompleteSearch, 300), [activeFilterPills]); 
+  const debouncedAutocompleteSearch = useCallback(debounce(performAutocompleteSearch, 300), [activeFilterPills]);
 
   const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
@@ -133,14 +97,18 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
   const closeSearchModal = (triggerGlobalSearch: boolean = false) => {
     setIsSearchModalOpen(false);
     setAutocompleteResults([]);
-    setActiveFilterPills([]); 
+    setActiveFilterPills([]);
 
-    if (triggerGlobalSearch && internalSearchTerm) {
-        const newQuery = { ...router.query, searchTerm: internalSearchTerm };
-        if (!internalSearchTerm) delete newQuery.searchTerm;
+    if (triggerGlobalSearch) {
+        const newQuery: Record<string, string | string[] | undefined> = { ...router.query };
+        if (internalSearchTerm) {
+            newQuery.searchTerm = internalSearchTerm;
+        } else {
+            delete newQuery.searchTerm;
+        }
         
         router.push({
-            pathname: '/content-management', 
+            pathname: '/content-management',
             query: newQuery
         }, undefined, { shallow: true });
     }
@@ -240,7 +208,7 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
                 onChange={handleSearchInputChange}
                 onKeyDown={(e) => {
                     if (e.key === 'Enter') {
-                        closeSearchModal(true); 
+                        closeSearchModal(true);
                     }
                 }}
               />
@@ -269,9 +237,9 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
                     >
                       {/* NEW DISPLAY FORMAT: Year(publishedAt)-Document_Type-Document_Sub_Type-Region */}
                       {`${getYearFromPublishedAt(hit.publishedAt) || 'N/A Year'}-` +
-                       `${hit.Document_Type || (hit as any).document_type || 'N/A Type'}-` + // Added snake_case fallback
-                       `${hit.Document_Sub_Type || (hit as any).document_sub_type || 'N/A SubType'}-` + // Added snake_case fallback
-                       `${hit.Region || (hit as any).region || 'N/A Region'}`} {/* Added snake_case fallback */}
+                       `${hit.Document_Type || (hit as any).document_type || 'N/A Type'}-` +
+                       `${hit.Document_Sub_Type || (hit as any).document_sub_type || 'N/A SubType'}-` +
+                       `${hit.Region || (hit as any).region || 'N/A Region'}`}
                     </div>
                   ))}
                 </>
@@ -281,7 +249,6 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
                 <p className="text-gray-500 text-center py-4">Start typing to search...</p>
               )}
               
-              {/* "Narrow down by section" / Categories were correctly re-added in the last good version. */}
               <div className="mt-6 border-t border-gray-200 pt-4">
                 <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Narrow down by section</h4>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

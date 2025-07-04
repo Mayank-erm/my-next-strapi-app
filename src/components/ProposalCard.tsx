@@ -1,70 +1,52 @@
-// src/components/ProposalCard.tsx (No changes required for component extraction as DocumentPreviewModal handles its own internals)
+// src/components/ProposalCard.tsx
 import React, { useState } from 'react';
-import { BookmarkIcon, EllipsisHorizontalIcon, ArrowDownTrayIcon, ShareIcon } from '@heroicons/react/24/outline';
-import DocumentPreviewModal from './DocumentPreviewModal'; // Ensure this import is correct
+import {
+  BookmarkIcon,
+  EllipsisHorizontalIcon,
+  ArrowDownTrayIcon,
+  ShareIcon,
+  PencilIcon,
+  ArchiveBoxIcon,
+  TrashIcon,
+  CalendarDaysIcon, // For date
+  BuildingOfficeIcon, // For industry
+  TagIcon // For document type/subtype pills
+} from '@heroicons/react/24/outline';
+import DocumentPreviewModal from './DocumentPreviewModal';
+import { StrapiProposal } from '@/types/strapi'; // Import centralized StrapiProposal interface
 
 interface ProposalCardProps {
-  proposal: {
-    id: number;
-    documentId: string;
-    SF_Number: string;
-    Client_Name: string;
-    Client_Type: string;
-    Client_Contact: string;
-    Client_Contact_Title: string;
-    Client_Journey: string;
-    Document_Type: string;
-    Document_Sub_Type: string;
-    Document_Value_Range: string;
-    Document_Outcome: string;
-    Last_Stage_Change_Date: string;
-    Industry: string;
-    Sub_Industry: string;
-    Service: string;
-    Sub_Service: string;
-    Business_Unit: string;
-    Region: string;
-    Country: string;
-    State: string;
-    City: string;
-    Author: string;
-    PIC: string;
-    PM: string;
-    Keywords: string;
-    Commercial_Program: string;
-    Project_Team: null;
-    SMEs: null;
-    Competitors: string;
-    createdAt: string;
-    updatedAt: string;
-    publishedAt: string;
-    Description: any[];
-  };
+  proposal: StrapiProposal; // Use the centralized interface
   isListView?: boolean;
+  onEdit?: (id: number) => void;
+  onArchive?: (id: number) => void;
+  onDelete?: (id: number) => void;
 }
 
-// Helper to format date
-const formatDate = (isoString: string) => {
+// Helper to format date for display on card
+const formatDateShort = (isoString: string) => {
   if (!isoString) return 'N/A';
   const date = new Date(isoString);
-  return date.toLocaleDateString('en-GB');
+  return date.toLocaleDateString('en-GB'); // DD/MM/YYYY
 };
 
-// Helper to extract plain text from Strapi Rich Text (Slate.js blocks)
-const getPlainTextFromRichText = (richTextBlocks: any[] | null | undefined): string => {
-  if (!richTextBlocks || !Array.isArray(richTextBlocks) || richTextBlocks.length === 0) {
-    return "";
+// Helper function to get initials from a name
+const getInitials = (name: string | null | undefined): string => {
+  if (!name) return 'N/A';
+  const parts = name.split(' ');
+  if (parts.length > 1) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
-
-  return richTextBlocks.map(block => {
-    if (block && block.type === 'paragraph' && Array.isArray(block.children)) {
-      return block.children.map((child: any) => (child && typeof child.text === 'string') ? child.text : '').join('');
-    }
-    return '';
-  }).join('\n');
+  return parts[0][0]?.toUpperCase() || 'N/A';
 };
 
-const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, isListView = false }) => {
+const ProposalCard: React.FC<ProposalCardProps> = ({ 
+  proposal, 
+  isListView = false,
+  onEdit,
+  onArchive,
+  onDelete
+}) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
 
@@ -74,12 +56,12 @@ const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, isListView = fals
   };
 
   const handleShare = () => {
-    alert(`Sharing ${proposal.SF_Number}`);
+    alert(`Sharing ${proposal.unique_id || proposal.SF_Number}`);
     setIsDropdownOpen(false);
   };
 
   const handleDownload = () => {
-    alert(`Downloading ${proposal.SF_Number}`);
+    alert(`Downloading ${proposal.unique_id || proposal.SF_Number}`);
     setIsDropdownOpen(false);
   };
 
@@ -91,105 +73,144 @@ const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, isListView = fals
     setIsPreviewModalOpen(false);
   };
 
-  const plainDescription = getPlainTextFromRichText(proposal.description);
+  const displayUniqueId = proposal.unique_id || proposal.SF_Number || 'N/A';
 
   return (
-    <div className={`bg-white rounded-xl shadow-md border border-gray-100 flex p-5 relative group ${isListView ? 'flex-row items-center justify-between w-full' : 'flex-col hover:shadow-lg transition-all duration-300 ease-in-out'}`}>
-      {/* Header with Proposal type, Date, and Bookmark/More icons */}
-      {!isListView ? (
-        <div className="flex justify-between items-center text-sm mb-3">
-          <div className="flex items-center space-x-2">
-            <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-200 transition-colors">Proposal</span>
-            <span className="text-gray-500 text-xs">{formatDate(proposal.publishedAt)}</span>
+    <div className={`bg-white rounded-xl shadow-md border border-gray-100 flex p-4 relative group
+      ${isListView ? 'flex-row items-stretch w-full' : 'flex-col hover:shadow-lg transition-all duration-300 ease-in-out'}`}
+    >
+      {isListView ? (
+        // --- List View Layout ---
+        <div className="flex flex-1 items-center justify-between space-x-4">
+          {/* Left Section: Unique ID, Document Types (compact) */}
+          <div className="flex items-center space-x-4 flex-grow-0 min-w-0">
+            {/* Type/Subtype Pills */}
+            <div className="flex-shrink-0 flex items-center space-x-1">
+              <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-medium rounded-full truncate max-w-[100px]">
+                {proposal.Document_Type || 'N/A'}
+              </span>
+              <span className="px-2 py-0.5 bg-purple-100 text-purple-800 text-xs font-medium rounded-full truncate max-w-[100px]">
+                {proposal.Document_Sub_Type || 'N/A'}
+              </span>
+            </div>
+            {/* Unique ID - Primary Identifier */}
+            <h3 className="text-base font-bold text-text-dark-gray flex-grow truncate" title={displayUniqueId}>
+              {displayUniqueId}
+            </h3>
           </div>
-          <div className="flex items-center space-x-2 relative">
-            <BookmarkIcon className="h-5 w-5 text-gray-400 cursor-pointer hover:text-strapi-green-dark transition-colors duration-200" />
-            <EllipsisHorizontalIcon
-              className="h-5 w-5 text-gray-400 cursor-pointer hover:text-gray-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:ring-offset-2"
-              onClick={toggleDropdown}
-            />
-            {isDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-40 bg-white rounded-md shadow-xl py-1 z-20 top-full transform translate-y-2">
-                <button
-                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-strapi-green-light"
-                  onClick={handleShare}
-                >
-                  <ShareIcon className="h-4 w-4 mr-2" /> Share
-                </button>
-                <button
-                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-strapi-green-light"
-                  onClick={handleDownload}
-                >
-                  <ArrowDownTrayIcon className="h-4 w-4 mr-2" /> Download
-                </button>
-              </div>
-            )}
+
+          {/* Middle Section: Last Change, Industry (compact) */}
+          <div className="flex items-center space-x-4 flex-grow justify-end min-w-0 pr-4"> {/* Added padding to separate from actions */}
+            <p className="flex items-center text-sm text-gray-700 whitespace-nowrap">
+              <CalendarDaysIcon className="h-4 w-4 mr-1 text-gray-500 flex-shrink-0" />
+              <span className="font-semibold">Last Change:</span> <span className="truncate">{formatDateShort(proposal.Last_Stage_Change_Date)}</span>
+            </p>
+            <p className="flex items-center text-sm text-gray-700 whitespace-nowrap">
+              <BuildingOfficeIcon className="h-4 w-4 mr-1 text-gray-500 flex-shrink-0" />
+              <span className="font-semibold">Industry:</span> <span className="truncate">{proposal.Industry || 'N/A'}</span>
+            </p>
+          </div>
+
+          {/* Right Section: Actions & Preview Button */}
+          <div className="flex-shrink-0 flex items-center space-x-3 ml-auto pl-4 border-l border-gray-100">
+            {/* Actions */}
+            <div className="flex items-center space-x-2 relative">
+              <BookmarkIcon className="h-5 w-5 text-gray-400 cursor-pointer hover:text-strapi-green-dark transition-colors duration-200" />
+              <EllipsisHorizontalIcon
+                className="h-5 w-5 text-gray-400 cursor-pointer hover:text-gray-700 transition-colors duration-200"
+                onClick={toggleDropdown}
+              />
+              {isDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-40 bg-white rounded-md shadow-xl py-1 z-20 top-full transform translate-y-2">
+                  {onEdit && (<button className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={(e) => { e.stopPropagation(); onEdit(proposal.id); setIsDropdownOpen(false); }}><PencilIcon className="h-4 w-4 mr-2" /> Edit</button>)}
+                  {onArchive && (<button className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={(e) => { e.stopPropagation(); onArchive(proposal.id); setIsDropdownOpen(false); }}><ArchiveBoxIcon className="h-4 w-4 mr-2" /> Archive</button>)}
+                  {onDelete && (<button className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={(e) => { e.stopPropagation(); onDelete(proposal.id); setIsDropdownOpen(false); }}><TrashIcon className="h-4 w-4 mr-2" /> Delete</button>)}
+                  <button className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={handleShare}>
+                    <ShareIcon className="h-4 w-4 mr-2" /> Share
+                  </button>
+                  <button className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={handleDownload}>
+                    <ArrowDownTrayIcon className="h-4 w-4 mr-2" /> Download
+                  </button>
+                </div>
+              )}
+            </div>
+            {/* Preview Button */}
+            <button
+              onClick={handlePreviewClick}
+              className="bg-strapi-green-light hover:bg-strapi-green-dark text-white font-semibold py-2 px-4 rounded-lg
+                         transition-all duration-200 ease-in-out shadow-md text-sm whitespace-nowrap"
+            >
+              Preview
+            </button>
           </div>
         </div>
       ) : (
-        // List view header - simplified
-        <div className="flex items-center space-x-4 flex-grow truncate">
-          <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-md">Proposal</span>
-          <h3 className="text-lg font-bold text-text-dark-gray truncate" title={proposal.SF_Number}>
-            {proposal.SF_Number}
-          </h3>
-          <p className="text-sm text-gray-600 whitespace-nowrap">
-            <span className="font-semibold">{proposal.Client_Name}</span> Inc.
-          </p>
-          <span className={`ml-2 px-2 py-0.5 text-xs font-semibold rounded-full capitalize whitespace-nowrap
-            ${proposal.Document_Outcome === 'pending' ? 'bg-yellow-100 text-yellow-800' : ''}
-            ${proposal.Document_Outcome === 'approved' ? 'bg-green-100 text-green-800' : ''}
-            ${proposal.Document_Outcome === 'rejected' ? 'bg-red-100 text-red-800' : ''}
-            ${proposal.Document_Outcome === 'submitted' ? 'bg-blue-100 text-blue-800' : ''}
-            ${!['pending', 'approved', 'rejected', 'submitted'].includes(proposal.Document_Outcome) ? 'bg-gray-200 text-gray-700' : ''}
-          `}>
-            {proposal.Document_Outcome}
-          </span>
-          <p className="text-sm text-gray-500 whitespace-nowrap hidden sm:block">{formatDate(proposal.publishedAt)}</p>
-        </div>
-      )}
-
-      {!isListView && (
+        // --- Grid View Layout (from previous update) ---
         <>
-          {/* Title - only for grid view as it's part of list view header */}
-          <h3 className="text-lg font-bold text-text-dark-gray mb-1.5 truncate" title={proposal.SF_Number}>
-            {proposal.SF_Number}
-          </h3>
-
-          {/* Client Name and Status Tag - only for grid view */}
-          <div className="flex items-baseline mb-2">
-            <p className="text-sm text-gray-600">
-              <span className="font-semibold">{proposal.Client_Name}</span> Inc.
-            </p>
-            <span className={`ml-2 px-2 py-0.5 text-xs font-semibold rounded-full capitalize
-              ${proposal.Document_Outcome === 'pending' ? 'bg-yellow-100 text-yellow-800' : ''}
-              ${proposal.Document_Outcome === 'approved' ? 'bg-green-100 text-green-800' : ''}
-              ${proposal.Document_Outcome === 'rejected' ? 'bg-red-100 text-red-800' : ''}
-              ${proposal.Document_Outcome === 'submitted' ? 'bg-blue-100 text-blue-800' : ''}
-              ${!['pending', 'approved', 'rejected', 'submitted'].includes(proposal.Document_Outcome) ? 'bg-gray-200 text-gray-700' : ''}
-            `}>
-              {proposal.Document_Outcome}
-            </span>
+          {/* Header (Top Row) - Document Type, Sub Type, Actions */}
+          <div className="flex justify-between items-center text-sm mb-3 w-full">
+            {/* Document Type & Sub Type Pills */}
+            <div className="flex items-center space-x-2">
+              <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full flex items-center">
+                <TagIcon className="h-3 w-3 mr-1" /> {proposal.Document_Type || 'N/A'}
+              </span>
+              <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded-full flex items-center">
+                <TagIcon className="h-3 w-3 mr-1" /> {proposal.Document_Sub_Type || 'N/A'}
+              </span>
+            </div>
+            
+            {/* Actions (Bookmark, More Options) */}
+            <div className="flex items-center space-x-2 relative">
+              <BookmarkIcon className="h-5 w-5 text-gray-400 cursor-pointer hover:text-strapi-green-dark transition-colors duration-200" />
+              <EllipsisHorizontalIcon
+                className="h-5 w-5 text-gray-400 cursor-pointer hover:text-gray-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:ring-offset-2"
+                onClick={toggleDropdown}
+              />
+              {isDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-40 bg-white rounded-md shadow-xl py-1 z-20 top-full transform translate-y-2">
+                  {onEdit && (<button className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={(e) => { e.stopPropagation(); onEdit(proposal.id); setIsDropdownOpen(false); }}><PencilIcon className="h-4 w-4 mr-2" /> Edit</button>)}
+                  {onArchive && (<button className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={(e) => { e.stopPropagation(); onArchive(proposal.id); setIsDropdownOpen(false); }}><ArchiveBoxIcon className="h-4 w-4 mr-2" /> Archive</button>)}
+                  {onDelete && (<button className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={(e) => { e.stopPropagation(); onDelete(proposal.id); setIsDropdownOpen(false); }}><TrashIcon className="h-4 w-4 mr-2" /> Delete</button>)}
+                  <button className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={handleShare}>
+                    <ShareIcon className="h-4 w-4 mr-2" /> Share
+                  </button>
+                  <button className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={handleDownload}>
+                    <ArrowDownTrayIcon className="h-4 w-4 mr-2" /> Download
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Description preview - only for grid view */}
-          <p className="text-sm text-gray-700 line-clamp-3 mb-4 flex-grow">
-            {plainDescription || 'No description available.'}
-          </p>
+          {/* Main Content - Unique ID as primary title, Date & Industry below */}
+          <h3 className="text-xl font-bold text-text-dark-gray mb-2 truncate" title={displayUniqueId}>
+            {displayUniqueId}
+          </h3>
+
+          <div className="text-sm text-gray-700 flex-grow w-full">
+            <p className="flex items-center mb-1">
+              <CalendarDaysIcon className="h-4 w-4 mr-2 text-gray-500" />
+              <span className="font-semibold">Last Change:</span> {formatDateShort(proposal.Last_Stage_Change_Date)}
+            </p>
+            <p className="flex items-center">
+              <BuildingOfficeIcon className="h-4 w-4 mr-2 text-gray-500" />
+              <span className="font-semibold">Industry:</span> {proposal.Industry || 'N/A'}
+            </p>
+          </div>
+
+          {/* Preview Button - Bottom Aligned */}
+          <div className={`pt-4 border-t border-gray-100 flex justify-end items-center w-full mt-4`}>
+            <button
+              onClick={handlePreviewClick}
+              className="bg-strapi-green-light hover:bg-strapi-green-dark text-white font-semibold py-2.5 px-6 rounded-lg
+                         transition-all duration-200 ease-in-out transform hover:-translate-y-0.5 shadow-md text-sm
+                         focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:ring-offset-2"
+            >
+              Preview
+            </button>
+          </div>
         </>
       )}
-
-      {/* Footer with Preview button - adjusted for list view */}
-      <div className={`pt-4 border-t border-gray-100 flex justify-end items-center ${isListView ? 'ml-auto pl-4 border-l' : 'mt-auto'}`}>
-        <button
-          onClick={handlePreviewClick}
-          className="bg-strapi-green-light hover:bg-strapi-green-dark text-white font-semibold py-2.5 px-6 rounded-lg
-                     transition-all duration-200 ease-in-out transform hover:-translate-y-0.5 shadow-md text-sm
-                     focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:ring-offset-2"
-        >
-          Preview
-        </button>
-      </div>
 
       {/* Document Preview Modal */}
       {isPreviewModalOpen && (
