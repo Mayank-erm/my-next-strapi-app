@@ -6,6 +6,7 @@ import UserDropdown from './UserDropdown';
 import { useRouter } from 'next/router';
 import { MEILISEARCH_HOST, MEILISEARCH_API_KEY } from '@/config/apiConfig';
 import { StrapiProposal } from '@/types/strapi'; // Import centralized StrapiProposal interface
+import { getSearchableAttributes } from '@/config/searchBusinessRules'; // Import search rules
 
 const searchClient = new MeiliSearch({
   host: MEILISEARCH_HOST,
@@ -20,6 +21,13 @@ const debounce = (func: (...args: any[]) => void, delay: number) => {
     timeout = setTimeout(() => func(...args), delay);
   };
 };
+
+// Props for Header component - now explicitly takes the global searchTerm from Layout
+interface HeaderProps {
+  searchTerm: string;
+  isLoading: boolean;
+  onResultClick?: (proposal: StrapiProposal) => void;
+}
 
 const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, onResultClick }) => {
   const router = useRouter();
@@ -70,8 +78,9 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
       const results = await searchClient.index('document_stores').search(query, {
         limit: 10,
         filter: meiliFilters.length > 0 ? meiliFilters : undefined,
+        attributesToSearchOn: getSearchableAttributes(), // Use the defined searchable attributes
       });
-      setAutocompleteResults(results.hits as StrapiProposal[] || []); // Cast to StrapiProposal
+      setAutocompleteResults(results.hits as StrapiProposal[] || []);
     } catch (error) {
       console.error("MeiliSearch error during autocomplete search:", error);
       setAutocompleteResults([]);
@@ -237,9 +246,9 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
                     >
                       {/* NEW DISPLAY FORMAT: Year(publishedAt)-Document_Type-Document_Sub_Type-Region */}
                       {`${getYearFromPublishedAt(hit.publishedAt) || 'N/A Year'}-` +
-                       `${hit.Document_Type || (hit as any).document_type || 'N/A Type'}-` +
-                       `${hit.Document_Sub_Type || (hit as any).document_sub_type || 'N/A SubType'}-` +
-                       `${hit.Region || (hit as any).region || 'N/A Region'}`}
+                       `${hit.Document_Type || hit.document_type || 'N/A Type'}-` +
+                       `${hit.Document_Sub_Type || hit.document_sub_type || 'N/A SubType'}-` +
+                       `${hit.Region || hit.region || 'N/A Region'}`}
                     </div>
                   ))}
                 </>

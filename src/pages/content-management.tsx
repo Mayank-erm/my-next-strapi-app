@@ -8,7 +8,8 @@ import { MeiliSearch } from 'meilisearch';
 import { useRouter } from 'next/router';
 import { getDocumentUrl } from '@/config/documentMapping';
 import { STRAPI_API_URL } from '@/config/apiConfig';
-import { StrapiProposal } from '@/types/strapi';
+import { StrapiProposal } from '@/types/strapi'; // Import centralized StrapiProposal interface
+import { extractProposalData } from '@/utils/dataHelpers'; // Import shared helper
 
 // --- MeiliSearch Configuration ---
 const MEILISEARCH_HOST = 'http://localhost:7700';
@@ -19,85 +20,14 @@ const meiliSearchClient = new MeiliSearch({
   apiKey: MEILISEARCH_API_KEY,
 });
 
-// Helper to extract data regardless of Strapi 'attributes' nesting and convert Document_Value_Range to number
-const extractProposalData = (item: any): Omit<StrapiProposal, 'id' | 'documentId'> => {
-  const data = item.attributes || item;
-
-  const parseValueRange = (rangeStr: string | undefined | null): number => {
-    if (!rangeStr) return 0;
-    const match = rangeStr.match(/^(\d+)([KM]?)/i);
-    if (match) {
-      let value = parseFloat(match[1]);
-      const suffix = match[2]?.toUpperCase();
-      if (suffix === 'K') value *= 1000;
-      if (suffix === 'M') value *= 1000000;
-      return value;
-    }
-    return 0;
-  };
-
-  return {
-    unique_id: data.Unique_Id || data.SF_Number || 'N/A',
-    SF_Number: data.SF_Number || data.Unique_Id || 'N/A',
-    Client_Name: data.Client_Name || 'N/A',
-    Client_Type: data.Client_Type || 'N/A',
-    Client_Contact: data.Client_Contact || 'N/A',
-    Client_Contact_Title: data.Client_Contact_Title || 'N/A',
-    Client_Journey: data.Client_Journey || 'N/A',
-    Document_Type: data.Document_Type || 'N/A',
-    Document_Sub_Type: data.Document_Sub_Type || 'N/A',
-    Document_Value_Range: data.Document_Value_Range || 'N/A',
-    Document_Outcome: data.Document_Outcome || 'N/A',
-    Last_Stage_Change_Date: data.Last_Stage_Change_Date || 'N/A',
-    Industry: data.Industry || 'N/A',
-    Sub_Industry: data.Sub_Industry || 'N/A',
-    Service: data.Service || 'N/A',
-    Sub_Service: data.Sub_Service || 'N/A',
-    Business_Unit: data.Business_Unit || 'N/A',
-    Region: data.Region || 'N/A',
-    Country: data.Country || 'N/A',
-    State: data.State || 'N/A',
-    City: data.City || 'N/A',
-    Author: data.Author || 'N/A',
-    PIC: data.PIC || 'N/A',
-    PM: data.PM || 'N/A',
-    Keywords: data.Keywords || 'N/A',
-    Commercial_Program: data.Commercial_Program || 'N/A',
-    Project_Team: data.Project_Team || null,
-    SMEs: data.SMEs || null,
-    Competitors: data.Competitors || 'N/A',
-    createdAt: data.createdAt || new Date().toISOString(),
-    updatedAt: data.updatedAt || new Date().toISOString(),
-    publishedAt: data.publishedAt || new Date().toISOString(),
-    Description: data.Description || [],
-    documentUrl: data.documentUrl,
-    value: parseValueRange(data.Document_Value_Range), // Convert range string to number
-    proposalName: data.proposalName || data.SF_Number || data.Unique_Id || 'N/A',
-    
-    Attachments: data.Attachments || null,
-    Pursuit_Team: data.Pursuit_Team || null,
-
-    opportunityNumber: data.opportunityNumber,
-    opportunity_number: data.opportunity_number,
-    proposal_name: data.proposal_name,
-    client_name: data.client_name,
-    service_line: data.service_line,
-    region: data.region,
-    document_type: data.document_type,
-    document_sub_type: data.document_sub_type,
-  };
-};
-
 const ITEMS_PER_PAGE = 8;
 
 const CmsPage: React.FC = () => {
   const router = useRouter();
   const urlSearchTerm = (router.query.searchTerm as string) || '';
 
-  // Moved selectedProposalForPreview to be the first state declaration
-  const [selectedProposalForPreview, setSelectedProposalForPreview] = useState<StrapiProposal | null>(null); 
+  const [selectedProposalForPreview, setSelectedProposalForPreview] = useState<StrapiProposal | null>(null);
 
-  // All other useState declarations follow
   const [proposalStatuses, setProposalStatuses] = useState<string[]>([]);
   const [proposedByUsers, setProposedByUsers] = useState<string[]>([]);
   const [contentTypes, setContentTypes] = useState<string[]>([]);
@@ -120,30 +50,6 @@ const CmsPage: React.FC = () => {
 
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(urlSearchTerm);
   
-   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchTerm(urlSearchTerm);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [urlSearchTerm]);
-
-
-  const activeFiltersCount = useMemo(() => {
-    let count = 0;
-    if (urlSearchTerm) count++;
-    if (dateRange[0] && dateRange[1]) count++;
-    if (valueRange[0] !== 0 || valueRange[1] !== 1000000) count++;
-    if (proposalStatuses.length > 0) count++;
-    if (proposedByUsers.length > 0) count++;
-    if (contentTypes.length > 0) count++;
-    if (serviceLines.length > 0) count++;
-    if (industries.length > 0) count++;
-    if (regions.length > 0) count++;
-    return count;
-  }, [urlSearchTerm, dateRange, valueRange, proposalStatuses, proposedByUsers, contentTypes, serviceLines, industries, regions]);
-
-
-  // fetchContent useCallback definition (moved here to be before useEffects that use it)
   const fetchContent = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -254,7 +160,7 @@ const CmsPage: React.FC = () => {
     regions,
   ]);
 
-  // useEffects come after state and useCallback definitions
+
   useEffect(() => {
     fetchContent();
   }, [currentPage, fetchContent]);
@@ -352,7 +258,6 @@ const CmsPage: React.FC = () => {
   };
 
 
-  // useEffect for handling modal open/close based on URL query param (comes after states and fetchContent)
   useEffect(() => {
     const proposalId = router.query.proposalId;
     if (proposalId && !selectedProposalForPreview) {
