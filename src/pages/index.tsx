@@ -6,103 +6,32 @@ import ProposalCard from '@/components/ProposalCard';
 import Pagination from '@/components/Pagination';
 import { GetServerSideProps } from 'next';
 import { useRouter } from 'next/router';
-import { ChevronDownIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, Squares2X2Icon, ListBulletIcon } from '@heroicons/react/24/outline';
 import DocumentPreviewModal from '@/components/DocumentPreviewModal';
 import { MeiliSearch } from 'meilisearch';
-import { getDocumentUrl } from '@/config/documentMapping'; // Import the new mapping helper
+import { getDocumentUrl } from '@/config/documentMapping';
+import { STRAPI_API_URL } from '@/config/apiConfig';
+import { StrapiProposal } from '@/types/strapi';
+import { extractProposalData } from '@/utils/dataHelpers'; // Import shared helper
+
 
 // --- MeiliSearch Configuration ---
 const MEILISEARCH_HOST = 'http://localhost:7700';
-export const MEILISEARCH_API_KEY = 'masterKey'; // Exported for potential use in Header or other components
+export const MEILISEARCH_API_KEY = 'masterKey';
 
 const meiliSearchClient = new MeiliSearch({
   host: MEILISEARCH_HOST,
   apiKey: MEILISEARCH_API_KEY,
 });
 
-// Define the interface for Strapi proposals
-interface StrapiProposal {
-  id: number;
-  documentId: string;
-  unique_id: string; // Added unique_id - this is the *interface property name*
-  SF_Number: string; // Still keep SF_Number for now as it's used in DocumentPreviewModal
-  Client_Name: string;
-  Client_Type: string;
-  Client_Contact: string;
-  Client_Contact_Title: string;
-  Client_Journey: string;
-  Document_Type: string;
-  Document_Sub_Type: string;
-  Document_Value_Range: string;
-  Document_Outcome: string;
-  Last_Stage_Change_Date: string;
-  Industry: string;
-  Sub_Industry: string;
-  Service: string;
-  Sub_Service: string;
-  Business_Unit: string;
-  Region: string;
-  Country: string;
-  State: string;
-  City: string;
-  Author: string;
-  PIC: string;
-  PM: string;
-  Keywords: string;
-  Commercial_Program: string;
-  Project_Team: null;
-  SMEs: null;
-  Competitors: string;
-  createdAt: string;
-  updatedAt: string;
-  publishedAt: string;
-  Description: any[];
-  documentUrl?: string; // Optional document URL from data source
-  proposalName?: string; // Added for robustness in DocumentPreviewModal title fallback
+interface HomePageProps {
+  initialProposals: StrapiProposal[];
+  initialTotalProposals: number;
+  initialCurrentPage: number;
+  initialLatestProposals: StrapiProposal[];
+  initialError?: string | null;
+  initialSortBy?: string;
 }
-
-// Helper to extract data regardless of Strapi 'attributes' nesting
-const extractProposalData = (item: any): Omit<StrapiProposal, 'id' | 'documentId'> => {
-  const data = item.attributes || item; // Use attributes if present, otherwise the item itself
-
-  return {
-    unique_id: data.Unique_Id || data.SF_Number || 'N/A', // Prefer Unique_Id, fallback to SF_Number
-    SF_Number: data.SF_Number || data.Unique_Id || 'N/A', // Ensure SF_Number is populated
-    Client_Name: data.Client_Name || 'N/A',
-    Client_Type: data.Client_Type || 'N/A',
-    Client_Contact: data.Client_Contact || 'N/A',
-    Client_Contact_Title: data.Client_Contact_Title || 'N/A',
-    Client_Journey: data.Client_Journey || 'N/A',
-    Document_Type: data.Document_Type || 'N/A',
-    Document_Sub_Type: data.Document_Sub_Type || 'N/A',
-    Document_Value_Range: data.Document_Value_Range || 'N/A',
-    Document_Outcome: data.Document_Outcome || 'N/A',
-    Last_Stage_Change_Date: data.Last_Stage_Change_Date || 'N/A',
-    Industry: data.Industry || 'N/A',
-    Sub_Industry: data.Sub_Industry || 'N/A',
-    Service: data.Service || 'N/A',
-    Sub_Service: data.Sub_Service || 'N/A',
-    Business_Unit: data.Business_Unit || 'N/A',
-    Region: data.Region || 'N/A',
-    Country: data.Country || 'N/A',
-    State: data.State || 'N/A',
-    City: data.City || 'N/A',
-    Author: data.Author || 'N/A',
-    PIC: data.PIC || 'N/A',
-    PM: data.PM || 'N/A',
-    Keywords: data.Keywords || 'N/A',
-    Commercial_Program: data.Commercial_Program || 'N/A',
-    Project_Team: data.Project_Team || null,
-    SMEs: data.SMEs || null,
-    Competitors: data.Competitors || 'N/A',
-    createdAt: data.createdAt || new Date().toISOString(),
-    updatedAt: data.updatedAt || new Date().toISOString(),
-    publishedAt: data.publishedAt || new Date().toISOString(),
-    Description: data.Description || [],
-    documentUrl: data.documentUrl,
-    proposalName: data.proposalName || data.SF_Number || data.Unique_Id || 'N/A', // Added for robustness
-  };
-};
 
 const ITEMS_PER_PAGE = 8;
 
@@ -115,7 +44,7 @@ const HomePage: React.FC<HomePageProps> = ({
   initialSortBy = 'publishedAt:desc',
 }) => {
   const router = useRouter();
-  const searchTerm = (router.query.searchTerm as string) || ''; // Read searchTerm from URL
+  const searchTerm = (router.query.searchTerm as string) || '';
 
   const [proposals, setProposals] = useState<StrapiProposal[]>(initialProposals);
   const [totalProposals, setTotalProposals] = useState<number>(initialTotalProposals);
@@ -127,20 +56,12 @@ const HomePage: React.FC<HomePageProps> = ({
   const [sortBy, setSortBy] = useState<string>(initialSortBy);
   const [activeView, setActiveView] = useState('grid');
 
-  // State for document preview modal
   const [isDocumentPreviewOpen, setIsDocumentPreviewOpen] = useState(false);
   const [selectedProposalForPreview, setSelectedProposalForPreview] = useState<StrapiProposal | null>(null);
 
-  // Debounce for URL search term
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
-
-
+  
+  // fetchProposals useCallback definition (moved here to be before useEffects that use it)
   const fetchProposals = useCallback(async (
     page: number,
     currentSearchTerm: string,
@@ -149,19 +70,16 @@ const HomePage: React.FC<HomePageProps> = ({
     setIsLoading(true);
     setError(null);
 
-    const strapiApiUrl = 'http://localhost:1337/api/document-stores';
-    let proposalsData: any = {};
-
+    const strapiApiBaseUrl = STRAPI_API_URL.split('?')[0];
+    
     try {
       if (currentSearchTerm) {
-        // Perform MeiliSearch when a search term is present
         const meiliSearchResults = await meiliSearchClient.index('document_stores').search(currentSearchTerm, {
           offset: (page - 1) * ITEMS_PER_PAGE,
           limit: ITEMS_PER_PAGE,
           sort: [currentSortBy],
         });
 
-        // Map MeiliSearch results using the new helper
         const fetchedProposals: StrapiProposal[] = (meiliSearchResults.hits || []).map((hit: any) => ({
           ...extractProposalData(hit),
           id: hit.id,
@@ -173,20 +91,18 @@ const HomePage: React.FC<HomePageProps> = ({
         setTotalProposals(meiliSearchResults.estimatedTotalHits || 0);
 
       } else {
-        // Fallback to Strapi API for general listing when no search term
         const queryParams = new URLSearchParams();
         queryParams.append('pagination[page]', String(page));
         queryParams.append('pagination[pageSize]', String(ITEMS_PER_PAGE));
         queryParams.append('filters[publishedAt][$notNull]', 'true');
         queryParams.append('sort', currentSortBy);
 
-        const response = await fetch(`${strapiApiUrl}?${queryParams.toString()}`);
+        const response = await fetch(`${strapiApiBaseUrl}?populate=*&${queryParams.toString()}`);
         if (!response.ok) {
           throw new Error(`Strapi API returned status ${response.status}`);
         }
-        proposalsData = await response.json();
+        const proposalsData = await response.json();
         const fetchedProposals: StrapiProposal[] = (proposalsData.data || []).map((item: any) => ({
-          // Map Strapi API results using the new helper
           ...extractProposalData(item),
           id: item.id,
           documentId: item.id.toString(),
@@ -203,62 +119,23 @@ const HomePage: React.FC<HomePageProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, []);
-
-
-  // Effect to re-fetch data and update URL when relevant state changes
-  useEffect(() => {
-    const newQuery: { [key: string]: string | string[] } = {
-      page: String(currentPage),
-      searchTerm: searchTerm, // Use searchTerm from URL
-      sortBy: sortBy,
-    };
-    
-    const cleanedQuery: { [key: string]: string | string[] } = {};
-    for (const key in newQuery) {
-        const value = newQuery[key];
-        if (value !== '' && value !== null && value !== undefined && !(Array.isArray(value) && value.length === 0)) {
-            if (key === 'page' && value === '1') continue;
-            if (key === 'sortBy' && value === 'publishedAt:desc') continue;
-            cleanedQuery[key] = value;
-        }
-    }
-
-    const currentRouterQueryCopy = { ...router.query };
-    Object.keys(currentRouterQueryCopy).forEach(key => {
-        const value = currentRouterQueryCopy[key];
-        if (!Object.prototype.hasOwnProperty.call(cleanedQuery, key) && 
-            (value === '1' || value === 'publishedAt:desc' || 
-             (Array.isArray(value) && value.length === 0) || value === '')) {
-            delete currentRouterQueryCopy[key];
-        }
-    });
-
-    const currentQueryString = new URLSearchParams(currentRouterQueryCopy as Record<string, string | string[]>).toString();
-    const newQueryString = new URLSearchParams(cleanedQuery as Record<string, string | string[]>).toString();
-
-    if (currentQueryString !== newQueryString) {
-      router.replace({
-        pathname: router.pathname,
-        query: cleanedQuery,
-      }, undefined, { shallow: true });
-    }
-
-    fetchProposals(
-      currentPage,
-      searchTerm, // Use searchTerm from URL
-      sortBy
-    );
   }, [
-    currentPage,
-    searchTerm, // Now reacts to URL searchTerm
-    sortBy,
-    router,
-    fetchProposals
+    // Dependencies for fetchProposals useCallback
+    // These should not include fetchProposals itself
+    currentPage, debouncedSearchTerm, sortBy, // arguments, not dependencies of useCallback
   ]);
+
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchProposals(currentPage, searchTerm, sortBy); // Pass the current state values directly to fetchProposals
+    }, 500); // Debounce initial search term, if any
+    return () => clearTimeout(timer);
+  }, [searchTerm, currentPage, sortBy, fetchProposals]); // fetchProposals is a dependency here
+
   
   const handleClearFilters = useCallback(() => {
-    router.replace({ pathname: router.pathname, query: {} }, undefined, { shallow: true }); // Clear all URL params
+    router.replace({ pathname: router.pathname, query: {} }, undefined, { shallow: true });
     setSortBy('publishedAt:desc');
     setCurrentPage(1);
   }, [router]);
@@ -269,23 +146,24 @@ const HomePage: React.FC<HomePageProps> = ({
   }, []);
 
   const handleSearchResultClick = useCallback(async (proposal: StrapiProposal) => {
-    // When a preview is requested, fetch the full proposal data from Strapi
-    // to ensure we have the most up-to-date documentUrl and Description.
     setIsLoading(true);
     try {
-      const response = await fetch(`http://localhost:1337/api/document-stores/${proposal.id}`);
+      const strapiApiBaseUrl = STRAPI_API_URL.split('?')[0];
+      const response = await fetch(`${strapiApiBaseUrl}/${proposal.id}?populate=*`);
       if (!response.ok) {
         throw new Error(`Failed to fetch full proposal details for ID: ${proposal.id}`);
       }
       const fullProposalData = await response.json();
       const fetchedProposal: StrapiProposal = {
-        ...extractProposalData(fullProposalData.data), // Use the helper for consistency
+        ...extractProposalData(fullProposalData.data),
         id: fullProposalData.data.id,
         documentId: fullProposalData.data.id.toString(),
         documentUrl: fullProposalData.data.attributes?.documentUrl || getDocumentUrl(fullProposalData.data.attributes?.SF_Number || fullProposalData.data.attributes?.Unique_Id, fullProposalData.data.id.toString()),
       };
       setSelectedProposalForPreview(fetchedProposal);
-      setIsDocumentPreviewOpen(true);
+      if (router.query.proposalId !== String(proposal.id)) {
+        router.push(`/content-management?proposalId=${proposal.id}`, undefined, { shallow: true });
+      }
     } catch (err: any) {
       console.error("Error fetching full proposal for preview:", err);
       setError(`Failed to load document for preview: ${err.message}`);
@@ -303,10 +181,10 @@ const HomePage: React.FC<HomePageProps> = ({
 
   return (
     <Layout
-      searchTerm={searchTerm} // Pass searchTerm from URL
+      searchTerm={searchTerm}
       isLoading={isLoading}
       onSearchResultClick={handleSearchResultClick}
-      activeContentType="Proposals" // Default value, since no filter is applied here
+      activeContentType="Proposals"
       activeServiceLines={[]}
       activeIndustries={[]}
       activeRegions={[]}
@@ -341,7 +219,6 @@ const HomePage: React.FC<HomePageProps> = ({
             >
               <option value="publishedAt:desc">Published Date (Newest)</option>
               <option value="publishedAt:asc">Published Date (Oldest)</option>
-              {/* Changed SF_Number to unique_id for sorting options if MeiliSearch supports it */}
               <option value="unique_id:asc">Unique ID (A-Z)</option>
               <option value="unique_id:desc">Unique ID (Z-A)</option>
               <option value="Client_Name:asc">Client Name (A-Z)</option>
@@ -358,9 +235,7 @@ const HomePage: React.FC<HomePageProps> = ({
                           ${activeView === 'grid' ? 'bg-strapi-green-light text-white shadow-sm' : 'bg-white hover:bg-gray-100'}
                           focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:ring-offset-2`}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM13 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2h-2zM13 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2h-2z" />
-              </svg>
+              <Squares2X2Icon className="h-5 w-5" />
             </button>
             <button
               onClick={() => setActiveView('list')}
@@ -368,9 +243,7 @@ const HomePage: React.FC<HomePageProps> = ({
                           ${activeView === 'list' ? 'bg-strapi-green-light text-white shadow-sm' : 'bg-white hover:bg-gray-100'}
                           focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:ring-offset-2`}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
-              </svg>
+              <ListBulletIcon className="h-5 w-5" />
             </button>
           </div>
         </div>
@@ -402,11 +275,12 @@ const HomePage: React.FC<HomePageProps> = ({
         <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
       )}
 
-      {/* Document Preview Modal, conditionally rendered */}
-      {isDocumentPreviewOpen && selectedProposalForPreview && (
+      {selectedProposalForPreview && (
         <DocumentPreviewModal
           proposal={selectedProposalForPreview}
-          onClose={closeDocumentPreview}
+          onClose={() => {
+            router.push('/content-management', undefined, { shallow: true });
+          }}
         />
       )}
     </Layout>
@@ -414,7 +288,8 @@ const HomePage: React.FC<HomePageProps> = ({
 };
 
 export const getServerSideProps: GetServerSideProps<HomePageProps> = async (context) => {
-  const STRAPI_API_URL = 'http://localhost:1337/api/document-stores';
+  const STRAPI_API_BASE_URL = STRAPI_API_URL.split('?')[0];
+  
   let initialProposals: StrapiProposal[] = [];
   let initialTotalProposals = 0;
   let initialLatestProposals: StrapiProposal[] = [];
@@ -422,7 +297,7 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async (cont
 
   const query = context.query;
   const page = parseInt(query.page as string || '1');
-  const searchTerm = (query.searchTerm as string) || ''; // Read searchTerm from URL
+  const searchTerm = (query.searchTerm as string) || '';
   const sortBy = (query.sortBy as string) || 'publishedAt:desc';
 
   const offset = (page - 1) * ITEMS_PER_PAGE;
@@ -434,9 +309,7 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async (cont
   ssrQueryParams.append('filters[publishedAt][$notNull]', 'true');
   ssrQueryParams.append('sort', sortBy);
 
-  // Apply searchTerm filter if present in URL
   if (searchTerm) {
-      // Assuming MeiliSearch is used for keyword search on homepage also
       const meiliSearchClient = new MeiliSearch({
         host: MEILISEARCH_HOST,
         apiKey: MEILISEARCH_API_KEY,
@@ -448,7 +321,7 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async (cont
           sort: [sortBy],
         });
         initialProposals = meiliSearchResults.hits.map((hit: any) => ({
-          ...extractProposalData(hit), // Use the helper for consistency
+          ...extractProposalData(hit),
           id: hit.id,
           documentId: hit.id.toString(),
           documentUrl: getDocumentUrl(hit.SF_Number || hit.Unique_Id, hit.id.toString()),
@@ -457,11 +330,10 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async (cont
       } catch (meiliError: any) {
         console.error('[getServerSideProps] MeiliSearch failed for Homepage:', meiliError);
         initialError = `Search failed: ${meiliError.message}. Falling back to general listing.`;
-        // Fallback to Strapi API if MeiliSearch fails
-        const response = await fetch(`${STRAPI_API_URL}?${ssrQueryParams.toString()}`);
+        const response = await fetch(`${STRAPI_API_BASE_URL}?populate=*&${ssrQueryParams.toString()}`);
         const data = await response.json();
         initialProposals = (data.data || []).map((item: any) => ({
-          ...extractProposalData(item), // Use the helper for consistency
+          ...extractProposalData(item),
           id: item.id,
           documentId: item.id.toString(),
           documentUrl: item.attributes?.documentUrl || getDocumentUrl(item.attributes?.SF_Number || item.attributes?.Unique_Id, item.id.toString()),
@@ -471,7 +343,7 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async (cont
 
   } else {
     try {
-      const proposalsResponse = await fetch(`${STRAPI_API_URL}?${ssrQueryParams.toString()}`);
+      const proposalsResponse = await fetch(`${STRAPI_API_BASE_URL}?populate=*&${ssrQueryParams.toString()}`);
       
       if (!proposalsResponse.ok) {
         throw new Error(`Strapi proposals API returned status ${proposalsResponse.status}`);
@@ -479,7 +351,7 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async (cont
       const proposalsData = await proposalsResponse.json();
       
       initialProposals = (proposalsData.data || []).map((item: any) => ({
-        ...extractProposalData(item), // Use the helper for consistency
+        ...extractProposalData(item),
         id: item.id,
         documentId: item.id.toString(),
         documentUrl: item.attributes?.documentUrl || getDocumentUrl(item.attributes?.SF_Number || item.attributes?.Unique_Id, item.id.toString()),
@@ -487,21 +359,21 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async (cont
       initialTotalProposals = proposalsData.meta?.pagination?.total || 0;
     } catch (err: any) {
       console.error('[getServerSideProps] Failed to fetch data from Strapi:', err);
-      initialError = `Failed to load data: ${err.message}. Please ensure Strapi is running and accessible at ${STRAPI_API_URL}.`;
+      initialError = `Failed to load data: ${err.message}. Please ensure Strapi is running and accessible at ${STRAPI_API_BASE_URL}.`;
     }
   }
 
 
   try {
-    // Fetching latest 3 proposals for the carousel
-    const latestProposalsResponse = await fetch(`${STRAPI_API_URL}?sort=publishedAt:desc&pagination[limit]=3`);
+    const latestProposalsResponse = await fetch(`${STRAPI_API_BASE_URL}?sort=publishedAt:desc&pagination[limit]=3&populate=*`);
     if (!latestProposalsResponse.ok) {
       console.warn(`Strapi latest proposals API returned status ${latestProposalsResponse.status}. Carousel might not show latest data.`);
       initialLatestProposals = [];
     } else {
       const latestData = await latestProposalsResponse.json();
+      // Corrected: map over latestData.data, not `latestProposals` itself
       initialLatestProposals = (latestData.data || []).map((item: any) => ({
-        ...extractProposalData(item), // Use the helper for consistency
+        ...extractProposalData(item),
         id: item.id,
         documentId: item.id.toString(),
         documentUrl: item.attributes?.documentUrl || getDocumentUrl(item.attributes?.SF_Number || item.attributes?.Unique_Id, item.id.toString()),

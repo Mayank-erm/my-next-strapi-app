@@ -60,7 +60,7 @@ const Carousel: React.FC<CarouselProps> = ({ latestProposals }) => {
               {currentSlide.data.unique_id || 'N/A Unique ID'}
             </h4>
             <p className="text-base text-text-medium-gray px-4">
-              {currentSlide.data.Client_Name || 'N/A Client'} - {currentSlide.data.proposalName || 'Untitled Proposal'}
+              {currentSlide.data.Document_Type || 'N/A Client'} - {currentSlide.data.Document_Sub_Type || 'Untitled Proposal'}
             </p>
           </div>
         ) : (
