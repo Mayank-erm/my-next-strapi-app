@@ -13,7 +13,7 @@ import { extractProposalData } from '@/utils/dataHelpers'; // Import shared help
 
 // --- MeiliSearch Configuration ---
 const MEILISEARCH_HOST = 'http://localhost:7700';
-const MEILISEARCH_API_KEY = 'masterKey';
+const MEILISEARCH_API_KEY = 'masterKey'; // Consider using environment variables for production!
 
 const meiliSearchClient = new MeiliSearch({
   host: MEILISEARCH_HOST,
@@ -50,6 +50,11 @@ const CmsPage: React.FC = () => {
 
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(urlSearchTerm);
   
+  // This useEffect syncs the debouncedSearchTerm with the URL's searchTerm
+  useEffect(() => {
+    setDebouncedSearchTerm(urlSearchTerm);
+  }, [urlSearchTerm]);
+
   const fetchContent = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -158,12 +163,28 @@ const CmsPage: React.FC = () => {
     serviceLines,
     industries,
     regions,
+    meiliSearchClient, // MeiliSearch client instance (should be stable)
+    extractProposalData, // Helper function (should be stable)
+    getDocumentUrl, // Helper function (should be stable)
+    STRAPI_API_URL, // Constant (stable)
+    setProposals, setTotalProposals, setIsLoading, setError, // React state setters (stable)
+    ITEMS_PER_PAGE // Constant (stable)
   ]);
 
 
   useEffect(() => {
-    fetchContent();
-  }, [currentPage, fetchContent]);
+    // Trigger fetchContent whenever any relevant filter state or search term changes
+    const timer = setTimeout(() => {
+        fetchContent();
+    }, 300); // Debounce fetch content
+
+    return () => clearTimeout(timer);
+  }, [
+    currentPage, debouncedSearchTerm, sortBy, 
+    dateRange, valueRange, proposalStatuses, proposedByUsers, contentTypes, 
+    serviceLines, industries, regions, 
+    fetchContent 
+  ]);
 
 
   const handleApplyFilters = useCallback(() => {
@@ -183,7 +204,23 @@ const CmsPage: React.FC = () => {
     setValueRange([0, 1000000]);
     setSortBy('publishedAt:desc');
     setCurrentPage(1);
+    setDebouncedSearchTerm(''); // Clear debounced search term
   }, [router]);
+
+  // DEFINE activeFiltersCount using useMemo
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (urlSearchTerm) count++;
+    if (dateRange[0] && dateRange[1]) count++;
+    if (valueRange[0] !== 0 || valueRange[1] !== 1000000) count++;
+    count += proposalStatuses.length;
+    count += proposedByUsers.length;
+    count += contentTypes.length;
+    count += serviceLines.length;
+    count += industries.length;
+    count += regions.length;
+    return count;
+  }, [urlSearchTerm, dateRange, valueRange, proposalStatuses, proposedByUsers, contentTypes, serviceLines, industries, regions]);
 
 
   const totalPages = Math.ceil(totalProposals / ITEMS_PER_PAGE);
@@ -236,11 +273,12 @@ const CmsPage: React.FC = () => {
       } catch (err: any) {
         console.error("Error fetching full proposal for preview:", err);
         setError(`Failed to load document for preview: ${err.message}`);
+        router.push('/content-management', undefined, { shallow: true });
       } finally {
         setIsLoading(false);
       }
     },
-    activeContentType: 'Proposals',
+    activeContentType: contentTypes.length > 0 ? contentTypes[0] : 'All',
     activeServiceLines: serviceLines,
     activeIndustries: industries,
     activeRegions: regions,
@@ -251,9 +289,9 @@ const CmsPage: React.FC = () => {
     onRegionChange: setRegions,
     onDateChange: (date: string) => {
       const newDate = date ? new Date(date) : null;
-      setDateRange([newDate, dateRange[1]]);
+      setDateRange([newDate, newDate]); 
     },
-    onSearchInFiltersChange: () => {},
+    onSearchInFiltersChange: () => {}, 
     onClearAllFilters: handleClearAllFilters,
   };
 
@@ -295,7 +333,7 @@ const CmsPage: React.FC = () => {
     } else if (!proposalId && selectedProposalForPreview) {
       setSelectedProposalForPreview(null);
     }
-  }, [router.query.proposalId, proposals, isLoading, selectedProposalForPreview]);
+  }, [router.query.proposalId, proposals, isLoading, selectedProposalForPreview, extractProposalData, getDocumentUrl, STRAPI_API_URL, router]);
 
 
   return (
@@ -336,6 +374,15 @@ const CmsPage: React.FC = () => {
               industries: industries,
               regions: regions,
               onClearFilter: handleClearAllFilters,
+              onClearSearchTerm: () => router.replace({ query: { ...router.query, searchTerm: undefined } }, undefined, { shallow: true }),
+              onClearDateRange: () => setDateRange([null, null]),
+              onClearValueRange: () => setValueRange([0, 1000000]),
+              onClearProposalStatus: (statusToRemove) => setProposalStatuses(prev => prev.filter(s => s !== statusToRemove)),
+              onClearProposedByUser: (userToRemove) => setProposedByUsers(prev => prev.filter(u => u !== userToRemove)),
+              onClearContentType: (typeToRemove) => setContentTypes(prev => prev.filter(t => t !== typeToRemove)),
+              onClearServiceLine: (lineToRemove) => setServiceLines(prev => prev.filter(l => l !== lineToRemove)),
+              onClearIndustry: (industryToRemove) => setIndustries(prev => prev.filter(i => i !== industryToRemove)),
+              onClearRegion: (regionToRemove) => setRegions(prev => prev.filter(r => r !== regionToRemove)),
           }}
         />
 
