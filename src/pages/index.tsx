@@ -1,4 +1,4 @@
-// src/pages/index.tsx - UPDATED VERSION WITH CORRECT FILTERABLE ATTRIBUTES
+// src/pages/index.tsx - COMPLETE VERSION WITH PROFESSIONAL ENHANCEMENTS
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '@/components/Layout';
 import Carousel from '@/components/Carousel';
@@ -317,7 +317,9 @@ const HomePage: React.FC<HomePageProps> = ({
       onClearAllFilters={handleClearFilters}
     >
       {/* Carousel with latest proposals from MeiliSearch */}
-      <Carousel latestProposals={latestProposals} />
+      <div className="animate-professional-fade-in">
+        <Carousel latestProposals={latestProposals} />
+      </div>
 
       {/* Error display */}
       {error && (
@@ -342,115 +344,127 @@ const HomePage: React.FC<HomePageProps> = ({
       )}
 
       {/* Popular Resources Section */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-text-dark-gray mb-2">
-            {searchTerm ? `Search Results (${totalProposals})` : `Popular Resources (${totalProposals})`}
-          </h2>
-          {searchTerm && (
-            <p className="text-sm text-gray-600">
-              Showing results for "<span className="font-medium">{searchTerm}</span>"
-            </p>
-          )}
-        </div>
-        
-        <div className="flex items-center space-x-4 text-text-medium-gray text-sm flex-wrap mt-4 sm:mt-0">
-          <span className="font-semibold">Sort by:</span>
-          <div className="relative">
-            <select
-              value={sortBy}
-              onChange={handleSortByChange}
-              className="p-2 border rounded-lg bg-white appearance-none pr-8 cursor-pointer
-                         focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:border-transparent"
-            >
-              <option value="publishedAt:desc">Published Date (Newest)</option>
-              <option value="publishedAt:asc">Published Date (Oldest)</option>
-              <option value="unique_id:asc">Document ID (A-Z)</option>
-              <option value="unique_id:desc">Document ID (Z-A)</option>
-              <option value="Client_Name:asc">Client Name (A-Z)</option>
-              <option value="updatedAt:desc">Recently Updated</option>
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-              <ChevronDownIcon className="h-4 w-4" />
-            </div>
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6 card-professional">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+          <div>
+            <h2 className="text-2xl font-bold text-text-dark-gray mb-2">
+              {searchTerm ? `Search Results (${totalProposals})` : `Popular Resources (${totalProposals})`}
+            </h2>
+            {searchTerm && (
+              <p className="text-sm text-gray-600">
+                Showing results for "<span className="font-medium">{searchTerm}</span>"
+              </p>
+            )}
           </div>
           
-          {/* View toggle */}
-          <div className="flex space-x-2 ml-auto sm:ml-0 mt-2 sm:mt-0">
-            <button
-              onClick={() => setActiveView('grid')}
-              className={`p-2 border rounded-lg text-gray-700 transition-colors
-                          ${activeView === 'grid' ? 'bg-strapi-green-light text-white shadow-sm' : 'bg-white hover:bg-gray-100'}
-                          focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:ring-offset-2`}
-              title="Grid view"
-            >
-              <Squares2X2Icon className="h-5 w-5" />
-            </button>
-            <button
-              onClick={() => setActiveView('list')}
-              className={`p-2 border rounded-lg text-gray-700 transition-colors
-                          ${activeView === 'list' ? 'bg-strapi-green-light text-white shadow-sm' : 'bg-white hover:bg-gray-100'}
-                          focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:ring-offset-2`}
-              title="List view"
-            >
-              <ListBulletIcon className="h-5 w-5" />
-            </button>
+          <div className="flex items-center space-x-4 text-text-medium-gray text-sm flex-wrap mt-4 sm:mt-0">
+            <span className="font-semibold">Sort by:</span>
+            <div className="relative">
+              <select
+                value={sortBy}
+                onChange={handleSortByChange}
+                className="p-2 border rounded-lg bg-white appearance-none pr-8 cursor-pointer
+                           focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:border-transparent"
+              >
+                <option value="publishedAt:desc">Published Date (Newest)</option>
+                <option value="publishedAt:asc">Published Date (Oldest)</option>
+                <option value="unique_id:asc">Document ID (A-Z)</option>
+                <option value="unique_id:desc">Document ID (Z-A)</option>
+                <option value="Client_Name:asc">Client Name (A-Z)</option>
+                <option value="updatedAt:desc">Recently Updated</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                <ChevronDownIcon className="h-4 w-4" />
+              </div>
+            </div>
+            
+            {/* View toggle */}
+            <div className="flex space-x-2 ml-auto sm:ml-0 mt-2 sm:mt-0">
+              <button
+                onClick={() => setActiveView('grid')}
+                className={`p-2 border rounded-lg text-gray-700 transition-colors
+                            ${activeView === 'grid' ? 'bg-strapi-green-light text-white shadow-sm' : 'bg-white hover:bg-gray-100'}
+                            focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:ring-offset-2`}
+                title="Grid view"
+              >
+                <Squares2X2Icon className="h-5 w-5" />
+              </button>
+              <button
+                onClick={() => setActiveView('list')}
+                className={`p-2 border rounded-lg text-gray-700 transition-colors
+                            ${activeView === 'list' ? 'bg-strapi-green-light text-white shadow-sm' : 'bg-white hover:bg-gray-100'}
+                            focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:ring-offset-2`}
+                title="List view"
+              >
+                <ListBulletIcon className="h-5 w-5" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Loading state */}
-      {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-10 text-gray-500">
-          <svg className="animate-spin h-10 w-10 text-strapi-green-light mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <p className="text-xl font-medium">Loading documents from search index...</p>
-          <p className="text-sm text-gray-400 mt-1">This may take a moment on first load</p>
-        </div>
-      ) : proposals.length > 0 ? (
-        /* Documents grid/list */
-        <div className={activeView === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-6" : "flex flex-col gap-4"}>
-          {proposals.map((proposal) => (
-            <ProposalCard 
-              key={proposal.id} 
-              proposal={proposal} 
-              isListView={activeView === 'list'} 
-            />
-          ))}
-        </div>
-      ) : (
-        /* No results state */
-        <div className="flex flex-col items-center justify-center py-10 text-gray-500">
-          <span className="text-6xl mb-4" role="img" aria-label="No results">🔍</span>
-          <p className="text-xl font-medium">
-            {searchTerm ? 'No documents found matching your search' : 'No documents found in the index'}
-          </p>
-          <p className="text-md mt-2 text-center max-w-md">
-            {searchTerm 
-              ? 'Try adjusting your search terms or check the spelling.'
-              : 'The search index may be empty or not yet synchronized with your content.'
-            }
-          </p>
-          {!searchTerm && (
-            <button
-              onClick={() => window.location.reload()}
-              className="mt-4 px-4 py-2 bg-strapi-green-light text-white rounded-lg hover:bg-strapi-green-dark transition-colors"
-            >
-              Refresh Page
-            </button>
-          )}
-        </div>
-      )}
+      {/* Documents grid/list with professional container */}
+      <div className="animate-professional-fade-in" style={{ animationDelay: '0.2s' }}>
+        {/* Loading state */}
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-10 text-gray-500">
+            <svg className="animate-spin h-10 w-10 text-strapi-green-light mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p className="text-xl font-medium">Loading documents from search index...</p>
+            <p className="text-sm text-gray-400 mt-1">This may take a moment on first load</p>
+          </div>
+        ) : proposals.length > 0 ? (
+          /* Documents grid/list */
+          <div className={activeView === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-6" : "flex flex-col gap-4"}>
+            {proposals.map((proposal, index) => (
+              <div 
+                key={proposal.id} 
+                className="animate-professional-fade-in"
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
+                <ProposalCard 
+                  proposal={proposal} 
+                  isListView={activeView === 'list'} 
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* No results state */
+          <div className="flex flex-col items-center justify-center py-10 text-gray-500">
+            <span className="text-6xl mb-4" role="img" aria-label="No results">🔍</span>
+            <p className="text-xl font-medium">
+              {searchTerm ? 'No documents found matching your search' : 'No documents found in the index'}
+            </p>
+            <p className="text-md mt-2 text-center max-w-md">
+              {searchTerm 
+                ? 'Try adjusting your search terms or check the spelling.'
+                : 'The search index may be empty or not yet synchronized with your content.'
+              }
+            </p>
+            {!searchTerm && (
+              <button
+                onClick={() => window.location.reload()}
+                className="mt-4 px-4 py-2 bg-strapi-green-light text-white rounded-lg hover:bg-strapi-green-dark transition-colors"
+              >
+                Refresh Page
+              </button>
+            )}
+          </div>
+        )}
+      </div>
 
-      {/* Pagination */}
+      {/* Pagination with professional styling */}
       {totalPages > 1 && (
-        <Pagination 
-          currentPage={currentPage} 
-          totalPages={totalPages} 
-          onPageChange={setCurrentPage} 
-        />
+        <div className="animate-professional-fade-in" style={{ animationDelay: '0.3s' }}>
+          <Pagination 
+            currentPage={currentPage} 
+            totalPages={totalPages} 
+            onPageChange={setCurrentPage} 
+          />
+        </div>
       )}
 
       {/* Document Preview Modal */}

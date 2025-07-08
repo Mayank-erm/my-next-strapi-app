@@ -1,4 +1,4 @@
-// src/components/ProposalCard.tsx - COMPLETE VERSION
+// src/components/ProposalCard.tsx - COMPLETE VERSION WITH PROFESSIONAL ENHANCEMENTS
 import React, { useState } from 'react';
 import {
   BookmarkIcon,
@@ -102,10 +102,10 @@ const ProposalCard: React.FC<ProposalCardProps> = ({
   return (
     <>
       <div 
-        className={`group relative bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-300 cursor-pointer ${
+        className={`group relative bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-300 cursor-pointer hover-lift ${
           isListView 
             ? 'flex items-center p-4 hover:shadow-md hover:border-gray-200' 
-            : 'flex flex-col hover:shadow-xl hover:border-strapi-green-light/30 hover:-translate-y-1'
+            : 'flex flex-col hover:shadow-xl hover:border-strapi-green-light/30'
         }`}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
