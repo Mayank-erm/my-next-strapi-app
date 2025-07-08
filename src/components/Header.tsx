@@ -1,4 +1,4 @@
-// src/components/Header.tsx - UPDATED: Commercial Content Hub (No AI)
+// src/components/Header.tsx - FIXED: Z-index issues and ERM styling
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MagnifyingGlassIcon, XMarkIcon, CommandLineIcon } from '@heroicons/react/24/outline';
 import { MeiliSearch } from 'meilisearch';
@@ -39,11 +39,11 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
   
   // Popular searches for business content
   const popularSearches = [
-    { term: 'Environmental Impact Assessment', category: 'Environmental' },
-    { term: 'Sustainability Report', category: 'Reporting' },
-    { term: 'Carbon Footprint Analysis', category: 'Analytics' },
-    { term: 'ESG Compliance', category: 'Governance' },
-    { term: 'Renewable Energy', category: 'Energy' },
+    { term: 'Environmental Impact Assessment', category: 'Environmental', icon: '🌍' },
+    { term: 'Sustainability Report', category: 'Reporting', icon: '📊' },
+    { term: 'Carbon Footprint Analysis', category: 'Analytics', icon: '📈' },
+    { term: 'ESG Compliance', category: 'Governance', icon: '⚖️' },
+    { term: 'Renewable Energy', category: 'Energy', icon: '⚡' },
   ];
 
   useEffect(() => {
@@ -82,7 +82,7 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
           'Document_Type', 'Industry', 'Region', 'publishedAt', 'updatedAt'
         ],
         attributesToHighlight: ['Unique_Id', 'Client_Name', 'Document_Type'],
-        highlightPreTag: '<mark class="bg-blue-200 text-blue-900 rounded px-1">',
+        highlightPreTag: '<mark class="bg-erm-primary bg-opacity-20 text-erm-dark rounded px-1">',
         highlightPostTag: '</mark>',
       });
 
@@ -230,74 +230,88 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
     }
   }, [isSearchModalOpen]);
 
+  // Handle body scroll lock when modal is open
+  useEffect(() => {
+    if (isSearchModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isSearchModalOpen]);
+
   return (
-    <header className="fixed top-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-b border-neutral-200 shadow-sm">
-      <div className="flex items-center justify-between p-4">
-        {/* Commercial Content Hub Logo and Title */}
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#007A5F] to-[#00382C] flex items-center justify-center shadow-sm">
-            <img src="/images/ERM_Vertical_Green_Black_RGB.svg" alt="Logo" className="w-6 h-6 filter brightness-0 invert" />
+    <>
+      <header className="fixed top-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-b border-neutral-200 shadow-sm">
+        <div className="flex items-center justify-between p-4">
+          {/* Commercial Content Hub Logo and Title */}
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-erm-primary to-erm-dark flex items-center justify-center shadow-sm">
+              <img src="/images/ERM_Vertical_Green_Black_RGB.svg" alt="Logo" className="w-6 h-6 filter brightness-0 invert" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-neutral-900">Commercial Content Hub</h1>
+              <p className="text-xs text-neutral-500 hidden sm:block">Sustainability Document Management</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-neutral-900">Commercial Content Hub</h1>
-            <p className="text-xs text-neutral-500 hidden sm:block">Sustainability Document Management</p>
-          </div>
-        </div>
 
-        {/* Enhanced Search Bar */}
-        <div className="flex-1 max-w-2xl mx-8">
-          <div className="relative">
-            <button
-              onClick={() => setIsSearchModalOpen(true)}
-              className="w-full group relative bg-neutral-50/80 hover:bg-neutral-100/80 border border-neutral-200/60                         hover:border-[#007A5F]/30 rounded-2xl px-4 py-3.5 transition-all duration-200 ease-out hover:shadow-md"
-            >
-              <div className="flex items-center">
-                <div className="flex items-center space-x-3 flex-1">
-                  <MagnifyingGlassIcon className="h-5 w-5 text-neutral-400 group-hover:text-[#007A5F] transition-colors" />
-                  <div className="flex-1 text-left">
-                    {searchTerm ? (
-                      <div className="flex items-center space-x-2">
-                        <span className="font-medium text-[#007A5F]">"{searchTerm}"</span>
-                        <span className="text-neutral-400 text-sm">— Press ⌘K to modify</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center space-x-2">
-                        <span className="text-neutral-500 group-hover:text-neutral-700">Search documents, reports, proposals...</span>
-                      </div>
+          {/* Enhanced Search Bar */}
+          <div className="flex-1 max-w-2xl mx-8">
+            <div className="relative">
+              <button
+                onClick={() => setIsSearchModalOpen(true)}
+                className="w-full group relative bg-neutral-50/80 hover:bg-neutral-100/80 border border-neutral-200/60 hover:border-erm-primary/30 rounded-2xl px-4 py-3.5 transition-all duration-200 ease-out hover:shadow-md"
+              >
+                <div className="flex items-center">
+                  <div className="flex items-center space-x-3 flex-1">
+                    <MagnifyingGlassIcon className="h-5 w-5 text-neutral-400 group-hover:text-erm-primary transition-colors" />
+                    <div className="flex-1 text-left">
+                      {searchTerm ? (
+                        <div className="flex items-center space-x-2">
+                          <span className="font-medium text-erm-primary">"{searchTerm}"</span>
+                          <span className="text-neutral-400 text-sm">— Press ⌘K to modify</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center space-x-2">
+                          <span className="text-neutral-500 group-hover:text-neutral-700">Search documents, reports, proposals...</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    {searchTerm && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push('/');
+                        }}
+                        className="p-1 rounded-full bg-neutral-200 hover:bg-red-100 text-neutral-500 hover:text-red-600 transition-colors"
+                        title="Clear search"
+                      >
+                        <XMarkIcon className="h-3 w-3" />
+                      </button>
                     )}
+                    <div className="flex items-center bg-neutral-100 text-neutral-600 text-xs px-2 py-1 rounded-lg font-mono">
+                      <CommandLineIcon className="h-3 w-3 mr-1" />
+                      ⌘K
+                    </div>
                   </div>
                 </div>
-                
-                <div className="flex items-center space-x-2">
-                  {searchTerm && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        router.push('/');
-                      }}
-                      className="p-1 rounded-full bg-neutral-200 hover:bg-red-100 text-neutral-500 hover:text-red-600 transition-colors"
-                      title="Clear search"
-                    >
-                      <XMarkIcon className="h-3 w-3" />
-                    </button>
-                  )}
-                  <div className="flex items-center bg-neutral-100 text-neutral-600 text-xs px-2 py-1 rounded-lg font-mono">
-                    <CommandLineIcon className="h-3 w-3 mr-1" />
-                    ⌘K
-                  </div>
-                </div>
-              </div>
-            </button>
+              </button>
+            </div>
+          </div>
+
+          {/* User Profile */}
+          <div className="flex items-center">
+            <UserDropdown />
           </div>
         </div>
+      </header>
 
-        {/* User Profile */}
-        <div className="flex items-center">
-          <UserDropdown />
-        </div>
-      </div>
-
-      {/* Enhanced Search Modal */}
+      {/* FIXED: Enhanced Search Modal with proper z-index */}
       {isSearchModalOpen && (
         <div 
           className="fixed inset-0 bg-black/20 backdrop-blur-sm flex justify-center items-start pt-16 pb-10 overflow-y-auto"
@@ -308,13 +322,16 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
             }
           }}
         >
-          <div className="relative bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl w-full max-w-3xl mx-4 my-auto overflow-hidden border border-neutral-200/50" style={{ zIndex: 100000 }}>
+          <div 
+            className="relative bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl w-full max-w-3xl mx-4 my-auto overflow-hidden border border-neutral-200/50" 
+            style={{ zIndex: 100000 }}
+          >
             
-            {/* Modal Header */}
-            <div className="p-6 border-b border-neutral-100/50 bg-gradient-to-r from-blue-600/5 to-transparent">
+            {/* Modal Header - Updated with ERM colors */}
+            <div className="p-6 border-b border-neutral-100/50 bg-gradient-to-r from-erm-primary/5 to-transparent">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-erm-primary to-erm-dark flex items-center justify-center">
                     <MagnifyingGlassIcon className="h-4 w-4 text-white" />
                   </div>
                   <div>
@@ -330,7 +347,7 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
                 </button>
               </div>
               
-              {/* Enhanced Search Input */}
+              {/* Enhanced Search Input - Updated with ERM colors */}
               <div className="relative">
                 <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-neutral-400" />
                 <input
@@ -340,7 +357,7 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
                   value={internalSearchTerm}
                   onChange={handleSearchInputChange}
                   onKeyDown={handleKeyDown}
-                  className="w-full pl-12 pr-12 py-4 bg-neutral-50/50 border border-neutral-200 rounded-2xl focus:ring-2 focus:ring-blue-600 focus:border-blue-600 text-base placeholder-neutral-400 transition-all"
+                  className="w-full pl-12 pr-12 py-4 bg-neutral-50/50 border border-neutral-200 rounded-2xl focus:ring-2 focus:ring-erm-primary focus:border-erm-primary text-base placeholder-neutral-400 transition-all"
                 />
                 <div className="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
                   {internalSearchTerm && (
@@ -356,7 +373,7 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
                     </button>
                   )}
                   {isSearching && (
-                    <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                    <div className="animate-spin h-4 w-4 border-2 border-erm-primary border-t-transparent rounded-full"></div>
                   )}
                 </div>
               </div>
@@ -368,14 +385,14 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
               {isSearching && internalSearchTerm.length > 0 ? (
                 <div className="flex items-center justify-center py-12">
                   <div className="flex items-center space-x-3 text-neutral-600">
-                    <div className="animate-spin h-5 w-5 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                    <div className="animate-spin h-5 w-5 border-2 border-erm-primary border-t-transparent rounded-full"></div>
                     <span className="font-medium">Searching documents...</span>
                   </div>
                 </div>
               ) : internalSearchTerm.length > 0 && autocompleteResults.length > 0 ? (
                 <div>
-                  <div className="px-6 py-3 bg-gradient-to-r from-blue-600/10 to-transparent border-b border-neutral-100">
-                    <p className="text-xs font-medium text-blue-800 uppercase tracking-wider">
+                  <div className="px-6 py-3 bg-gradient-to-r from-erm-primary/10 to-transparent border-b border-neutral-100">
+                    <p className="text-xs font-medium text-erm-dark uppercase tracking-wider">
                       Found {autocompleteResults.length} documents
                     </p>
                   </div>
@@ -385,24 +402,24 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
                       onClick={() => handleResultClick(result)}
                       className={`p-4 border-b border-neutral-50 cursor-pointer transition-all group ${
                         index === focusedIndex 
-                          ? 'bg-blue-600/10 border-blue-600/20' 
+                          ? 'bg-erm-primary/10 border-erm-primary/20' 
                           : 'hover:bg-neutral-50/80'
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <div className="flex items-center space-x-3 mb-2">
-                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-xs font-bold">
+                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-erm-primary to-erm-dark flex items-center justify-center text-white text-xs font-bold">
                               {result.Document_Type ? result.Document_Type[0] : 'D'}
                             </div>
                             <div className="flex-1">
-                              <h4 className="text-sm font-semibold text-neutral-900 group-hover:text-blue-800">
+                              <h4 className="text-sm font-semibold text-neutral-900 group-hover:text-erm-dark">
                                 <span dangerouslySetInnerHTML={{ 
                                   __html: result._highlightResults?.Unique_Id || result.unique_id || result.SF_Number || 'N/A' 
                                 }} />
                               </h4>
                               <div className="flex items-center space-x-2 text-xs text-neutral-500 mt-1">
-                                <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                                <span className="bg-erm-primary/10 text-erm-dark px-2 py-0.5 rounded-full">
                                   {result.Document_Type || 'Document'}
                                 </span>
                                 <span>•</span>
@@ -419,7 +436,7 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
                             }} />
                           </p>
                         </div>
-                        <div className="text-xs text-blue-600 group-hover:text-blue-800 font-medium flex items-center">
+                        <div className="text-xs text-erm-primary group-hover:text-erm-dark font-medium flex items-center">
                           <span className="opacity-0 group-hover:opacity-100 transition-opacity mr-1">Open</span>
                           →
                         </div>
@@ -443,14 +460,14 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
                     </button>
                     <button 
                       onClick={() => handleQuickSearch('proposal')}
-                      className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-full transition-colors"
+                      className="text-xs bg-erm-primary hover:bg-erm-dark text-white px-3 py-1 rounded-full transition-colors"
                     >
                       Show proposals
                     </button>
                   </div>
                 </div>
               ) : (
-                /* Default state with business-focused sections */
+                /* Default state with business-focused sections - Updated with ERM colors */
                 <div className="p-6 space-y-8">
                   {/* Recent Searches */}
                   {recentSearches.length > 0 && (
@@ -498,7 +515,7 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
                     </div>
                   )}
 
-                  {/* Popular Business Searches */}
+                  {/* Popular Business Searches - Updated with ERM colors */}
                   <div>
                     <h4 className="text-sm font-semibold text-neutral-700 mb-4">Popular Document Types</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -506,14 +523,12 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
                         <button
                           key={index}
                           onClick={() => handleQuickSearch(search.term)}
-                          className="text-left p-3 bg-white hover:bg-blue-600/5 text-neutral-700 hover:text-blue-800 text-sm rounded-xl transition-all duration-200 border border-neutral-100 hover:border-blue-600/30 group"
+                          className="text-left p-3 bg-white hover:bg-erm-primary/5 text-neutral-700 hover:text-erm-dark text-sm rounded-xl transition-all duration-200 border border-neutral-100 hover:border-erm-primary/30 group"
                         >
                           <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-2">
-                              <div className="w-6 h-6 bg-blue-600/10 rounded-lg flex items-center justify-center">
-                                <span className="text-xs font-bold text-blue-800">
-                                  {search.term[0]}
-                                </span>
+                            <div className="flex items-center space-x-3">
+                              <div className="w-8 h-8 bg-erm-primary/10 rounded-lg flex items-center justify-center">
+                                <span className="text-sm">{search.icon}</span>
                               </div>
                               <div>
                                 <div className="font-medium">{search.term}</div>
@@ -529,7 +544,7 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
               )}
             </div>
 
-            {/* Enhanced Modal Footer */}
+            {/* Enhanced Modal Footer - Updated with ERM colors */}
             <div className="p-4 border-t border-neutral-100/50 bg-neutral-50/30">
               <div className="flex items-center justify-between text-xs text-neutral-500">
                 <div className="flex items-center space-x-4">
@@ -548,7 +563,7 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
                 </div>
                 <div className="flex items-center space-x-2">
                   <span>Powered by</span>
-                  <div className="flex items-center space-x-1 text-blue-600 font-medium">
+                  <div className="flex items-center space-x-1 text-erm-primary font-medium">
                     <span>MeiliSearch</span>
                   </div>
                 </div>
@@ -557,7 +572,7 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
           </div>
         </div>
       )}
-    </header>
+    </>
   );
 };
 

@@ -344,7 +344,7 @@ const HomePage: React.FC<HomePageProps> = ({
       )}
 
       {/* Popular Resources Section */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6 card-professional">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
           <div>
             <h2 className="text-2xl font-bold text-text-dark-gray mb-2">
