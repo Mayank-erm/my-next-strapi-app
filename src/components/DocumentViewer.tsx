@@ -1,4 +1,4 @@
-// src/components/DocumentViewer.tsx - ENHANCED VERSION WITH MULTIPLE FILE TYPE SUPPORT
+// src/components/DocumentViewer.tsx - FIXED VERSION WITH PROPER PREVIEW SUPPORT
 import React, { useRef, useEffect, useState } from 'react';
 import { 
   DocumentTextIcon as SolidDocumentTextIcon, 
@@ -34,10 +34,12 @@ interface DocumentViewerProps {
   attachment?: DocumentAttachment;
 }
 
-// Enhanced file type detection with more granular categories
+// Enhanced file type detection
 const getFileType = (mimeType: string, extension: string): string => {
   const mime = mimeType.toLowerCase();
   const ext = extension.toLowerCase().replace('.', '');
+  
+  console.log('🔍 DocumentViewer: Detecting file type:', { mime, ext });
   
   // PDF files
   if (mime.includes('pdf') || ext === 'pdf') return 'pdf';
@@ -75,7 +77,7 @@ const getFileType = (mimeType: string, extension: string): string => {
   return 'unknown';
 };
 
-// Get comprehensive file type information
+// FIXED: Enhanced file type info with better preview logic
 const getFileTypeInfo = (mimeType: string, extension: string, attachment?: DocumentAttachment) => {
   const fileType = getFileType(mimeType, extension);
   
@@ -101,7 +103,7 @@ const getFileTypeInfo = (mimeType: string, extension: string, attachment?: Docum
       borderColor: 'border-blue-200',
       textColor: 'text-blue-700',
       features: ['Rich text formatting', 'Tables and images', 'Comments and track changes'],
-      canPreview: false,
+      canPreview: false, // Word docs typically can't be previewed directly
       previewType: 'download'
     },
     powerpoint: {
@@ -227,58 +229,111 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [fileType, setFileType] = useState<string>('unknown');
 
+  // FIXED: Better handling of file properties
   const mimeType = attachment?.mime || 'application/octet-stream';
   const extension = attachment?.ext || documentPath.split('.').pop() || '';
   const fileName = attachment?.name || proposalName;
   const fileSize = attachment?.size || 0;
 
+  // FIXED: Enhanced URL construction with debugging
+  const getEffectiveDocumentUrl = (): string => {
+    console.log('🔗 DocumentViewer: Constructing document URL...');
+    console.log('📄 Document path:', documentPath);
+    console.log('📎 Attachment:', attachment);
+    
+    if (!documentPath) {
+      console.warn('⚠️ No document path provided');
+      return '';
+    }
+
+    // If it's already a full URL, use it
+    if (documentPath.startsWith('http://') || documentPath.startsWith('https://')) {
+      console.log('✅ Using full URL:', documentPath);
+      return documentPath;
+    }
+
+    // If it starts with /, it's a server path
+    if (documentPath.startsWith('/')) {
+      const fullUrl = `${window.location.origin}${documentPath}`;
+      console.log('✅ Constructed server URL:', fullUrl);
+      return fullUrl;
+    }
+
+    // Otherwise, assume it's a relative path
+    const fullUrl = `${window.location.origin}/${documentPath}`;
+    console.log('✅ Constructed relative URL:', fullUrl);
+    return fullUrl;
+  };
+
+  const effectiveDocumentUrl = getEffectiveDocumentUrl();
+
   useEffect(() => {
     const detectedType = getFileType(mimeType, extension);
     setFileType(detectedType);
-    console.log('DocumentViewer: File type detected:', detectedType, 'for', fileName);
+    console.log('🎯 DocumentViewer: File type detected:', detectedType, 'for', fileName);
+    console.log('📊 File details:', { mimeType, extension, fileSize, effectiveDocumentUrl });
     
-    // For previewable files, let the browser handle loading
-    if (['pdf', 'web', 'iframe'].includes(detectedType)) {
-      return; // iframe will trigger load events
+    // For non-previewable files, stop loading immediately
+    const fileInfo = getFileTypeInfo(mimeType, extension, attachment);
+    if (!fileInfo.canPreview) {
+      console.log('❌ File type cannot be previewed:', detectedType);
+      setIsLoading(false);
+      return;
     }
-    
-    // For other files, stop loading immediately
-    setIsLoading(false);
-  }, [mimeType, extension, fileName]);
 
-  // Handle iframe load events for previewable files
+    // For previewable files, let the iframe/element handle loading
+    console.log('✅ File type can be previewed:', detectedType);
+  }, [mimeType, extension, fileName, effectiveDocumentUrl, attachment]);
+
+  // FIXED: Better iframe load handling
   useEffect(() => {
-    if (['pdf', 'web'].includes(fileType) && iframeRef.current) {
-      const iframe = iframeRef.current;
-      
-      const handleLoad = () => {
-        setIsLoading(false);
-        setError(null);
-      };
-      
-      const handleError = () => {
-        setError('Failed to load document preview');
-        setIsLoading(false);
-      };
-
-      iframe.addEventListener('load', handleLoad);
-      iframe.addEventListener('error', handleError);
-
-      // Fallback timeout
-      const timeoutId = setTimeout(() => {
-        if (isLoading) {
-          setIsLoading(false);
-          console.warn('Preview load timeout - assuming loaded');
-        }
-      }, 8000);
-
-      return () => {
-        iframe.removeEventListener('load', handleLoad);
-        iframe.removeEventListener('error', handleError);
-        clearTimeout(timeoutId);
-      };
+    if (!(['pdf', 'web'].includes(fileType)) || !iframeRef.current) {
+      return;
     }
-  }, [fileType, isLoading]);
+
+    const iframe = iframeRef.current;
+    
+    const handleLoad = () => {
+      console.log('✅ Iframe loaded successfully');
+      setIsLoading(false);
+      setError(null);
+    };
+    
+    const handleError = (e: any) => {
+      console.error('❌ Iframe load error:', e);
+      setError(`Failed to load document preview. The file may not be accessible or may require download.`);
+      setIsLoading(false);
+    };
+
+    // FIXED: Better event handling
+    iframe.addEventListener('load', handleLoad);
+    iframe.addEventListener('error', handleError);
+
+    // Test if the URL is accessible
+    fetch(effectiveDocumentUrl, { method: 'HEAD' })
+      .then(response => {
+        if (!response.ok) {
+          console.warn('⚠️ Document URL not accessible via fetch:', response.status);
+        }
+      })
+      .catch(fetchError => {
+        console.warn('⚠️ Document URL fetch test failed:', fetchError);
+      });
+
+    // Fallback timeout for loading
+    const timeoutId = setTimeout(() => {
+      if (isLoading) {
+        console.warn('⏱️ Preview load timeout - assuming loaded');
+        setIsLoading(false);
+      }
+    }, 10000); // Increased timeout
+
+    return () => {
+      iframe.removeEventListener('load', handleLoad);
+      iframe.removeEventListener('error', handleError);
+      clearTimeout(timeoutId);
+    };
+  }, [fileType, isLoading, effectiveDocumentUrl]);
 
   const fileInfo = getFileTypeInfo(mimeType, extension, attachment);
 
@@ -291,7 +346,10 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // Loading state
+  // FIXED: Show debug info in development
+  const isDebug = process.env.NODE_ENV === 'development';
+
+  // Loading state for previewable files
   if (isLoading && fileInfo.canPreview) {
     return (
       <div className="flex-1 flex items-center justify-center bg-gray-50 rounded-lg">
@@ -302,6 +360,13 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
           </div>
           <p className="text-gray-700 font-medium text-lg">Loading document preview...</p>
           <p className="text-gray-500 text-sm mt-1">This may take a moment</p>
+          {isDebug && (
+            <div className="mt-4 p-2 bg-gray-100 rounded text-xs text-left">
+              <div>URL: {effectiveDocumentUrl}</div>
+              <div>Type: {fileType}</div>
+              <div>MIME: {mimeType}</div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -316,14 +381,22 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
             <ExclamationTriangleIcon className="h-8 w-8 text-red-600" />
           </div>
           <h3 className="text-lg font-semibold text-red-800 mb-2">Preview Error</h3>
-          <p className="text-red-600 mb-6">{error}</p>
+          <p className="text-red-600 mb-4">{error}</p>
+          {isDebug && (
+            <div className="mb-4 p-2 bg-red-100 rounded text-xs text-left">
+              <div>URL: {effectiveDocumentUrl}</div>
+              <div>Type: {fileType}</div>
+              <div>MIME: {mimeType}</div>
+            </div>
+          )}
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <button
               onClick={() => {
                 setError(null);
                 setIsLoading(true);
+                // Force iframe reload
                 if (iframeRef.current) {
-                  iframeRef.current.src = iframeRef.current.src;
+                  iframeRef.current.src = effectiveDocumentUrl;
                 }
               }}
               className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
@@ -331,7 +404,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
               Retry Preview
             </button>
             <a
-              href={documentPath}
+              href={effectiveDocumentUrl}
               download={fileName}
               className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm font-medium"
             >
@@ -344,34 +417,76 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
     );
   }
 
-  // PDF or Web Preview
-  if ((fileType === 'pdf' || fileType === 'web') && fileInfo.canPreview) {
+  // FIXED: Enhanced PDF Preview with better error handling
+  if (fileType === 'pdf' && fileInfo.canPreview) {
     return (
       <div className="flex-1 bg-white rounded-lg overflow-hidden border border-gray-200">
+        {isDebug && (
+          <div className="p-2 bg-yellow-50 border-b text-xs">
+            <strong>Debug:</strong> Loading PDF from: {effectiveDocumentUrl}
+          </div>
+        )}
         <iframe
           ref={iframeRef}
-          src={documentPath}
+          src={effectiveDocumentUrl}
           title={fileName}
           className="w-full h-full border-0"
           allowFullScreen
-          sandbox={fileType === 'web' ? "allow-same-origin allow-scripts" : undefined}
+          onLoad={() => {
+            console.log('✅ PDF iframe loaded');
+            setIsLoading(false);
+          }}
+          onError={(e) => {
+            console.error('❌ PDF iframe error:', e);
+            setError('PDF preview failed to load. The file may be corrupted or inaccessible.');
+          }}
         />
       </div>
     );
   }
 
-  // Image Preview
+  // Web/HTML Preview
+  if (fileType === 'web' && fileInfo.canPreview) {
+    return (
+      <div className="flex-1 bg-white rounded-lg overflow-hidden border border-gray-200">
+        {isDebug && (
+          <div className="p-2 bg-yellow-50 border-b text-xs">
+            <strong>Debug:</strong> Loading HTML from: {effectiveDocumentUrl}
+          </div>
+        )}
+        <iframe
+          ref={iframeRef}
+          src={effectiveDocumentUrl}
+          title={fileName}
+          className="w-full h-full border-0"
+          allowFullScreen
+          sandbox="allow-same-origin allow-scripts"
+        />
+      </div>
+    );
+  }
+
+  // FIXED: Enhanced Image Preview
   if (fileType === 'image' && fileInfo.canPreview) {
     return (
       <div className="flex-1 bg-gray-50 rounded-lg overflow-hidden border border-gray-200 flex items-center justify-center p-4">
+        {isDebug && (
+          <div className="absolute top-2 left-2 p-2 bg-yellow-50 rounded text-xs z-10">
+            URL: {effectiveDocumentUrl}
+          </div>
+        )}
         <div className="max-w-full max-h-full flex items-center justify-center">
           <img
-            src={documentPath}
+            src={effectiveDocumentUrl}
             alt={fileName}
             className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
-            onLoad={() => setIsLoading(false)}
-            onError={() => {
-              setError('Failed to load image');
+            onLoad={() => {
+              console.log('✅ Image loaded successfully');
+              setIsLoading(false);
+            }}
+            onError={(e) => {
+              console.error('❌ Image load error:', e);
+              setError('Failed to load image. The file may not be accessible.');
               setIsLoading(false);
             }}
           />
@@ -385,12 +500,16 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
     return (
       <div className="flex-1 bg-gray-900 rounded-lg overflow-hidden border border-gray-200 flex items-center justify-center p-4">
         <video
-          src={documentPath}
+          src={effectiveDocumentUrl}
           controls
           className="max-w-full max-h-full rounded-lg"
-          onLoadedData={() => setIsLoading(false)}
-          onError={() => {
-            setError('Failed to load video');
+          onLoadedData={() => {
+            console.log('✅ Video loaded successfully');
+            setIsLoading(false);
+          }}
+          onError={(e) => {
+            console.error('❌ Video load error:', e);
+            setError('Failed to load video. The file may not be accessible.');
             setIsLoading(false);
           }}
         >
@@ -410,12 +529,13 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
           </div>
           <h3 className="text-xl font-bold text-gray-800 mb-4">{fileName}</h3>
           <audio
-            src={documentPath}
+            src={effectiveDocumentUrl}
             controls
             className="w-full mb-4"
             onLoadedData={() => setIsLoading(false)}
-            onError={() => {
-              setError('Failed to load audio');
+            onError={(e) => {
+              console.error('❌ Audio load error:', e);
+              setError('Failed to load audio file.');
               setIsLoading(false);
             }}
           >
@@ -434,17 +554,24 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
     const [textContent, setTextContent] = useState<string>('');
 
     useEffect(() => {
-      fetch(documentPath)
-        .then(response => response.text())
+      fetch(effectiveDocumentUrl)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          return response.text();
+        })
         .then(text => {
+          console.log('✅ Text file loaded successfully');
           setTextContent(text);
           setIsLoading(false);
         })
-        .catch(() => {
-          setError('Failed to load text file');
+        .catch(fetchError => {
+          console.error('❌ Text file load error:', fetchError);
+          setError(`Failed to load text file: ${fetchError.message}`);
           setIsLoading(false);
         });
-    }, [documentPath]);
+    }, [effectiveDocumentUrl]);
 
     return (
       <div className="flex-1 bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -496,6 +623,14 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
               <span className="font-medium text-gray-700">Format:</span>
               <span className="text-gray-900 ml-2 uppercase">{extension.replace('.', '')}</span>
             </div>
+            {isDebug && (
+              <div className="flex justify-between items-center border-t pt-2 mt-2">
+                <span className="font-medium text-gray-700">Debug URL:</span>
+                <span className="text-gray-900 ml-2 text-xs truncate max-w-32" title={effectiveDocumentUrl}>
+                  {effectiveDocumentUrl}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -517,7 +652,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
         {/* Action buttons */}
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <a
-            href={documentPath}
+            href={effectiveDocumentUrl}
             download={fileName}
             className={`inline-flex items-center px-6 py-3 bg-gradient-to-r ${fileInfo.color} text-white rounded-xl hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200 font-medium`}
           >
@@ -525,7 +660,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
             Download Document
           </a>
           <button
-            onClick={() => window.open(documentPath, '_blank')}
+            onClick={() => window.open(effectiveDocumentUrl, '_blank')}
             className="inline-flex items-center px-6 py-3 bg-white text-gray-700 border border-gray-300 rounded-xl hover:bg-gray-50 hover:shadow-md transition-all duration-200 font-medium"
           >
             <ArrowTopRightOnSquareIcon className="h-5 w-5 mr-2" />

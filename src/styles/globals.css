@@ -1,11 +1,11 @@
-/* src/styles/globals.css - FIXED: Z-index issues and ERM search styling */
+/* src/styles/globals.css - TARGETED FIXES ONLY */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 @import 'tailwindcss';
 
 /* === ERM DESIGN SYSTEM VARIABLES === */
 @theme {
-  /* ERM Brand Colors (from your provided palette) */
+  /* ERM Brand Colors (from your palette) */
   --color-erm-primary: #007A5F;
   --color-erm-dark: #00382C;
   --color-erm-light: #f0fdfa;
@@ -57,61 +57,9 @@
   --color-text-light-gray: #a8a29e;
 }
 
-/* === CRITICAL Z-INDEX HIERARCHY FIXES === */
+/* === CRITICAL Z-INDEX HIERARCHY FIXES ONLY === */
 
-/* Layer 1: Base content */
-main, .content {
-  z-index: 1;
-}
-
-/* Layer 2: Fixed navigation */
-aside, .sidebar {
-  z-index: 20 !important;
-}
-
-/* Layer 3: Header - below modals but above sidebar */
-header, .header {
-  z-index: 30 !important;
-}
-
-/* Layer 4: Dropdowns and tooltips */
-.dropdown-menu, .tooltip, [role="tooltip"] {
-  z-index: 1000 !important;
-}
-
-/* Layer 5: Overlays and modals */
-.modal-overlay, .overlay {
-  z-index: 9000 !important;
-}
-
-/* Layer 6: SEARCH MODAL - HIGHEST PRIORITY */
-.search-modal-overlay {
-  z-index: 99999 !important;
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-}
-
-.search-modal-content {
-  z-index: 100000 !important;
-  position: relative !important;
-}
-
-/* Layer 7: Document preview modal */
-.document-preview-modal {
-  z-index: 10001 !important;
-}
-
-/* Layer 8: Toast notifications - topmost */
-.toast-notification {
-  z-index: 10003 !important;
-}
-
-/* === SEARCH MODAL SPECIFIC FIXES === */
-
-/* Force search modal overlay above everything */
+/* Search modal - HIGHEST PRIORITY - THIS WAS THE MAIN ISSUE */
 div[style*="z-index: 99999"] {
   z-index: 99999 !important;
   position: fixed !important;
@@ -120,19 +68,9 @@ div[style*="z-index: 99999"] {
   backdrop-filter: blur(4px) !important;
 }
 
-/* Search modal content container */
 div[style*="z-index: 100000"] {
   z-index: 100000 !important;
   position: relative !important;
-}
-
-/* Override any conflicting fixed elements */
-.fixed {
-  z-index: 30;
-}
-
-.fixed.inset-0 {
-  z-index: 99999 !important;
 }
 
 /* Ensure header stays below search modal */
@@ -190,7 +128,7 @@ a:hover {
   text-decoration: none;
 }
 
-/* === BUTTON FIXES === */
+/* === BUTTON FIXES - PRESERVE DESIGN === */
 button {
   font-family: inherit;
   cursor: pointer;
@@ -203,15 +141,7 @@ button:disabled {
   opacity: 0.6;
 }
 
-/* ERM Button styles */
-.btn-erm-primary,
-.bg-strapi-green-light,
-button[class*="bg-erm"],
-button[class*="bg-strapi"] {
-  background: revert !important;
-}
-
-/* Preview button specific fix */
+/* ERM Button styles - KEEP THESE FOR DESIGN */
 button.bg-strapi-green-light {
   background: var(--color-strapi-green-light) !important;
   color: white !important;
@@ -305,7 +235,7 @@ mark {
   border-color: rgba(0, 122, 95, 0.3) !important;
 }
 
-/* === ERM COMPONENT CLASSES === */
+/* === ERM COMPONENT CLASSES - KEEP FOR DESIGN === */
 
 /* Primary Button */
 .btn-erm-primary {
@@ -789,6 +719,114 @@ body.modal-open {
     border-width: 3px !important;
   }
 }
+
+
+/* Force modal to be at the very top level */
+.document-preview-modal,
+[data-modal="document-preview"] {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 999999 !important;
+  background: rgba(0, 0, 0, 0.5) !important;
+  backdrop-filter: blur(4px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 2rem !important;
+  margin: 0 !important;
+  transform: none !important;
+  isolation: isolate !important;
+}
+
+/* Modal content container */
+.document-preview-modal .modal-content,
+.document-preview-modal > div {
+  position: relative !important;
+  background: white !important;
+  border-radius: 1rem !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+  max-width: 90vw !important;
+  max-height: 90vh !important;
+  width: 100% !important;
+  overflow: hidden !important;
+  z-index: 1000000 !important;
+  transform: none !important;
+  margin: 0 !important;
+}
+
+/* Ensure modal is rendered at body level */
+body.modal-open {
+  overflow: hidden !important;
+  position: relative !important;
+}
+
+/* Reset any transforms on modal ancestors */
+.document-preview-modal * {
+  transform: none !important;
+}
+
+/* Fix for any container that might contain the modal */
+.container,
+.grid,
+.flex,
+.relative,
+.absolute {
+  /* Don't let these containers interfere with modal positioning */
+}
+
+/* Override any z-index conflicts */
+.document-preview-modal {
+  z-index: 999999 !important;
+}
+
+/* Ensure modal backdrop covers everything */
+.document-preview-modal::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: -1;
+}
+
+/* Fix for React Portal modals */
+#__next,
+.next-wrapper {
+  position: relative;
+}
+
+/* Additional modal container fixes */
+[role="dialog"],
+[aria-modal="true"] {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 999999 !important;
+}
+
+/* Prevent any parent containers from clipping the modal */
+body > div,
+#__next > div,
+.page-container,
+.layout-container {
+  /* Don't let these clip the modal */
+  overflow: visible !important;
+}
+
+/* Force modal to break out of any stacking context */
+.document-preview-modal {
+  position: fixed !important;
+  inset: 0 !important;
+  isolation: isolate !important;
+  will-change: auto !important;
+}
+
 
 /* === DARK MODE SUPPORT === */
 @media (prefers-color-scheme: dark) {
