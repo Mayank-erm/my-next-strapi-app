@@ -1,40 +1,104 @@
-// src/config/documentMapping.ts
+// src/config/documentMapping.ts - UPDATED WITH ATTACHMENTS SUPPORT
 
-// Helper function to determine the document URL based on SF_Number and documentId.
-// This function can be expanded with more sophisticated mapping logic if needed.
-export const getDocumentUrl = (SF_Number: string, documentId: string): string => {
+import { StrapiAttachment } from '@/types/strapi';
+
+// Enhanced helper function for attachment-based document URLs
+export const getDocumentUrl = (attachment: StrapiAttachment): string => {
+  // For Strapi attachments with direct URLs
+  if (attachment.url && attachment.url.startsWith('/uploads/')) {
+    return attachment.url; // Direct URL from Strapi
+  }
+  
+  // For local development, construct URL based on upload folder
+  if (attachment.hash && attachment.ext) {
+    return `/uploads/${attachment.hash}${attachment.ext}`;
+  }
+  
+  // Fallback: use the URL as-is if it's a full path
+  if (attachment.url && attachment.url.startsWith('http')) {
+    return attachment.url;
+  }
+  
+  // Last resort: construct from base uploads path
+  return `/uploads/${attachment.name || 'unknown'}`;
+};
+
+// Legacy function for backward compatibility (keep for now)
+export const getLegacyDocumentUrl = (SF_Number: string, documentId: string): string => {
   if (!documentId) {
-    // Fallback for local test documents if no documentId (or documentUrl) is provided by Strapi/MeiliSearch
+    // Fallback for local test documents if no documentId
     if (SF_Number?.includes("Excel")) {
-      return '/documents/test_excel.xlsx - ESRS S3.csv'; // Example Excel mapping
+      return '/uploads/test_excel.xlsx'; // Updated path
     } else if (SF_Number?.includes("Word")) {
-      return '/documents/test_word.docx'; // Example Word mapping
+      return '/uploads/test_word.docx';
     } else if (SF_Number?.includes("PPT")) {
-      return '/documents/test_ppt.pptx'; // Example PPT mapping
+      return '/uploads/test_ppt.pptx';
     }
-    // Default to PDF if no specific mapping or documentId
-    return '/documents/test_pdf.pdf';
+    return '/uploads/test_pdf.pdf';
   }
 
-  // In a real application, you might construct the URL using the documentId
-  // For example: `http://your-strapi-backend/uploads/${documentId}.pdf`
-  // For this example, we'll use a placeholder structure.
-  // Assuming documentId directly relates to a file name or a path segment
-  // If your Strapi provides a direct documentUrl, that should be preferred.
-  // For now, let's just return a mock URL if documentId is present,
-  // or use the SF_Number based mapping as a fallback if documentId is not useful for direct URL construction here.
+  // For documents with IDs, construct path
+  return `/uploads/${documentId}`;
+};
 
-  // Placeholder logic: If documentId is present, assume a generic URL pattern.
-  // This needs to be adjusted based on your actual Strapi file serving setup.
-  if (documentId) {
-    // Example: If documentId is a direct file name or can be used to construct a direct link
-    // return `http://localhost:1337/uploads/${documentId}`; // Adjust based on your actual upload path
-    // For now, we stick to local mocks with SF_Number if documentId doesn't immediately form a URL
-    if (SF_Number?.includes("Excel")) return `/documents/test_excel.xlsx - ESRS S3.csv`;
-    else if (SF_Number?.includes("Word")) return `/documents/test_word.docx`;
-    else if (SF_Number?.includes("PPT")) return `/documents/test_ppt.pptx`;
-    else return `/documents/test_pdf.pdf`;
+// Helper to get the best document URL from a proposal
+export const getBestDocumentUrl = (proposal: any): string => {
+  // First, try to get from attachments
+  if (proposal.Attachments && Array.isArray(proposal.Attachments) && proposal.Attachments.length > 0) {
+    const primaryAttachment = proposal.Attachments.find((att: any) => att.documentType === 'primary') 
+      || proposal.Attachments[0];
+    return getDocumentUrl(primaryAttachment);
   }
+  
+  // Fallback to legacy method
+  return getLegacyDocumentUrl(proposal.SF_Number || proposal.unique_id, proposal.documentId);
+};
 
-  return '/documents/test_pdf.pdf'; // Default fallback
+// Configuration for different environments
+export const UPLOAD_CONFIG = {
+  // Base path for uploads (can be environment-specific)
+  basePath: process.env.NODE_ENV === 'production' 
+    ? '/uploads' 
+    : '/uploads',
+  
+  // Maximum file size (50MB)
+  maxFileSize: 50 * 1024 * 1024,
+  
+  // Allowed file types
+  allowedTypes: [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'text/plain',
+    'text/csv',
+    'text/html',
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'video/mp4',
+    'audio/mp3',
+  ],
+  
+  // File extensions mapping
+  extensions: {
+    'application/pdf': '.pdf',
+    'application/msword': '.doc',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+    'application/vnd.ms-excel': '.xls',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+    'application/vnd.ms-powerpoint': '.ppt',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx',
+    'text/plain': '.txt',
+    'text/csv': '.csv',
+    'text/html': '.html',
+    'image/jpeg': '.jpg',
+    'image/png': '.png',
+    'image/gif': '.gif',
+    'video/mp4': '.mp4',
+    'audio/mp3': '.mp3',
+  }
 };
