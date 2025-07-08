@@ -1,122 +1,115 @@
-// src/components/Carousel.tsx
-import React, { useState } from 'react';
-import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline'; // Navigation icons
-import { DocumentTextIcon } from '@heroicons/react/24/solid'; // Icon for proposals
-import { PhotoIcon } from '@heroicons/react/24/outline'; // Icon for banners
-import { StrapiProposal } from '@/types/strapi'; // Import centralized StrapiProposal interface
+// src/components/Carousel.tsx - MINIMAL VERSION FOR DEBUGGING
+import React, { useState, useEffect } from 'react';
+import { ChevronLeftIcon, ChevronRightIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
+
+interface StrapiProposal {
+  id: number;
+  unique_id: string;
+  publishedAt: string;
+  Document_Type?: string;
+  Industry?: string;
+  Client_Name?: string;
+}
 
 interface CarouselProps {
-  latestProposals: StrapiProposal[]; // Use the centralized StrapiProposal interface
+  latestProposals: StrapiProposal[];
 }
 
 const Carousel: React.FC<CarouselProps> = ({ latestProposals }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Define banner images (assuming they are in public/banners folder)
-  // You should place your banner images in the `public/banners` directory
-  const bannerImages = [
-    '/banners/banner_1.png', // Example: public/banners/banner1.jpg
-    '/banners/banner_2.png', // Example: public/banners/banner2.png
-    // Add more banner paths as needed
+  // Simple banner content
+  const banners = [
+    {
+      title: 'Environmental Impact Assessment',
+      description: 'Comprehensive sustainability analysis',
+      gradient: 'from-green-600 to-emerald-700'
+    },
+    {
+      title: 'Carbon Footprint Management', 
+      description: 'Track and reduce emissions',
+      gradient: 'from-blue-600 to-teal-700'
+    }
   ];
 
-  // Combine proposals and banners for carousel slides
   const allSlides = [
-    ...latestProposals.map(p => ({ type: 'proposal', data: p })),
-    ...bannerImages.map(b => ({ type: 'banner', data: b })),
+    ...banners.map(banner => ({ type: 'banner', data: banner })),
+    ...latestProposals.map(proposal => ({ type: 'proposal', data: proposal }))
   ];
 
   const handleNext = () => {
-    setCurrentIndex((prevIndex) =>
-      prevIndex === allSlides.length - 1 ? 0 : prevIndex + 1
-    );
+    setCurrentIndex(prev => (prev + 1) % allSlides.length);
   };
 
   const handlePrev = () => {
-    setCurrentIndex((prevIndex) =>
-      prevIndex === 0 ? allSlides.length - 1 : prevIndex - 1
-    );
+    setCurrentIndex(prev => (prev - 1 + allSlides.length) % allSlides.length);
   };
-
-  const currentSlide = allSlides[currentIndex];
 
   if (allSlides.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-6 mb-8 h-48 flex flex-col justify-center items-center text-gray-500 text-xl border border-gray-200 relative overflow-hidden">
-        <h3 className="text-xl font-semibold mb-4 text-gray-700">Latest Updates</h3>
-        <span className="text-lg">No recent updates or banners available.</span>
+      <div className="bg-gray-50 rounded-2xl p-8 mb-8 h-64 flex items-center justify-center">
+        <div className="text-center">
+          <DocumentTextIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-700">No Content Available</h3>
+        </div>
       </div>
     );
   }
 
+  const currentSlide = allSlides[currentIndex];
+
   return (
-    <div className="relative bg-white rounded-lg shadow-xl mb-8 overflow-hidden h-64 flex items-center justify-center p-4 border border-gray-200">
-      {/* Content Area for current slide */}
-      <div className="w-full h-full flex items-center justify-center text-center transition-opacity duration-500 ease-in-out opacity-100">
+    <div className="relative bg-white rounded-2xl shadow-lg border mb-8 overflow-hidden h-64">
+      <div className="relative w-full h-full">
         {currentSlide.type === 'proposal' ? (
-          <div className="flex flex-col items-center max-w-lg">
-            <DocumentTextIcon className="h-12 w-12 text-strapi-green-light mb-2" />
-            <h4 className="text-2xl font-bold text-text-dark-gray mb-1">
-              {currentSlide.data.unique_id || 'N/A Unique ID'}
-            </h4>
-            <p className="text-base text-text-medium-gray px-4">
-              {currentSlide.data.Document_Type || 'N/A Client'} - {currentSlide.data.Document_Sub_Type || 'Untitled Proposal'}
-            </p>
+          <div className="bg-gradient-to-r from-green-600 to-emerald-700 h-full flex items-center justify-center p-8">
+            <div className="text-center text-white">
+              <h2 className="text-2xl font-bold mb-2">
+                {currentSlide.data.unique_id || 'Document'}
+              </h2>
+              <p className="text-white/80">
+                {currentSlide.data.Document_Type || 'Sustainability Document'}
+              </p>
+            </div>
           </div>
         ) : (
-          <div className="relative w-full h-full flex items-center justify-center">
-            <img
-              src={currentSlide.data}
-              alt="Promotional Banner"
-              className="max-h-full max-w-full object-contain rounded-lg shadow-md"
-            />
-            <div className="absolute top-2 right-2 p-1 bg-white/70 rounded-md text-gray-600">
-              <PhotoIcon className="h-5 w-5" />
+          <div className={`bg-gradient-to-r ${currentSlide.data.gradient} h-full flex items-center justify-center p-8`}>
+            <div className="text-center text-white">
+              <h2 className="text-3xl font-bold mb-2">{currentSlide.data.title}</h2>
+              <p className="text-white/80">{currentSlide.data.description}</p>
             </div>
           </div>
         )}
       </div>
 
-      {/* Navigation Arrows */}
       {allSlides.length > 1 && (
         <>
           <button
             onClick={handlePrev}
-            className="absolute left-4 p-2 rounded-full bg-gray-100/70 text-gray-600 shadow-md
-                       hover:bg-gray-200 hover:text-gray-800 transition-all duration-200
-                       focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:ring-offset-2
-                       flex items-center justify-center w-10 h-10 z-10"
-            aria-label="Previous slide"
+            className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow"
           >
-            <ChevronLeftIcon className="h-6 w-6" />
+            <ChevronLeftIcon className="h-5 w-5 text-gray-700" />
           </button>
+          
           <button
             onClick={handleNext}
-            className="absolute right-4 p-2 rounded-full bg-gray-100/70 text-gray-600 shadow-md
-                       hover:bg-gray-200 hover:text-gray-800 transition-all duration-200
-                       focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:ring-offset-2
-                       flex items-center justify-center w-10 h-10 z-10"
-            aria-label="Next slide"
+            className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow"
           >
-            <ChevronRightIcon className="h-6 w-6" />
+            <ChevronRightIcon className="h-5 w-5 text-gray-700" />
           </button>
-        </>
-      )}
 
-      {/* Pagination Dots */}
-      {allSlides.length > 1 && (
-        <div className="absolute bottom-4 left-0 right-0 flex justify-center space-x-2 z-10">
-          {allSlides.map((_, idx) => (
-            <button
-              key={idx}
-              onClick={() => setCurrentIndex(idx)}
-              className={`h-2.5 w-2.5 rounded-full transition-colors duration-300
-                          ${idx === currentIndex ? 'bg-strapi-green-light scale-125' : 'bg-gray-300 hover:bg-gray-400'}
-                          focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:ring-offset-1`}
-              aria-label={`Go to slide ${idx + 1}`}
-            />
-          ))}
-        </div>
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
+            {allSlides.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => setCurrentIndex(index)}
+                className={`w-2 h-2 rounded-full transition-colors ${
+                  index === currentIndex ? 'bg-white' : 'bg-white/50'
+                }`}
+              />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

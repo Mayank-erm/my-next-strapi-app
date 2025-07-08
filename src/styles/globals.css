@@ -1,34 +1,75 @@
-/* src/styles/globals.css - CLEAN VERSION WITH IMPORTS */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-@import './modern-components.css'; /* Import modern UI/UX enhancements */
+/* src/styles/globals.css - ERM SUSTAINABILITY DESIGN SYSTEM */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 @import 'tailwindcss';
 
+/* === ERM DESIGN SYSTEM VARIABLES === */
 @theme {
-  --color-strapi-green-dark: #00382C;
+  /* ERM Brand Colors (from your provided palette) */
+  --color-erm-primary: #007A5F;
+  --color-erm-dark: #00382C;
+  --color-erm-light: #f0fdfa;
+  --color-erm-surface: #f8fafc;
+  
+  /* Extended ERM Color Palette */
+  --color-primary-50: #f0fdfa;
+  --color-primary-100: #ccfbf1;
+  --color-primary-200: #99f6e4;
+  --color-primary-300: #5eead4;
+  --color-primary-400: #2dd4bf;
+  --color-primary-500: #007A5F;
+  --color-primary-600: #006B52;
+  --color-primary-700: #00382C;
+  --color-primary-800: #134e4a;
+  --color-primary-900: #042f2e;
+  
+  /* Professional Neutrals */
+  --color-neutral-50: #fafaf9;
+  --color-neutral-100: #f5f5f4;
+  --color-neutral-200: #e7e5e4;
+  --color-neutral-300: #d6d3d1;
+  --color-neutral-400: #a8a29e;
+  --color-neutral-500: #78716c;
+  --color-neutral-600: #57534e;
+  --color-neutral-700: #44403c;
+  --color-neutral-800: #292524;
+  --color-neutral-900: #1c1917;
+  
+  /* Semantic Colors using ERM palette */
+  --color-success: #007A5F;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: #3b82f6;
+  
+  /* Surface Colors */
+  --color-background: #fafaf9;
+  --color-surface: #ffffff;
+  --color-elevated: #ffffff;
+  --color-overlay: rgba(0, 122, 95, 0.15);
+  
+  /* Legacy support for existing components */
   --color-strapi-green-light: #007A5F;
-  --color-strapi-gray-bg: #F0F2F5;
-  --color-strapi-light-gray: #E5E7EB;
-  --color-text-dark-gray: #374151;
-  --color-text-medium-gray: #666F74;
-  --color-text-light-gray: #9CA3AF;
-  --color-proposal-border: #D1D5DB;
-  --color-proposal-bg: #FFFFFF;
+  --color-strapi-green-dark: #00382C;
+  --color-strapi-gray-bg: #f8fafc;
+  --color-strapi-light-gray: #e7e5e4;
+  --color-text-dark-gray: #1c1917;
+  --color-text-medium-gray: #78716c;
+  --color-text-light-gray: #a8a29e;
 }
 
+/* === BASE STYLES === */
 html,
 body {
   padding: 0;
   margin: 0;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
+  scroll-behavior: smooth;
+  background-color: var(--color-background);
+  color: var(--color-neutral-900);
+  line-height: 1.5;
 }
 
 * {
@@ -39,83 +80,189 @@ a {
   outline: none !important;
 }
 
-/* SIDEBAR SCROLLBAR STYLING */
-.sidebar-scroll {
-  /* Firefox */
+/* === ENHANCED FOCUS STYLES === */
+*:focus-visible {
+  outline: 2px solid var(--color-erm-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* === LINK STYLES === */
+a {
+  color: inherit;
+  text-decoration: none;
+  transition: all 0.2s ease-in-out;
+}
+
+a:hover {
+  color: var(--color-erm-primary);
+  text-decoration: none;
+}
+
+/* === BUTTON BASE === */
+button {
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  border: none;
+  background: none;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* === ERM COMPONENT CLASSES === */
+
+/* Primary Button */
+.btn-erm-primary {
+  background: linear-gradient(135deg, var(--color-erm-primary) 0%, var(--color-erm-dark) 100%);
+  color: white;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0, 122, 95, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-erm-primary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.btn-erm-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 122, 95, 0.3);
+}
+
+.btn-erm-primary:hover::before {
+  left: 100%;
+}
+
+/* Secondary Button */
+.btn-erm-secondary {
+  background: var(--color-surface);
+  color: var(--color-erm-primary);
+  font-weight: 500;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-neutral-300);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(4px);
+}
+
+.btn-erm-secondary:hover {
+  background: var(--color-primary-50);
+  border-color: var(--color-erm-primary);
+  color: var(--color-erm-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Card Styles */
+.card-erm {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-erm:hover {
+  background: rgba(255, 255, 255, 0.98);
+  border-color: var(--color-erm-primary);
+  box-shadow: 0 20px 40px rgba(0, 122, 95, 0.1);
+  transform: translateY(-2px);
+}
+
+.card-erm-elevated {
+  background: var(--color-surface);
+  border: none;
+  border-radius: 1.5rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-erm-elevated:hover {
+  box-shadow: 0 25px 50px -12px rgba(0, 122, 95, 0.25);
+  transform: translateY(-4px);
+}
+
+/* === ENHANCED SCROLLBAR STYLES === */
+.scrollbar-erm {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-erm-primary) var(--color-neutral-100);
+  overflow-x: hidden;
+}
+
+.scrollbar-erm::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-erm::-webkit-scrollbar-track {
+  background: var(--color-neutral-100);
+  border-radius: 8px;
+}
+
+.scrollbar-erm::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--color-erm-primary) 0%, var(--color-erm-dark) 100%);
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.scrollbar-erm::-webkit-scrollbar-thumb:hover {
+  background: var(--color-erm-dark);
+  transform: scale(1.1);
+}
+
+/* Sidebar specific scrollbar */
+.scrollbar-sidebar {
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.6) rgba(255, 255, 255, 0.2);
-  
-  /* Webkit browsers */
   overflow-x: hidden;
   overflow-y: auto;
 }
 
-.sidebar-scroll::-webkit-scrollbar {
-  width: 8px;
+.scrollbar-sidebar::-webkit-scrollbar {
+  width: 6px;
 }
 
-.sidebar-scroll::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
-  margin: 4px 0;
+.scrollbar-sidebar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  margin: 8px 0;
 }
 
-.sidebar-scroll::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.5) 100%);
-  border-radius: 4px;
+.scrollbar-sidebar::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 100%);
+  border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.2);
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
 }
 
-.sidebar-scroll::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.7) 100%);
+.scrollbar-sidebar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.8) 100%);
   border-color: rgba(255, 255, 255, 0.4);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
-.sidebar-scroll::-webkit-scrollbar-thumb:active {
-  background: rgba(255, 255, 255, 0.8);
-}
-
-.sidebar-scroll::-webkit-scrollbar-corner {
-  background: transparent;
-}
-
-/* CUSTOM SCROLLBAR FOR OTHER AREAS */
-.custom-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-strapi-green-light) var(--color-strapi-gray-bg);
-  overflow-x: hidden;
-}
-
-.custom-scrollbar::-webkit-scrollbar {
-  width: 8px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: var(--color-strapi-gray-bg);
-  border-radius: 4px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: var(--color-strapi-green-light);
-  border-radius: 4px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: var(--color-strapi-green-dark);
-}
-
-.custom-scrollbar::-webkit-scrollbar-corner {
-  background: transparent;
-}
-
-/* BASE ANIMATIONS */
-@keyframes fade-in {
+/* === ANIMATIONS === */
+@keyframes erm-fade-in {
   from { 
     opacity: 0; 
-    transform: translateY(-10px); 
+    transform: translateY(-12px); 
   }
   to { 
     opacity: 1; 
@@ -123,67 +270,198 @@ a {
   }
 }
 
-.animate-fade-in {
-  animation: fade-in 0.3s ease-out;
-}
-
-@keyframes scale-in {
+@keyframes erm-scale-in {
   from {
     opacity: 0;
-    transform: scale(0.95);
+    transform: scale(0.92) translateY(8px);
   }
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: scale(1) translateY(0);
   }
 }
 
-.animate-scale-in {
-  animation: scale-in 0.2s ease-out;
-}
-
-/* ENHANCED FOCUS STATES */
-button:focus-visible,
-a:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible {
-  outline: 2px solid var(--color-strapi-green-light);
-  outline-offset: 2px;
-}
-
-/* LOADING ANIMATION */
-@keyframes pulse {
-  0%, 100% {
+@keyframes erm-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
     opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes erm-shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+@keyframes erm-pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(0, 122, 95, 0.4);
   }
   50% {
-    opacity: 0.5;
+    box-shadow: 0 0 0 8px rgba(0, 122, 95, 0);
   }
 }
 
-.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+@keyframes erm-gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
 }
 
-/* HOVER EFFECTS */
-.group:hover .group-hover\:scale-110 {
-  transform: scale(1.1);
+/* Animation Classes */
+.animate-erm-fade-in {
+  animation: erm-fade-in 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.transition-transform {
-  transition: transform 0.2s ease-in-out;
+.animate-erm-scale-in {
+  animation: erm-scale-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* BADGE STYLING */
-.badge-consistent {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 1.5rem;
-  height: 1.5rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  border-radius: 9999px;
-  padding: 0 0.5rem;
+.animate-erm-slide-up {
+  animation: erm-slide-up 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-erm-shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200px 100%;
+  animation: erm-shimmer 1.5s infinite;
+}
+
+.animate-erm-pulse-glow {
+  animation: erm-pulse-glow 2s infinite;
+}
+
+.animate-erm-gradient {
+  background: linear-gradient(-45deg, var(--color-erm-primary), var(--color-erm-dark), var(--color-erm-primary), #00a86b);
+  background-size: 400% 400%;
+  animation: erm-gradient-shift 8s ease infinite;
+}
+
+/* === SUSTAINABILITY THEME UTILITIES === */
+.bg-erm-gradient-primary {
+  background: linear-gradient(135deg, var(--color-erm-primary) 0%, var(--color-erm-dark) 100%);
+}
+
+.bg-erm-gradient-soft {
+  background: linear-gradient(135deg, var(--color-primary-50) 0%, var(--color-neutral-50) 100%);
+}
+
+.bg-erm-pattern-organic {
+  background-image: radial-gradient(circle at 50% 50%, rgba(0, 122, 95, 0.1) 0%, transparent 70%);
+}
+
+.bg-erm-pattern-subtle {
+  background-image: 
+    radial-gradient(circle at 20% 80%, rgba(0, 122, 95, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(0, 56, 44, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 40% 40%, rgba(0, 122, 95, 0.03) 0%, transparent 50%);
+}
+
+/* Text Gradients */
+.text-erm-gradient {
+  background: linear-gradient(135deg, var(--color-erm-primary) 0%, var(--color-erm-dark) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* === RESPONSIVE UTILITIES === */
+@media (max-width: 768px) {
+  .card-erm,
+  .card-erm-elevated {
+    border-radius: 0.75rem;
+    margin: 0 4px;
+  }
+  
+  .btn-erm-primary,
+  .btn-erm-secondary {
+    padding: 0.625rem 1.25rem;
+    font-size: 0.875rem;
+  }
+}
+
+/* === DARK MODE SUPPORT === */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-background: #0f172a;
+    --color-surface: #1e293b;
+    --color-elevated: #334155;
+    --color-neutral-50: #1e293b;
+    --color-neutral-100: #334155;
+    --color-neutral-200: #475569;
+    --color-neutral-300: #64748b;
+    --color-neutral-800: #f1f5f9;
+    --color-neutral-900: #f8fafc;
+  }
+  
+  body {
+    background-color: var(--color-background);
+    color: var(--color-neutral-900);
+  }
+  
+  .card-erm {
+    background: rgba(30, 41, 59, 0.85);
+    border-color: rgba(71, 85, 105, 0.3);
+    backdrop-filter: blur(12px);
+  }
+  
+  .card-erm-elevated {
+    background: var(--color-elevated);
+    border-color: rgba(71, 85, 105, 0.2);
+  }
+  
+  .btn-erm-secondary {
+    background: rgba(51, 65, 85, 0.9);
+    border-color: rgba(71, 85, 105, 0.8);
+    color: var(--color-primary-300);
+  }
+}
+
+/* === ACCESSIBILITY === */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (prefers-contrast: high) {
+  .card-erm,
+  .card-erm-elevated {
+    border: 2px solid currentColor;
+  }
+  
+  .btn-erm-primary,
+  .btn-erm-secondary {
+    border: 2px solid currentColor;
+  }
+}
+
+/* === PRINT STYLES === */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  
+  .card-erm,
+  .card-erm-elevated {
+    background: white !important;
+    border: 1px solid #e7e5e4 !important;
+    box-shadow: none !important;
+  }
 }
