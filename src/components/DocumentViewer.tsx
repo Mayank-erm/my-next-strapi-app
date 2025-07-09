@@ -8,6 +8,22 @@ import {
   ArrowTopRightOnSquareIcon 
 } from '@heroicons/react/20/solid';
 
+// React Icons - Install with: npm install react-icons
+import {
+  FaFilePdf,
+  FaFileWord,
+  FaFileExcel,
+  FaFilePowerpoint,
+  FaFileImage,
+  FaFileVideo,
+  FaFileAudio,
+  FaFileAlt,
+  FaFileArchive,
+  FaFileCode,
+  FaFileContract,
+  FaFileSignature
+} from 'react-icons/fa';
+
 interface DocumentAttachment {
   id: number;
   name: string;
@@ -75,6 +91,36 @@ const getFileType = (mimeType: string, extension: string): string => {
   return 'unknown';
 };
 
+// Get React Icon component for file types
+const getReactIcon = (fileType: string, size: number = 32, className: string = '') => {
+  const iconProps = { size, className };
+  
+  switch (fileType) {
+    case 'pdf':
+      return <FaFilePdf {...iconProps} className={`text-red-600 ${className}`} />;
+    case 'word':
+      return <FaFileWord {...iconProps} className={`text-blue-600 ${className}`} />;
+    case 'excel':
+      return <FaFileExcel {...iconProps} className={`text-green-600 ${className}`} />;
+    case 'powerpoint':
+      return <FaFilePowerpoint {...iconProps} className={`text-orange-600 ${className}`} />;
+    case 'image':
+      return <FaFileImage {...iconProps} className={`text-purple-600 ${className}`} />;
+    case 'video':
+      return <FaFileVideo {...iconProps} className={`text-red-600 ${className}`} />;
+    case 'audio':
+      return <FaFileAudio {...iconProps} className={`text-yellow-600 ${className}`} />;
+    case 'archive':
+      return <FaFileArchive {...iconProps} className={`text-yellow-600 ${className}`} />;
+    case 'web':
+      return <FaFileCode {...iconProps} className={`text-cyan-600 ${className}`} />;
+    case 'text':
+      return <FaFileAlt {...iconProps} className={`text-gray-600 ${className}`} />;
+    default:
+      return <FaFileAlt {...iconProps} className={`text-gray-600 ${className}`} />;
+  }
+};
+
 // Get comprehensive file type information - UPDATED WITH OFFICE PREVIEW SUPPORT
 const getFileTypeInfo = (mimeType: string, extension: string, attachment?: DocumentAttachment) => {
   const fileType = getFileType(mimeType, extension);
@@ -83,7 +129,7 @@ const getFileTypeInfo = (mimeType: string, extension: string, attachment?: Docum
     pdf: {
       title: 'PDF Document',
       description: 'Portable Document Format - Universal document standard',
-      icon: '📄',
+      icon: getReactIcon('pdf', 48),
       color: 'from-red-500 to-red-600',
       bgColor: 'bg-red-50',
       borderColor: 'border-red-200',
@@ -95,7 +141,7 @@ const getFileTypeInfo = (mimeType: string, extension: string, attachment?: Docum
     word: {
       title: 'Microsoft Word Document',
       description: 'Rich text document with advanced formatting capabilities',
-      icon: '',
+      icon: getReactIcon('word', 48),
       color: 'from-blue-500 to-blue-600',
       bgColor: 'bg-blue-50',
       borderColor: 'border-blue-200',
@@ -107,7 +153,7 @@ const getFileTypeInfo = (mimeType: string, extension: string, attachment?: Docum
     powerpoint: {
       title: 'PowerPoint Presentation',
       description: 'Interactive presentation with slides and multimedia',
-      icon: '📊',
+      icon: getReactIcon('powerpoint', 48),
       color: 'from-orange-500 to-red-500',
       bgColor: 'bg-orange-50',
       borderColor: 'border-orange-200',
@@ -119,7 +165,7 @@ const getFileTypeInfo = (mimeType: string, extension: string, attachment?: Docum
     excel: {
       title: 'Excel Spreadsheet',
       description: 'Data analysis and calculation workbook',
-      icon: '📈',
+      icon: getReactIcon('excel', 48),
       color: 'from-green-500 to-emerald-600',
       bgColor: 'bg-green-50',
       borderColor: 'border-green-200',
@@ -426,12 +472,12 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
   if (fileType === 'pdf' && fileInfo.canPreview) {
     console.log('DocumentViewer: Rendering PDF iframe with path:', documentPath);
     return (
-      <div className="flex-1 bg-white rounded-lg overflow-hidden border border-gray-200">
+      <div className="flex-1 bg-white rounded-lg overflow-hidden border border-gray-200 min-h-[600px] h-full">
         <iframe
           ref={iframeRef}
           src={`${documentPath}#toolbar=1&navpanes=1&scrollbar=1&view=FitH`}
           title={fileName}
-          className="w-full h-full border-0"
+          className="w-full h-full border-0 min-h-[600px]"
           allowFullScreen
           onLoad={() => {
             console.log('DocumentViewer: PDF iframe onLoad triggered');
@@ -454,7 +500,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
     console.log('DocumentViewer: Rendering Office document with URL:', previewUrl);
     
     return (
-      <div className="flex-1 bg-white rounded-lg overflow-hidden border border-gray-200">
+      <div className="flex-1 bg-white rounded-lg overflow-hidden border border-gray-200 min-h-[600px] h-full">
         {/* Viewer Service Indicator */}
         <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 flex items-center justify-between">
           <div className="flex items-center space-x-2">
@@ -490,7 +536,8 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
           ref={iframeRef}
           src={previewUrl}
           title={fileName}
-          className="w-full h-full border-0"
+          className="w-full h-full border-0 min-h-[600px]"
+          style={{ height: 'calc(100% - 40px)' }}
           allowFullScreen
           onLoad={() => {
             console.log('DocumentViewer: Office document iframe onLoad triggered');
@@ -515,12 +562,12 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
   // Web Preview
   if (fileType === 'web' && fileInfo.canPreview) {
     return (
-      <div className="flex-1 bg-white rounded-lg overflow-hidden border border-gray-200">
+      <div className="flex-1 bg-white rounded-lg overflow-hidden border border-gray-200 min-h-[600px] h-full">
         <iframe
           ref={iframeRef}
           src={documentPath}
           title={fileName}
-          className="w-full h-full border-0"
+          className="w-full h-full border-0 min-h-[600px]"
           allowFullScreen
           sandbox="allow-same-origin allow-scripts"
         />
@@ -531,12 +578,12 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
   // Image Preview
   if (fileType === 'image' && fileInfo.canPreview) {
     return (
-      <div className="flex-1 bg-gray-50 rounded-lg overflow-hidden border border-gray-200 flex items-center justify-center p-4">
+      <div className="flex-1 bg-gray-50 rounded-lg overflow-hidden border border-gray-200 flex items-center justify-center p-4 min-h-[600px] h-full">
         <div className="max-w-full max-h-full flex items-center justify-center">
           <img
             src={documentPath}
             alt={fileName}
-            className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
+            className="max-w-full max-h-full object-contain rounded-lg shadow-lg min-h-[600px]"
             onLoad={() => setIsLoading(false)}
             onError={() => {
               setError('Failed to load image');
@@ -551,11 +598,11 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
   // Video Preview
   if (fileType === 'video' && fileInfo.canPreview) {
     return (
-      <div className="flex-1 bg-gray-900 rounded-lg overflow-hidden border border-gray-200 flex items-center justify-center p-4">
+      <div className="flex-1 bg-gray-900 rounded-lg overflow-hidden border border-gray-200 flex items-center justify-center p-4 min-h-[600px] h-full">
         <video
           src={documentPath}
           controls
-          className="max-w-full max-h-full rounded-lg"
+          className="max-w-full max-h-full rounded-lg min-h-[600px]"
           onLoadedData={() => setIsLoading(false)}
           onError={() => {
             setError('Failed to load video');
@@ -580,7 +627,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
           <audio
             src={documentPath}
             controls
-            className="w-full mb-4"
+            className="w-full mb-4 min-h-[600px]"
             onLoadedData={() => setIsLoading(false)}
             onError={() => {
               setError('Failed to load audio');
@@ -616,7 +663,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
 
     return (
       <div className="flex-1 bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="h-full overflow-auto p-6">
+        <div className="h-full overflow-auto p-6 min-h-[600px]">
           <pre className="text-sm text-gray-800 whitespace-pre-wrap font-mono leading-relaxed">
             {textContent}
           </pre>
