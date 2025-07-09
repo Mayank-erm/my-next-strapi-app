@@ -1,140 +1,198 @@
-// src/components/cms/ActiveFilterPills.tsx (New Component)
+// src/components/cms/ActiveFilterPills.tsx - FUNCTIONAL ACTIVE FILTER PILLS
 import React from 'react';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, CalendarDaysIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
+
+interface AdvancedFilters {
+  clientTypes: string[];
+  documentTypes: string[];
+  documentSubTypes: string[];
+  industries: string[];
+  subIndustries: string[];
+  services: string[];
+  subServices: string[];
+  businessUnits: string[];
+  regions: string[];
+  countries: string[];
+  states: string[];
+  cities: string[];
+  dateRange: [Date | null, Date | null];
+  valueRange: [number, number];
+}
+
 interface ActiveFilterPillsProps {
-    searchTerm: string;
-    dateRange: [Date | null, Date | null];
-    valueRange: [number, number];
-    proposalStatuses: string[];
-    proposedByUsers: string[];
-    contentTypes: string[];
-    serviceLines: string[];
-    industries: string[];
-    regions: string[];
-    onClearFilter: () => void;
-    // Add individual clear handlers
-    onClearSearchTerm?: () => void;
-    onClearDateRange?: () => void;
-    onClearValueRange?: () => void;
-    onClearProposalStatus?: (status: string) => void;
-    onClearProposedByUser?: (user: string) => void;
-    onClearContentType?: (type: string) => void;
-    onClearServiceLine?: (line: string) => void;
-    onClearIndustry?: (industry: string) => void;
-    onClearRegion?: (region: string) => void;
+  filters: AdvancedFilters;
+  searchTerm: string;
+  onUpdateFilter: (filterKey: keyof AdvancedFilters, value: any) => void;
+  onClearAllFilters: () => void;
+  onClearSearch?: () => void;
+  showToast?: (title: string, message: string, type?: 'success' | 'info' | 'error') => void;
 }
 
 const ActiveFilterPills: React.FC<ActiveFilterPillsProps> = ({
-    searchTerm,
-    dateRange,
-    valueRange,
-    proposalStatuses,
-    proposedByUsers,
-    contentTypes,
-    serviceLines,
-    industries,
-    regions,
-    onClearFilter,
-    onClearSearchTerm,
-    onClearDateRange,
-    onClearValueRange,
-    onClearProposalStatus,
-    onClearProposedByUser,
-    onClearContentType,
-    onClearServiceLine,
-    onClearIndustry,
-    onClearRegion,
+  filters,
+  searchTerm,
+  onUpdateFilter,
+  onClearAllFilters,
+  onClearSearch,
+  showToast,
 }) => {
-    const activeFilters: { label: string; value: string; type: string; onClear: () => void }[] = [];
+  // Create active filter items
+  const activeFilterItems: Array<{
+    key: string;
+    label: string;
+    value: string;
+    icon?: React.ElementType;
+    onRemove: () => void;
+  }> = [];
 
-    if (searchTerm) {
-        activeFilters.push({ 
-            label: 'Search', 
-            value: searchTerm, 
-            type: 'searchTerm',
-            onClear: onClearSearchTerm || onClearFilter
-        });
-    }
-    if (dateRange[0] && dateRange[1]) {
-        activeFilters.push({ 
-            label: 'Date', 
-            value: `${dateRange[0].toLocaleDateString()} - ${dateRange[1].toLocaleDateString()}`, 
-            type: 'dateRange',
-            onClear: onClearDateRange || onClearFilter
-        });
-    }
-    // Check if value range is different from default (0-1000000)
-    if (valueRange[0] !== 0 || valueRange[1] !== 1000000) {
-        const formatCurrency = (value: number) => {
-            if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-            if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
-            return `${value.toLocaleString()}`;
-        };
-        activeFilters.push({ 
-            label: 'Value', 
-            value: `${formatCurrency(valueRange[0])} - ${formatCurrency(valueRange[1])}`, 
-            type: 'valueRange',
-            onClear: onClearValueRange || onClearFilter
-        });
-    }
-    
-    proposalStatuses.forEach(status => activeFilters.push({ 
-        label: 'Status', 
-        value: status, 
-        type: 'status',
-        onClear: () => onClearProposalStatus ? onClearProposalStatus(status) : onClearFilter()
-    }));
-    proposedByUsers.forEach(user => activeFilters.push({ 
-        label: 'Proposed By', 
-        value: user, 
-        type: 'proposedBy',
-        onClear: () => onClearProposedByUser ? onClearProposedByUser(user) : onClearFilter()
-    }));
-    contentTypes.forEach(type => activeFilters.push({ 
-        label: 'Content Type', 
-        value: type, 
-        type: 'contentType',
-        onClear: () => onClearContentType ? onClearContentType(type) : onClearFilter()
-    }));
-    serviceLines.forEach(line => activeFilters.push({ 
-        label: 'Service Line', 
-        value: line, 
-        type: 'serviceLine',
-        onClear: () => onClearServiceLine ? onClearServiceLine(line) : onClearFilter()
-    }));
-    industries.forEach(industry => activeFilters.push({ 
-        label: 'Industry', 
-        value: industry, 
-        type: 'industry',
-        onClear: () => onClearIndustry ? onClearIndustry(industry) : onClearFilter()
-    }));
-    regions.forEach(region => activeFilters.push({ 
-        label: 'Region', 
-        value: region, 
-        type: 'region',
-        onClear: () => onClearRegion ? onClearRegion(region) : onClearFilter()
-    }));
+  // Add search term
+  if (searchTerm) {
+    activeFilterItems.push({
+      key: 'search',
+      label: 'Search',
+      value: searchTerm,
+      onRemove: () => {
+        if (onClearSearch) {
+          onClearSearch();
+        }
+        if (showToast) {
+          showToast('Search Cleared', 'Search term has been cleared', 'info');
+        }
+      },
+    });
+  }
 
-    if (activeFilters.length === 0) {
-        return null;
-    }
+  // Add date range
+  if (filters.dateRange[0] && filters.dateRange[1]) {
+    const startDate = filters.dateRange[0].toLocaleDateString();
+    const endDate = filters.dateRange[1].toLocaleDateString();
+    activeFilterItems.push({
+      key: 'dateRange',
+      label: 'Date Range',
+      value: `${startDate} - ${endDate}`,
+      icon: CalendarDaysIcon,
+      onRemove: () => {
+        onUpdateFilter('dateRange', [null, null]);
+        if (showToast) {
+          showToast('Date Filter Removed', 'Date range filter has been cleared', 'info');
+        }
+      },
+    });
+  }
 
-    return (
-        <div className="flex flex-wrap items-center gap-2 py-3 px-4 bg-gray-50 rounded-lg border border-gray-200 mb-6">
-            <span className="text-sm font-semibold text-gray-700">Active Filters:</span>
-            {activeFilters.map((filter, index) => (
-                <span
-                    key={index}
-                    className="flex items-center bg-strapi-green-light text-white text-xs font-medium px-2.5 py-1 rounded-full cursor-pointer hover:bg-strapi-green-dark transition-colors"
-                    onClick={filter.onClear}
-                    title={`Clear filter: ${filter.label}: ${filter.value}`}
-                >
-                    {filter.label}: {filter.value}
-                    <XMarkIcon className="h-3 w-3 ml-1" />
-                </span>
-            ))}
+  // Add value range
+  if (filters.valueRange[0] !== 0 || filters.valueRange[1] !== 1000000) {
+    const formatCurrency = (value: number) => {
+      if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+      if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
+      return `$${value.toLocaleString()}`;
+    };
+    activeFilterItems.push({
+      key: 'valueRange',
+      label: 'Value Range',
+      value: `${formatCurrency(filters.valueRange[0])} - ${formatCurrency(filters.valueRange[1])}`,
+      icon: CurrencyDollarIcon,
+      onRemove: () => {
+        onUpdateFilter('valueRange', [0, 1000000]);
+        if (showToast) {
+          showToast('Value Filter Removed', 'Value range filter has been cleared', 'info');
+        }
+      },
+    });
+  }
+
+  // Add multi-select filters
+  const filterMappings: Array<{
+    key: keyof AdvancedFilters;
+    label: string;
+    values: string[];
+  }> = [
+    { key: 'clientTypes', label: 'Client Type', values: filters.clientTypes },
+    { key: 'documentTypes', label: 'Document Type', values: filters.documentTypes },
+    { key: 'documentSubTypes', label: 'Document Sub-Type', values: filters.documentSubTypes },
+    { key: 'industries', label: 'Industry', values: filters.industries },
+    { key: 'subIndustries', label: 'Sub-Industry', values: filters.subIndustries },
+    { key: 'services', label: 'Service', values: filters.services },
+    { key: 'subServices', label: 'Sub-Service', values: filters.subServices },
+    { key: 'businessUnits', label: 'Business Unit', values: filters.businessUnits },
+    { key: 'regions', label: 'Region', values: filters.regions },
+    { key: 'countries', label: 'Country', values: filters.countries },
+    { key: 'states', label: 'State', values: filters.states },
+    { key: 'cities', label: 'City', values: filters.cities },
+  ];
+
+  filterMappings.forEach(({ key, label, values }) => {
+    values.forEach(value => {
+      activeFilterItems.push({
+        key: `${key}-${value}`,
+        label,
+        value,
+        onRemove: () => {
+          const newValues = values.filter(v => v !== value);
+          onUpdateFilter(key, newValues);
+          if (showToast) {
+            showToast('Filter Removed', `${label} "${value}" has been removed`, 'info');
+          }
+        },
+      });
+    });
+  });
+
+  // Don't render if no active filters
+  if (activeFilterItems.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="bg-gradient-to-r from-erm-primary/5 to-erm-primary/10 border border-erm-primary/20 rounded-xl p-4 mb-6 animate-slideInFromRight">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center space-x-2 text-erm-primary font-semibold">
+          <span className="text-sm">Active Filters:</span>
+          <span className="bg-erm-primary text-white text-xs px-2 py-1 rounded-full font-bold">
+            {activeFilterItems.length}
+          </span>
         </div>
-    );
+
+        {/* Filter Pills */}
+        <div className="flex flex-wrap gap-2 flex-1">
+          {activeFilterItems.map((item) => (
+            <div
+              key={item.key}
+              className="group flex items-center space-x-2 bg-white border border-erm-primary/30 text-erm-primary px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-erm-primary hover:text-white transition-all duration-200 cursor-pointer shadow-sm"
+              onClick={item.onRemove}
+              title={`Remove ${item.label}: ${item.value}`}
+            >
+              {item.icon && (
+                <item.icon className="h-3 w-3 flex-shrink-0" />
+              )}
+              <span className="flex-shrink-0 text-xs font-medium opacity-75">
+                {item.label}:
+              </span>
+              <span className="truncate max-w-32 font-semibold">
+                {item.value}
+              </span>
+              <XMarkIcon className="h-3 w-3 flex-shrink-0 opacity-60 group-hover:opacity-100 transition-opacity" />
+            </div>
+          ))}
+        </div>
+
+        {/* Clear All Button */}
+        <button
+          onClick={() => {
+            onClearAllFilters();
+            if (showToast) {
+              showToast('All Filters Cleared', `${activeFilterItems.length} filters have been cleared`, 'success');
+            }
+          }}
+          className="flex items-center space-x-1 bg-red-100 text-red-700 hover:bg-red-200 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md"
+          title="Clear all active filters"
+        >
+          <XMarkIcon className="h-3 w-3" />
+          <span>Clear All</span>
+        </button>
+      </div>
+    </div>
+  );
 };
 
 export default ActiveFilterPills;

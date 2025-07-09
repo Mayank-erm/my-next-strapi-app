@@ -1,60 +1,120 @@
-// src/pages/content-management.tsx
+// src/pages/content-management.tsx - PROFESSIONAL UX REDESIGN WITH NAVIGATION SIDEBAR
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Layout from '@/components/Layout';
-import FilterSection from '@/components/cms/FilterSection';
 import ContentDisplay from '@/components/cms/ContentDisplay';
 import Pagination from '@/components/Pagination';
+import AdvancedFilterSidebar from '@/components/cms/AdvancedFilterSidebar';
+import ActiveFilterPills from '@/components/cms/ActiveFilterPills';
+import Toast from '@/components/Toast';
 import { MeiliSearch } from 'meilisearch';
 import { useRouter } from 'next/router';
 import { getDocumentUrl } from '@/config/documentMapping';
 import { STRAPI_API_URL } from '@/config/apiConfig';
-import { StrapiProposal } from '@/types/strapi'; // Import centralized StrapiProposal interface
-import { extractProposalData } from '@/utils/dataHelpers'; // Import shared helper
+import { StrapiProposal } from '@/types/strapi';
+import { extractProposalData } from '@/utils/dataHelpers';
+import DocumentPreviewModal from '@/components/DocumentPreviewModal';
+import { 
+  AdjustmentsHorizontalIcon, 
+  XMarkIcon, 
+  FunnelIcon,
+  DocumentTextIcon,
+  BookmarkIcon,
+  ArrowDownTrayIcon,
+  ShareIcon,
+  EyeIcon
+} from '@heroicons/react/24/outline';
 
-// --- MeiliSearch Configuration ---
+// MeiliSearch Configuration
 const MEILISEARCH_HOST = 'http://localhost:7700';
-const MEILISEARCH_API_KEY = 'masterKey'; // Consider using environment variables for production!
+const MEILISEARCH_API_KEY = 'masterKey';
 
 const meiliSearchClient = new MeiliSearch({
   host: MEILISEARCH_HOST,
   apiKey: MEILISEARCH_API_KEY,
 });
 
-const ITEMS_PER_PAGE = 8;
+const ITEMS_PER_PAGE = 12;
+
+// Enhanced Filter Interface
+interface AdvancedFilters {
+  clientTypes: string[];
+  documentTypes: string[];
+  documentSubTypes: string[];
+  industries: string[];
+  subIndustries: string[];
+  services: string[];
+  subServices: string[];
+  businessUnits: string[];
+  regions: string[];
+  countries: string[];
+  states: string[];
+  cities: string[];
+  dateRange: [Date | null, Date | null];
+  valueRange: [number, number];
+}
 
 const CmsPage: React.FC = () => {
   const router = useRouter();
   const urlSearchTerm = (router.query.searchTerm as string) || '';
 
+  // State Management
   const [selectedProposalForPreview, setSelectedProposalForPreview] = useState<StrapiProposal | null>(null);
+  const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(true);
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
-  const [proposalStatuses, setProposalStatuses] = useState<string[]>([]);
-  const [proposedByUsers, setProposedByUsers] = useState<string[]>([]);
-  const [contentTypes, setContentTypes] = useState<string[]>([]);
-  const [serviceLines, setServiceLines] = useState<string[]>([]);
-  const [industries, setIndustries] = useState<string[]>([]);
-  const [regions, setRegions] = useState<string[]>([]);
+  // Toast State
+  const [isToastOpen, setIsToastOpen] = useState(false);
+  const [toastTitle, setToastTitle] = useState('');
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'info' | 'error'>('info');
 
-  const [dateRange, setDateRange] = useState<[Date | null, Date | null]>([null, null]);
-  const [valueRange, setValueRange] = useState<[number, number]>([0, 1000000]);
+  // Advanced Filters State
+  const [filters, setFilters] = useState<AdvancedFilters>({
+    clientTypes: [],
+    documentTypes: [],
+    documentSubTypes: [],
+    industries: [],
+    subIndustries: [],
+    services: [],
+    subServices: [],
+    businessUnits: [],
+    regions: [],
+    countries: [],
+    states: [],
+    cities: [],
+    dateRange: [null, null],
+    valueRange: [0, 1000000],
+  });
 
-  const [sortBy, setSortBy] = useState<string>('publishedAt:desc');
-  const [activeView, setActiveView] = useState<'grid' | 'list'>('grid');
-  const [selectedItems, setSelectedItems] = useState<number[]>([]);
-
+  // Content State
   const [proposals, setProposals] = useState<StrapiProposal[]>([]);
   const [totalProposals, setTotalProposals] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  // View State
+  const [sortBy, setSortBy] = useState<string>('publishedAt:desc');
+  const [activeView, setActiveView] = useState<'grid' | 'list'>('grid');
+  const [selectedItems, setSelectedItems] = useState<number[]>([]);
+  const [bookmarkedItems, setBookmarkedItems] = useState<number[]>([]);
+
+  // Debounced search term
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(urlSearchTerm);
-  
-  // This useEffect syncs the debouncedSearchTerm with the URL's searchTerm
+
   useEffect(() => {
     setDebouncedSearchTerm(urlSearchTerm);
   }, [urlSearchTerm]);
 
+  // Show toast notification
+  const showToast = useCallback((title: string, message: string, type: 'success' | 'info' | 'error' = 'info') => {
+    setToastTitle(title);
+    setToastMessage(message);
+    setToastType(type);
+    setIsToastOpen(true);
+  }, []);
+
+  // Advanced fetch function with comprehensive filtering
   const fetchContent = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -62,73 +122,71 @@ const CmsPage: React.FC = () => {
     setTotalProposals(0);
 
     const offset = (currentPage - 1) * ITEMS_PER_PAGE;
-    
-    const strapiApiBaseUrl = STRAPI_API_URL.split('?')[0];
 
     try {
       const meiliFilters: string[] = [];
 
-      if (dateRange[0] && dateRange[1]) {
-        const startDate = dateRange[0].toISOString().split('T')[0];
-        const endDate = dateRange[1].toISOString().split('T')[0];
-        meiliFilters.push(`publishedAt >= "${startDate}" AND publishedAt <= "${endDate}"`);
+      // Date Range Filter
+      if (filters.dateRange[0] && filters.dateRange[1]) {
+        const startDate = filters.dateRange[0].toISOString().split('T')[0];
+        const endDate = filters.dateRange[1].toISOString().split('T')[0];
+        meiliFilters.push(`Last_Stage_Change_Date >= "${startDate}" AND Last_Stage_Change_Date <= "${endDate}"`);
       }
 
-      if (valueRange[0] !== 0 || valueRange[1] !== 1000000) {
-        meiliFilters.push(`value >= ${valueRange[0]} AND value <= ${valueRange[1]}`);
+      // Value Range Filter
+      if (filters.valueRange[0] !== 0 || filters.valueRange[1] !== 1000000) {
+        meiliFilters.push(`value >= ${filters.valueRange[0]} AND value <= ${filters.valueRange[1]}`);
       }
 
-      if (proposalStatuses.length > 0) {
-        const statusFilters = proposalStatuses.map(status => `Document_Outcome = "${status}"`).join(' OR ');
-        meiliFilters.push(`(${statusFilters})`);
-      }
+      // Multi-select filters
+      const filterMapping = {
+        'Client_Type': filters.clientTypes,
+        'Document_Type': filters.documentTypes,
+        'Document_Sub_Type': filters.documentSubTypes,
+        'Industry': filters.industries,
+        'Sub_Industry': filters.subIndustries,
+        'Service': filters.services,
+        'Sub_Service': filters.subServices,
+        'Business_Unit': filters.businessUnits,
+        'Region': filters.regions,
+        'Country': filters.countries,
+        'State': filters.states,
+        'City': filters.cities,
+      };
 
-      if (proposedByUsers.length > 0) {
-        const userFilters = proposedByUsers.map(user => `Author = "${user}"`).join(' OR ');
-        meiliFilters.push(`(${userFilters})`);
-      }
-
-      if (contentTypes.length > 0) {
-        const typeFilters = contentTypes.map(type => `Document_Type = "${type}"`).join(' OR ');
-        meiliFilters.push(`(${typeFilters})`);
-      }
-      if (serviceLines.length > 0) {
-        const serviceFilters = serviceLines.map(line => `Service = "${line}"`).join(' OR ');
-        meiliFilters.push(`(${serviceFilters})`);
-      }
-      if (industries.length > 0) {
-        const industryFilters = industries.map(industry => `Industry = "${industry}"`).join(' OR ');
-        meiliFilters.push(`(${industryFilters})`);
-      }
-      if (regions.length > 0) {
-        const regionFilters = regions.map(region => `Region = "${region}"`).join(' OR ');
-        meiliFilters.push(`(${regionFilters})`);
-      }
-
+      Object.entries(filterMapping).forEach(([field, values]) => {
+        if (values.length > 0) {
+          const fieldFilters = values.map(value => `${field} = "${value}"`).join(' OR ');
+          meiliFilters.push(`(${fieldFilters})`);
+        }
+      });
 
       const searchOptions: any = {
         offset: offset,
         limit: ITEMS_PER_PAGE,
         sort: [sortBy],
+        facets: Object.keys(filterMapping),
       };
 
       if (meiliFilters.length > 0) {
         searchOptions.filter = meiliFilters.join(' AND ');
       }
 
-      console.log("MeiliSearch Query (q):", debouncedSearchTerm);
-      console.log("MeiliSearch Query (filter):", searchOptions.filter);
-      console.log("MeiliSearch Query (sort):", searchOptions.sort);
+      console.log("Advanced MeiliSearch Query:", {
+        query: debouncedSearchTerm,
+        filters: searchOptions.filter,
+        facets: searchOptions.facets,
+      });
 
-
-      const meiliSearchResults = await meiliSearchClient.index('document_stores').search(debouncedSearchTerm, searchOptions);
+      const meiliSearchResults = await meiliSearchClient
+        .index('document_stores')
+        .search(debouncedSearchTerm, searchOptions);
 
       const fetchedProposals: StrapiProposal[] = (meiliSearchResults.hits || []).map((hit: any) => {
         const extractedData = extractProposalData(hit);
-
         let documentUrl = extractedData.documentUrl;
         if (!documentUrl) {
-            documentUrl = getDocumentUrl(extractedData.SF_Number || extractedData.unique_id, hit.id.toString());
+          documentUrl = getDocumentUrl(extractedData.SF_Number || extractedData.unique_id, hit.id.toString());
         }
 
         return {
@@ -154,101 +212,107 @@ const CmsPage: React.FC = () => {
   }, [
     currentPage,
     debouncedSearchTerm,
-    dateRange,
-    valueRange,
-    proposalStatuses,
-    proposedByUsers,
+    filters,
     sortBy,
-    contentTypes,
-    serviceLines,
-    industries,
-    regions,
-    meiliSearchClient, // MeiliSearch client instance (should be stable)
-    extractProposalData, // Helper function (should be stable)
-    getDocumentUrl, // Helper function (should be stable)
-    STRAPI_API_URL, // Constant (stable)
-    setProposals, setTotalProposals, setIsLoading, setError, // React state setters (stable)
-    ITEMS_PER_PAGE // Constant (stable)
   ]);
 
-
+  // Trigger fetch when dependencies change
   useEffect(() => {
-    // Trigger fetchContent whenever any relevant filter state or search term changes
     const timer = setTimeout(() => {
-        fetchContent();
-    }, 300); // Debounce fetch content
+      fetchContent();
+    }, 300);
 
     return () => clearTimeout(timer);
-  }, [
-    currentPage, debouncedSearchTerm, sortBy, 
-    dateRange, valueRange, proposalStatuses, proposedByUsers, contentTypes, 
-    serviceLines, industries, regions, 
-    fetchContent 
-  ]);
+  }, [fetchContent]);
 
-
-  const handleApplyFilters = useCallback(() => {
-    setCurrentPage(1);
+  // Filter update handlers
+  const updateFilter = useCallback((filterKey: keyof AdvancedFilters, value: any) => {
+    setFilters(prev => ({
+      ...prev,
+      [filterKey]: value,
+    }));
+    setCurrentPage(1); // Reset to first page when filtering
   }, []);
 
-  const handleClearAllFilters = useCallback(() => {
-    router.replace({ pathname: router.pathname, query: {} }, undefined, { shallow: true });
-
-    setProposalStatuses([]);
-    setProposedByUsers([]);
-    setContentTypes([]);
-    setServiceLines([]);
-    setIndustries([]);
-    setRegions([]);
-    setDateRange([null, null]);
-    setValueRange([0, 1000000]);
-    setSortBy('publishedAt:desc');
+  const clearAllFilters = useCallback(() => {
+    setFilters({
+      clientTypes: [],
+      documentTypes: [],
+      documentSubTypes: [],
+      industries: [],
+      subIndustries: [],
+      services: [],
+      subServices: [],
+      businessUnits: [],
+      regions: [],
+      countries: [],
+      states: [],
+      cities: [],
+      dateRange: [null, null],
+      valueRange: [0, 1000000],
+    });
     setCurrentPage(1);
-    setDebouncedSearchTerm(''); // Clear debounced search term
-  }, [router]);
+    router.replace({ pathname: router.pathname, query: {} }, undefined, { shallow: true });
+    showToast('Filters Cleared', 'All filters have been cleared successfully', 'info');
+  }, [router, showToast]);
 
-  // DEFINE activeFiltersCount using useMemo
+  // Active filters count - FUNCTIONAL
   const activeFiltersCount = useMemo(() => {
     let count = 0;
     if (urlSearchTerm) count++;
-    if (dateRange[0] && dateRange[1]) count++;
-    if (valueRange[0] !== 0 || valueRange[1] !== 1000000) count++;
-    count += proposalStatuses.length;
-    count += proposedByUsers.length;
-    count += contentTypes.length;
-    count += serviceLines.length;
-    count += industries.length;
-    count += regions.length;
+    if (filters.dateRange[0] && filters.dateRange[1]) count++;
+    if (filters.valueRange[0] !== 0 || filters.valueRange[1] !== 1000000) count++;
+    
+    Object.values(filters).forEach(filterValue => {
+      if (Array.isArray(filterValue)) {
+        count += filterValue.length;
+      }
+    });
+    
     return count;
-  }, [urlSearchTerm, dateRange, valueRange, proposalStatuses, proposedByUsers, contentTypes, serviceLines, industries, regions]);
+  }, [urlSearchTerm, filters]);
 
-
-  const totalPages = Math.ceil(totalProposals / ITEMS_PER_PAGE);
-
-  const handleBulkAction = (action: string) => {
-    alert(`Performing bulk action: ${action} on items: ${selectedItems.join(', ')}`);
+  // Bulk actions with toasts
+  const handleBulkAction = useCallback((action: string) => {
+    const selectedCount = selectedItems.length;
+    
+    switch (action) {
+      case 'bookmark':
+        setBookmarkedItems(prev => [...new Set([...prev, ...selectedItems])]);
+        showToast('Documents Bookmarked', `${selectedCount} document${selectedCount !== 1 ? 's' : ''} added to bookmarks`, 'success');
+        break;
+      case 'download':
+        showToast('Download Started', `Downloading ${selectedCount} document${selectedCount !== 1 ? 's' : ''}...`, 'info');
+        break;
+      case 'share':
+        showToast('Share Links Generated', `Share links created for ${selectedCount} document${selectedCount !== 1 ? 's' : ''}`, 'success');
+        break;
+      default:
+        showToast('Action Completed', `${action} performed on ${selectedCount} document${selectedCount !== 1 ? 's' : ''}`, 'info');
+    }
+    
     setSelectedItems([]);
-  };
+  }, [selectedItems, showToast]);
 
-  const handleSelectAll = (checked: boolean) => {
+  const handleSelectAll = useCallback((checked: boolean) => {
     if (checked) {
       setSelectedItems(proposals.map(p => p.id));
     } else {
       setSelectedItems([]);
     }
-  };
+  }, [proposals]);
 
-  const handleSelectItem = (id: number, checked: boolean) => {
+  const handleSelectItem = useCallback((id: number, checked: boolean) => {
     if (checked) {
       setSelectedItems(prev => [...prev, id]);
     } else {
       setSelectedItems(prev => prev.filter(item => item !== id));
     }
-  };
+  }, []);
 
+  // Layout props - INCLUDE MAIN SIDEBAR
   const layoutProps = {
     searchTerm: urlSearchTerm,
-    onSearchChange: (term: string) => router.replace({ pathname: router.pathname, query: { ...router.query, searchTerm: term } }, undefined, { shallow: true }),
     isLoading: isLoading,
     onResultClick: async (proposal: StrapiProposal) => {
       setIsLoading(true);
@@ -264,7 +328,10 @@ const CmsPage: React.FC = () => {
           id: fullProposalData.data.id,
           documentId: fullProposalData.data.id.toString(),
           value: extractProposalData(fullProposalData.data).value,
-          documentUrl: fullProposalData.data.attributes?.documentUrl || getDocumentUrl(fullProposalData.data.attributes?.SF_Number || fullProposalData.data.attributes?.Unique_Id, fullProposalData.data.id.toString()),
+          documentUrl: fullProposalData.data.attributes?.documentUrl || 
+                       getDocumentUrl(fullProposalData.data.attributes?.SF_Number || 
+                                    fullProposalData.data.attributes?.Unique_Id, 
+                                    fullProposalData.data.id.toString()),
         };
         setSelectedProposalForPreview(fetchedProposal);
         if (router.query.proposalId !== String(proposal.id)) {
@@ -278,151 +345,221 @@ const CmsPage: React.FC = () => {
         setIsLoading(false);
       }
     },
-    activeContentType: contentTypes.length > 0 ? contentTypes[0] : 'All',
-    activeServiceLines: serviceLines,
-    activeIndustries: industries,
-    activeRegions: regions,
-    activeDate: dateRange[0]?.toISOString().split('T')[0] || '',
-    onContentTypeChange: setContentTypes,
-    onServiceLineChange: setServiceLines,
-    onIndustryChange: setIndustries,
-    onRegionChange: setRegions,
-    onDateChange: (date: string) => {
-      const newDate = date ? new Date(date) : null;
-      setDateRange([newDate, newDate]); 
-    },
-    onSearchInFiltersChange: () => {}, 
-    onClearAllFilters: handleClearAllFilters,
+    activeContentType: 'All',
+    activeServiceLines: [],
+    activeIndustries: [],
+    activeRegions: [],
+    activeDate: '',
+    onContentTypeChange: () => {},
+    onServiceLineChange: () => {},
+    onIndustryChange: () => {},
+    onRegionChange: () => {},
+    onDateChange: () => {},
+    onSearchInFiltersChange: () => {},
+    onClearAllFilters: clearAllFilters,
+    showMainSidebar: true, // KEEP MAIN SIDEBAR VISIBLE
   };
 
-
-  useEffect(() => {
-    const proposalId = router.query.proposalId;
-    if (proposalId && !selectedProposalForPreview) {
-      const foundProposal = proposals.find(p => String(p.id) === proposalId);
-      if (foundProposal) {
-        setSelectedProposalForPreview(foundProposal);
-      } else if (!isLoading) {
-        const fetchIndividualProposal = async () => {
-          setIsLoading(true);
-          try {
-            const strapiApiBaseUrl = STRAPI_API_URL.split('?')[0];
-            const response = await fetch(`${strapiApiBaseUrl}/${proposalId}?populate=*`);
-            if (!response.ok) {
-              throw new Error(`Failed to fetch individual proposal for ID: ${proposalId}`);
-            }
-            const data = await response.json();
-            const fetchedProposal: StrapiProposal = {
-              ...extractProposalData(data.data),
-              id: data.data.id,
-              documentId: data.data.id.toString(),
-              value: extractProposalData(data.data).value,
-              documentUrl: data.data.attributes?.documentUrl || getDocumentUrl(data.data.attributes?.SF_Number || data.data.attributes?.Unique_Id, data.data.id.toString()),
-            };
-            setSelectedProposalForPreview(fetchedProposal);
-          } catch (err: any) {
-            console.error("Error fetching individual proposal for preview:", err);
-            setError(`Failed to load document for preview: ${err.message}`);
-            router.push('/content-management', undefined, { shallow: true });
-          } finally {
-            setIsLoading(false);
-          }
-        };
-        fetchIndividualProposal();
-      }
-    } else if (!proposalId && selectedProposalForPreview) {
-      setSelectedProposalForPreview(null);
-    }
-  }, [router.query.proposalId, proposals, isLoading, selectedProposalForPreview, extractProposalData, getDocumentUrl, STRAPI_API_URL, router]);
-
+  const totalPages = Math.ceil(totalProposals / ITEMS_PER_PAGE);
 
   return (
     <Layout {...layoutProps}>
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-bold text-text-dark-gray mb-6">Content Management</h1>
+      <div className="flex min-h-screen bg-gray-50">
+        {/* Advanced Filter Sidebar - FIXED POSITIONING */}
+        <div className={`
+          fixed left-25 top-22 h-[calc(100vh-4rem)] bg-white border-r border-gray-200 shadow-lg z-30
+          transition-all duration-300 ease-in-out overflow-hidden
+          ${isFilterSidebarOpen ? 'w-80' : 'w-0'}
+          ${isMobileFilterOpen ? 'block' : 'hidden lg:block'}
+        `}>
+          <div className="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-erm-primary scrollbar-track-gray-100">
+            <AdvancedFilterSidebar
+              filters={filters}
+              onUpdateFilter={updateFilter}
+              onClearAll={clearAllFilters}
+              activeFiltersCount={activeFiltersCount}
+              isOpen={isFilterSidebarOpen}
+              onToggle={() => setIsFilterSidebarOpen(!isFilterSidebarOpen)}
+            />
+          </div>
+        </div>
 
-        <FilterSection
-          proposalStatuses={proposalStatuses}
-          setProposalStatuses={setProposalStatuses}
-          proposedByUsers={proposedByUsers}
-          setProposedByUsers={setProposedByUsers}
-          contentTypes={contentTypes}
-          setContentTypes={setContentTypes}
-          serviceLines={serviceLines}
-          setServiceLines={setServiceLines}
-          industries={industries}
-          setIndustries={setIndustries}
-          regions={regions}
-          setRegions={setRegions}
+        {/* Main Content Area - FIXED MARGINS */}
+        <div className={`
+          flex-1 transition-all duration-300 ease-in-out
+          ${isFilterSidebarOpen ? 'ml-80 lg:ml-96' : 'ml-16 lg:ml-64'}
+        `}>
+          {/* Header Bar */}
+          <div className="bg-white border-b border-gray-200 px-8 py-6 sticky top-16 z-20">
+            <div className="flex items-center justify-between">
+              {/* Left: Title and Filter Toggle */}
+              <div className="flex items-center space-x-6">
+                <button
+                  onClick={() => setIsFilterSidebarOpen(!isFilterSidebarOpen)}
+                  className="p-3 rounded-xl border border-gray-300 hover:bg-gray-50 transition-all duration-200 lg:hidden"
+                  title="Toggle filters"
+                >
+                  <FunnelIcon className="h-5 w-5 text-gray-600" />
+                </button>
+                
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-erm-primary to-erm-dark flex items-center justify-center shadow-lg">
+                    <DocumentTextIcon className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-3xl font-bold text-gray-900">Content Management</h1>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {totalProposals.toLocaleString()} documents available
+                    </p>
+                  </div>
+                </div>
+              </div>
 
-          dateRange={dateRange}
-          setDateRange={setDateRange}
-          valueRange={valueRange}
-          setValueRange={setValueRange}
+              {/* Right: Stats and Filter Toggle */}
+              <div className="flex items-center space-x-4">
+                {/* Active Filters Badge - FUNCTIONAL */}
+                {activeFiltersCount > 0 && (
+                  <div className="flex items-center space-x-3 bg-erm-primary/10 text-erm-primary px-4 py-2 rounded-xl border border-erm-primary/20">
+                    <FunnelIcon className="h-5 w-5" />
+                    <span className="text-sm font-semibold">
+                      {activeFiltersCount} filter{activeFiltersCount !== 1 ? 's' : ''} active
+                    </span>
+                    <button
+                      onClick={clearAllFilters}
+                      className="ml-2 p-1 rounded-full hover:bg-erm-primary/20 transition-colors"
+                      title="Clear all filters"
+                    >
+                      <XMarkIcon className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
 
-          onApplyFilters={handleApplyFilters}
-          onClearFilters={handleClearAllFilters}
-          activeFiltersCount={activeFiltersCount}
-          activeFilterPillsProps={{
-              searchTerm: urlSearchTerm,
-              dateRange: dateRange,
-              valueRange: valueRange,
-              proposalStatuses: proposalStatuses,
-              proposedByUsers: proposedByUsers,
-              contentTypes: contentTypes,
-              serviceLines: serviceLines,
-              industries: industries,
-              regions: regions,
-              onClearFilter: handleClearAllFilters,
-              onClearSearchTerm: () => router.replace({ query: { ...router.query, searchTerm: undefined } }, undefined, { shallow: true }),
-              onClearDateRange: () => setDateRange([null, null]),
-              onClearValueRange: () => setValueRange([0, 1000000]),
-              onClearProposalStatus: (statusToRemove) => setProposalStatuses(prev => prev.filter(s => s !== statusToRemove)),
-              onClearProposedByUser: (userToRemove) => setProposedByUsers(prev => prev.filter(u => u !== userToRemove)),
-              onClearContentType: (typeToRemove) => setContentTypes(prev => prev.filter(t => t !== typeToRemove)),
-              onClearServiceLine: (lineToRemove) => setServiceLines(prev => prev.filter(l => l !== lineToRemove)),
-              onClearIndustry: (industryToRemove) => setIndustries(prev => prev.filter(i => i !== industryToRemove)),
-              onClearRegion: (regionToRemove) => setRegions(prev => prev.filter(r => r !== regionToRemove)),
-          }}
-        />
+                {/* Desktop Filter Toggle */}
+                <button
+                  onClick={() => setIsFilterSidebarOpen(!isFilterSidebarOpen)}
+                  className={`
+                    hidden lg:flex items-center space-x-3 px-6 py-3 rounded-xl border transition-all duration-200 font-medium
+                    ${isFilterSidebarOpen 
+                      ? 'bg-erm-primary text-white border-erm-primary shadow-lg hover:bg-erm-dark' 
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                    }
+                  `}
+                  title={isFilterSidebarOpen ? "Hide filters" : "Show filters"}
+                >
+                  <AdjustmentsHorizontalIcon className="h-5 w-5" />
+                  <span className="text-sm">
+                    {isFilterSidebarOpen ? 'Hide Filters' : 'Show Filters'}
+                  </span>
+                </button>
 
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative my-4" role="alert">
-            <strong className="font-bold">Error:</strong>
-            <span className="block sm:inline ml-2">{error}</span>
+                {/* Mobile Filter Toggle */}
+                <button
+                  onClick={() => setIsMobileFilterOpen(!isMobileFilterOpen)}
+                  className="lg:hidden p-3 rounded-xl border border-gray-300 hover:bg-gray-50 transition-colors"
+                  title="Toggle mobile filters"
+                >
+                  <FunnelIcon className="h-5 w-5 text-gray-600" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Error Display */}
+          {error && (
+            <div className="mx-8 mt-6 bg-red-50 border border-red-200 text-red-800 px-6 py-4 rounded-xl relative" role="alert">
+              <div className="flex items-center">
+                <strong className="font-bold mr-2">Error:</strong>
+                <span className="block sm:inline">{error}</span>
+              </div>
+              <button
+                onClick={() => setError(null)}
+                className="absolute top-0 bottom-0 right-0 px-4 py-3"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+          )}
+
+          {/* Content Display */}
+          <div className="p-8 overflow-y-auto max-h-[calc(100vh-12rem)]">
+            {/* Active Filter Pills - FUNCTIONAL */}
+            <ActiveFilterPills
+              filters={filters}
+              searchTerm={urlSearchTerm}
+              onUpdateFilter={updateFilter}
+              onClearAllFilters={clearAllFilters}
+              onClearSearch={() => router.replace({ pathname: router.pathname, query: {} }, undefined, { shallow: true })}
+              showToast={showToast}
+            />
+
+            <ContentDisplay
+              proposals={proposals}
+              isLoading={isLoading}
+              totalResults={totalProposals}
+              sortBy={sortBy}
+              setSortBy={setSortBy}
+              activeView={activeView}
+              setActiveView={setActiveView}
+              selectedItems={selectedItems}
+              onSelectAll={handleSelectAll}
+              onSelectItem={handleSelectItem}
+              onBulkAction={handleBulkAction}
+              bookmarkedItems={bookmarkedItems}
+              showToast={showToast}
+            />
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="mt-12 flex justify-center">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Mobile Filter Overlay - FIXED POSITIONING */}
+        {isMobileFilterOpen && (
+          <div className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40" onClick={() => setIsMobileFilterOpen(false)}>
+            <div className="fixed left-0 top-16 h-[calc(100vh-4rem)] w-80 bg-white border-r border-gray-200 shadow-lg overflow-hidden" onClick={e => e.stopPropagation()}>
+              <div className="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-erm-primary scrollbar-track-gray-100">
+                <AdvancedFilterSidebar
+                  filters={filters}
+                  onUpdateFilter={updateFilter}
+                  onClearAll={clearAllFilters}
+                  activeFiltersCount={activeFiltersCount}
+                  isOpen={true}
+                  onToggle={() => setIsMobileFilterOpen(false)}
+                  isMobile={true}
+                />
+              </div>
+            </div>
           </div>
         )}
-
-        <ContentDisplay
-          proposals={proposals}
-          isLoading={isLoading}
-          totalResults={totalProposals}
-          sortBy={sortBy}
-          setSortBy={setSortBy}
-          activeView={activeView}
-          setActiveView={setActiveView}
-          selectedItems={selectedItems}
-          onSelectAll={handleSelectAll}
-          onSelectItem={handleSelectItem}
-          onBulkAction={handleBulkAction}
-        />
-
-        {totalPages > 1 && (
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-          />
-        )}
       </div>
-       {selectedProposalForPreview && (
+
+      {/* Document Preview Modal */}
+      {selectedProposalForPreview && (
         <DocumentPreviewModal
           proposal={selectedProposalForPreview}
           onClose={() => {
+            setSelectedProposalForPreview(null);
             router.push('/content-management', undefined, { shallow: true });
           }}
         />
       )}
+
+      {/* Toast Notifications */}
+      <Toast
+        isOpen={isToastOpen}
+        onClose={() => setIsToastOpen(false)}
+        title={toastTitle}
+        message={toastMessage}
+        type={toastType}
+      />
     </Layout>
   );
 };

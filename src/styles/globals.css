@@ -956,3 +956,302 @@ body > div,
 .toast-backdrop .toast-notification {
   pointer-events: auto;
 }
+
+/* Additional CSS for AdvancedFilterSidebar - Add to globals.css or create as separate file */
+
+/* SCROLLBAR UTILITIES - TAILWIND COMPATIBLE */
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+
+.scrollbar-thumb-erm-primary::-webkit-scrollbar-thumb {
+  background-color: #007A5F;
+  border-radius: 6px;
+}
+
+.scrollbar-track-gray-100::-webkit-scrollbar-track {
+  background-color: #f3f4f6;
+  border-radius: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: #007A5F;
+  border-radius: 6px;
+  transition: background-color 0.3s ease;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: #00382C;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background-color: #f3f4f6;
+  border-radius: 6px;
+}
+
+/* Custom Range Slider Styles */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-track {
+  background: #e5e7eb;
+  height: 8px;
+  border-radius: 4px;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  background: #007A5F;
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 122, 95, 0.3);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  background: #00382C;
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 122, 95, 0.4);
+}
+
+input[type="range"]::-moz-range-track {
+  background: #e5e7eb;
+  height: 8px;
+  border-radius: 4px;
+  border: none;
+}
+
+input[type="range"]::-moz-range-thumb {
+  background: #007A5F;
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 122, 95, 0.3);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+input[type="range"]::-moz-range-thumb:hover {
+  background: #00382C;
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 122, 95, 0.4);
+}
+
+/* Filter Sidebar Scrollbar */
+.filter-sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 122, 95, 0.3) rgba(229, 231, 235, 0.5);
+}
+
+.filter-sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.filter-sidebar-scroll::-webkit-scrollbar-track {
+  background: rgba(229, 231, 235, 0.5);
+  border-radius: 3px;
+}
+
+.filter-sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 122, 95, 0.3);
+  border-radius: 3px;
+  transition: background 0.3s ease;
+}
+
+.filter-sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 122, 95, 0.6);
+}
+
+/* Multi-select dropdown animations */
+.multiselect-dropdown {
+  animation: slideDown 0.2s ease-out;
+  transform-origin: top;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Filter section expand/collapse */
+.filter-section-content {
+  overflow: hidden;
+  transition: max-height 0.3s ease-in-out;
+}
+
+/* Checkbox custom styling */
+.custom-checkbox {
+  position: relative;
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #d1d5db;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.custom-checkbox.checked {
+  background-color: #007A5F;
+  border-color: #007A5F;
+}
+
+.custom-checkbox.checked::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 1px;
+  width: 6px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* Filter badge animations */
+.filter-badge {
+  animation: badgeAppear 0.2s ease-out;
+}
+
+@keyframes badgeAppear {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Hover effects for filter options */
+.filter-option {
+  transition: all 0.2s ease;
+}
+
+.filter-option:hover {
+  background-color: rgba(0, 122, 95, 0.05);
+  transform: translateX(2px);
+}
+
+/* Mobile filter sidebar slide animation */
+.mobile-filter-sidebar {
+  transform: translateX(-100%);
+  transition: transform 0.3s ease-in-out;
+}
+
+.mobile-filter-sidebar.open {
+  transform: translateX(0);
+}
+
+/* Search input focus effects */
+.filter-search-input:focus {
+  box-shadow: 0 0 0 3px rgba(0, 122, 95, 0.1);
+  border-color: #007A5F;
+}
+
+/* Filter section header hover */
+.filter-section-header:hover {
+  background-color: rgba(0, 122, 95, 0.02);
+}
+
+/* Active filter indicator */
+.active-filter-indicator {
+  position: relative;
+}
+
+.active-filter-indicator::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 20px;
+  background-color: #007A5F;
+  border-radius: 2px;
+}
+
+/* Smooth transitions for all interactive elements */
+.filter-interactive {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Loading state for filter options */
+.filter-loading {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200px 100%;
+  animation: filterShimmer 1.5s infinite;
+}
+
+@keyframes filterShimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .custom-checkbox {
+    border-width: 3px;
+  }
+  
+  .filter-option:hover {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .multiselect-dropdown,
+  .filter-badge,
+  .filter-option,
+  .mobile-filter-sidebar,
+  .filter-interactive {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .filter-sidebar-scroll::-webkit-scrollbar-track {
+    background: rgba(55, 65, 81, 0.5);
+  }
+  
+  .filter-sidebar-scroll::-webkit-scrollbar-thumb {
+    background: rgba(0, 122, 95, 0.4);
+  }
+  
+  .filter-option:hover {
+    background-color: rgba(0, 122, 95, 0.1);
+  }
+  
+  .filter-section-header:hover {
+    background-color: rgba(0, 122, 95, 0.05);
+  }
+}

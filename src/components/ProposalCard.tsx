@@ -1,4 +1,4 @@
-// src/components/ProposalCard.tsx - COMPLETE VERSION WITH PROFESSIONAL ENHANCEMENTS
+// src/components/ProposalCard.tsx - ENHANCED WITH PROFESSIONAL UX & BOOKMARK FUNCTIONALITY
 import React, { useState } from 'react';
 import {
   BookmarkIcon,
@@ -6,15 +6,14 @@ import {
   ArrowDownTrayIcon,
   ShareIcon,
   PencilIcon,
-  ArchiveBoxIcon,
-  TrashIcon,
   CalendarDaysIcon,
   BuildingOfficeIcon,
   TagIcon,
   EyeIcon,
-  StarIcon
+  StarIcon,
+  HeartIcon
 } from '@heroicons/react/24/outline';
-import { BookmarkIcon as BookmarkSolid } from '@heroicons/react/24/solid';
+import { BookmarkIcon as BookmarkSolid, HeartIcon as HeartSolid } from '@heroicons/react/24/solid';
 import DocumentPreviewModal from './DocumentPreviewModal';
 import { StrapiProposal } from '@/types/strapi';
 
@@ -22,36 +21,85 @@ interface ProposalCardProps {
   proposal: StrapiProposal;
   isListView?: boolean;
   onEdit?: (id: number) => void;
-  onArchive?: (id: number) => void;
-  onDelete?: (id: number) => void;
+  onArchive?: (id: number) => void; // Now used for bookmark
+  onDelete?: (id: number) => void; // Now used for share
+  isBookmarked?: boolean;
+  showToast?: (title: string, message: string, type?: 'success' | 'info' | 'error') => void;
 }
 
 const ProposalCard: React.FC<ProposalCardProps> = ({ 
   proposal, 
   isListView = false,
   onEdit,
-  onArchive,
-  onDelete
+  onArchive, // Bookmark function
+  onDelete, // Share function
+  isBookmarked = false,
+  showToast
 }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
-  const [isBookmarked, setIsBookmarked] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(false);
 
   const toggleDropdown = (event: React.MouseEvent) => {
     event.stopPropagation();
     setIsDropdownOpen(!isDropdownOpen);
   };
 
-  const handleShare = () => {
-    navigator.clipboard.writeText(`Document: ${proposal.unique_id}`);
-    alert(`Link copied for ${proposal.unique_id || proposal.SF_Number}`);
+  const handleBookmark = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onArchive) {
+      onArchive(proposal.id);
+    }
+    if (showToast) {
+      showToast(
+        isBookmarked ? 'Bookmark Removed' : 'Bookmark Added',
+        `Document ${isBookmarked ? 'removed from' : 'added to'} bookmarks`,
+        'success'
+      );
+    }
+  };
+
+  const handleShare = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onDelete) {
+      onDelete(proposal.id);
+    }
+    if (showToast) {
+      showToast('Share Link Generated', `Share link created for ${proposal.unique_id}`, 'success');
+    }
     setIsDropdownOpen(false);
   };
 
-  const handleDownload = () => {
-    alert(`Downloading ${proposal.unique_id || proposal.SF_Number}`);
+  const handleDownload = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (showToast) {
+      showToast('Download Started', `Downloading ${proposal.unique_id}...`, 'info');
+    }
     setIsDropdownOpen(false);
+  };
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onEdit) {
+      onEdit(proposal.id);
+    }
+    if (showToast) {
+      showToast('Edit Mode', `Opening ${proposal.unique_id} for editing`, 'info');
+    }
+    setIsDropdownOpen(false);
+  };
+
+  const handleFavorite = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsFavorited(!isFavorited);
+    if (showToast) {
+      showToast(
+        isFavorited ? 'Removed from Favorites' : 'Added to Favorites',
+        `Document ${isFavorited ? 'removed from' : 'added to'} favorites`,
+        'success'
+      );
+    }
   };
 
   const handlePreviewClick = () => {
@@ -62,82 +110,81 @@ const ProposalCard: React.FC<ProposalCardProps> = ({
     setIsPreviewModalOpen(false);
   };
 
-  const toggleBookmark = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsBookmarked(!isBookmarked);
-  };
-
   const formatDate = (isoString: string) => {
     if (!isoString) return 'N/A';
     const date = new Date(isoString);
     return date.toLocaleDateString('en-GB', {
       day: '2-digit',
-      month: 'short'
+      month: 'short',
+      year: 'numeric'
     });
   };
 
   const getDocumentTypeColor = (type: string) => {
     const colors = {
-      'Proposal': 'bg-blue-100 text-blue-800 border-blue-200',
-      'Report': 'bg-purple-100 text-purple-800 border-purple-200',
-      'Presentation': 'bg-green-100 text-green-800 border-green-200',
-      'Contract': 'bg-orange-100 text-orange-800 border-orange-200',
-      default: 'bg-gray-100 text-gray-800 border-gray-200'
+      'Proposal': 'bg-blue-50 text-blue-700 border-blue-200',
+      'Report': 'bg-purple-50 text-purple-700 border-purple-200',
+      'Presentation': 'bg-green-50 text-green-700 border-green-200',
+      'Contract': 'bg-orange-50 text-orange-700 border-orange-200',
+      'Assessment': 'bg-teal-50 text-teal-700 border-teal-200',
+      default: 'bg-gray-50 text-gray-700 border-gray-200'
     };
     return colors[type as keyof typeof colors] || colors.default;
   };
 
-  const getIndustryIcon = (industry: string) => {
-    return BuildingOfficeIcon;
-  };
-
   const displayUniqueId = proposal.unique_id || proposal.SF_Number || 'N/A';
-  const IndustryIcon = getIndustryIcon(proposal.Industry);
-
+  
   // Mock data for enhanced features
-  const mockViews = 142;
-  const mockRating = 4.3;
+  const mockViews = Math.floor(Math.random() * 500) + 50;
+  const mockRating = (Math.random() * 2 + 3).toFixed(1);
   const mockLastModified = "2 hours ago";
 
   return (
     <>
       <div 
-        className={`group relative bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-300 cursor-pointer hover-lift ${
+        className={`group relative bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-300 cursor-pointer hover:shadow-xl hover:border-erm-primary/30 ${
           isListView 
-            ? 'flex items-center p-4 hover:shadow-md hover:border-gray-200' 
-            : 'flex flex-col hover:shadow-xl hover:border-strapi-green-light/30'
+            ? 'flex items-center p-6 hover:bg-gray-50/50' 
+            : 'flex flex-col h-full'
         }`}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         onClick={handlePreviewClick}
       >
-        {/* Hover Overlay Effect */}
-        <div className={`absolute inset-0 bg-gradient-to-br from-strapi-green-light/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${isListView ? 'hidden' : ''}`} />
+        {/* Enhanced Hover Overlay */}
+        <div className={`absolute inset-0 bg-gradient-to-br from-erm-primary/3 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${isListView ? 'hidden' : ''}`} />
 
         {isListView ? (
-          // List View Layout
-          <div className="flex flex-1 items-center justify-between space-x-4 relative z-10">
+          // Enhanced List View Layout
+          <div className="flex flex-1 items-center justify-between space-x-6 relative z-10">
             {/* Left: Document Info */}
-            <div className="flex items-center space-x-4 flex-1 min-w-0">
+            <div className="flex items-center space-x-6 flex-1 min-w-0">
               {/* Document Type Badge */}
-              <div className={`px-3 py-1 rounded-full text-xs font-semibold border ${getDocumentTypeColor(proposal.Document_Type)}`}>
+              <div className={`px-4 py-2 rounded-xl text-sm font-semibold border ${getDocumentTypeColor(proposal.Document_Type)} shadow-sm`}>
+                <TagIcon className="h-4 w-4 inline mr-2" />
                 {proposal.Document_Type || 'Document'}
               </div>
 
               {/* Main Info */}
               <div className="min-w-0 flex-1">
-                <h3 className="text-lg font-bold text-gray-900 truncate group-hover:text-strapi-green-dark transition-colors">
+                <h3 className="text-xl font-bold text-gray-900 truncate group-hover:text-erm-primary transition-colors mb-2">
                   {displayUniqueId}
                 </h3>
-                <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
-                  <span className="flex items-center">
-                    <IndustryIcon className="h-4 w-4 mr-1" />
-                    {proposal.Industry || 'General'}
-                  </span>
-                  <span className="flex items-center">
-                    <CalendarDaysIcon className="h-4 w-4 mr-1" />
-                    {formatDate(proposal.Last_Stage_Change_Date)}
-                  </span>
+                <div className="flex items-center space-x-6 text-sm text-gray-600">
+                  <div className="flex items-center space-x-2">
+                    <BuildingOfficeIcon className="h-4 w-4 text-gray-400" />
+                    <span className="font-medium">Industry:</span>
+                    <span>{proposal.Industry || 'General'}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <CalendarDaysIcon className="h-4 w-4 text-gray-400" />
+                    <span className="font-medium">Updated:</span>
+                    <span>{formatDate(proposal.Last_Stage_Change_Date)}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="font-medium">Client:</span>
+                    <span className="truncate max-w-32">{proposal.Client_Name || 'N/A'}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -145,25 +192,41 @@ const ProposalCard: React.FC<ProposalCardProps> = ({
             {/* Right: Stats and Actions */}
             <div className="flex items-center space-x-6">
               {/* Stats */}
-              <div className="hidden lg:flex items-center space-x-4 text-sm text-gray-500">
-                <div className="flex items-center">
-                  <EyeIcon className="h-4 w-4 mr-1" />
+              <div className="hidden xl:flex items-center space-x-6 text-sm text-gray-500">
+                <div className="flex items-center space-x-2">
+                  <EyeIcon className="h-4 w-4" />
                   <span>{mockViews}</span>
                 </div>
-                <div className="flex items-center">
-                  <StarIcon className="h-4 w-4 mr-1 text-yellow-400 fill-current" />
+                <div className="flex items-center space-x-2">
+                  <StarIcon className="h-4 w-4 text-yellow-400 fill-current" />
                   <span>{mockRating}</span>
                 </div>
               </div>
 
-              {/* Actions */}
+              {/* Quick Actions */}
               <div className="flex items-center space-x-2">
                 <button
-                  onClick={toggleBookmark}
-                  className={`p-2 rounded-lg transition-colors ${
+                  onClick={handleFavorite}
+                  className={`p-2 rounded-lg transition-all duration-200 ${
+                    isFavorited 
+                      ? 'text-red-500 bg-red-50 scale-110' 
+                      : 'text-gray-400 hover:text-red-500 hover:bg-red-50'
+                  }`}
+                  title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+                >
+                  {isFavorited ? (
+                    <HeartSolid className="h-5 w-5" />
+                  ) : (
+                    <HeartIcon className="h-5 w-5" />
+                  )}
+                </button>
+
+                <button
+                  onClick={handleBookmark}
+                  className={`p-2 rounded-lg transition-all duration-200 ${
                     isBookmarked 
-                      ? 'text-strapi-green-light bg-green-50' 
-                      : 'text-gray-400 hover:text-strapi-green-light hover:bg-gray-50'
+                      ? 'text-erm-primary bg-erm-primary/10 scale-110' 
+                      : 'text-gray-400 hover:text-erm-primary hover:bg-erm-primary/10'
                   }`}
                   title={isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
                 >
@@ -177,28 +240,26 @@ const ProposalCard: React.FC<ProposalCardProps> = ({
                 <div className="relative">
                   <button
                     onClick={toggleDropdown}
-                    className="p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors"
+                    className="p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
                   >
                     <EllipsisHorizontalIcon className="h-5 w-5" />
                   </button>
                   
                   {isDropdownOpen && (
                     <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-30">
-                      {onEdit && (
-                        <button 
-                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                          onClick={(e) => { e.stopPropagation(); onEdit(proposal.id); setIsDropdownOpen(false); }}
-                        >
-                          <PencilIcon className="h-4 w-4 mr-3" />
-                          Edit
-                        </button>
-                      )}
+                      <button 
+                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        onClick={handleEdit}
+                      >
+                        <PencilIcon className="h-4 w-4 mr-3" />
+                        Edit Document
+                      </button>
                       <button 
                         className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                         onClick={handleShare}
                       >
                         <ShareIcon className="h-4 w-4 mr-3" />
-                        Share
+                        Share Document
                       </button>
                       <button 
                         className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
@@ -207,51 +268,34 @@ const ProposalCard: React.FC<ProposalCardProps> = ({
                         <ArrowDownTrayIcon className="h-4 w-4 mr-3" />
                         Download
                       </button>
-                      {onArchive && (
-                        <button 
-                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                          onClick={(e) => { e.stopPropagation(); onArchive(proposal.id); setIsDropdownOpen(false); }}
-                        >
-                          <ArchiveBoxIcon className="h-4 w-4 mr-3" />
-                          Archive
-                        </button>
-                      )}
-                      {onDelete && (
-                        <button 
-                          className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                          onClick={(e) => { e.stopPropagation(); onDelete(proposal.id); setIsDropdownOpen(false); }}
-                        >
-                          <TrashIcon className="h-4 w-4 mr-3" />
-                          Delete
-                        </button>
-                      )}
                     </div>
                   )}
                 </div>
 
                 <button
                   onClick={handlePreviewClick}
-                  className="bg-strapi-green-light hover:bg-strapi-green-dark text-white font-semibold py-2 px-4 rounded-xl transition-all duration-200 shadow-sm hover:shadow-md"
+                  className="bg-gradient-to-r from-erm-primary to-erm-dark hover:from-erm-dark hover:to-erm-primary text-white font-semibold py-2 px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
                 >
+                  <EyeIcon className="h-4 w-4 inline mr-2" />
                   Preview
                 </button>
               </div>
             </div>
           </div>
         ) : (
-          // Grid View Layout
-          <>
+          // Enhanced Grid View Layout
+          <div className="flex flex-col h-full">
             {/* Card Header */}
-            <div className="relative p-6 pb-4">
+            <div className="relative p-6 pb-4 flex-1">
               {/* Top Row: Type Badge and Actions */}
               <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center space-x-2">
-                  <div className={`px-3 py-1 rounded-full text-xs font-semibold border ${getDocumentTypeColor(proposal.Document_Type)}`}>
+                  <div className={`px-3 py-1.5 rounded-xl text-xs font-semibold border ${getDocumentTypeColor(proposal.Document_Type)} shadow-sm`}>
                     <TagIcon className="h-3 w-3 inline mr-1" />
                     {proposal.Document_Type || 'Document'}
                   </div>
                   {proposal.Document_Sub_Type && (
-                    <div className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                    <div className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-lg">
                       {proposal.Document_Sub_Type}
                     </div>
                   )}
@@ -259,11 +303,27 @@ const ProposalCard: React.FC<ProposalCardProps> = ({
 
                 <div className="flex items-center space-x-1">
                   <button
-                    onClick={toggleBookmark}
+                    onClick={handleFavorite}
+                    className={`p-1.5 rounded-lg transition-all duration-200 ${
+                      isFavorited 
+                        ? 'text-red-500 bg-red-50 scale-110' 
+                        : 'text-gray-400 hover:text-red-500 hover:bg-red-50'
+                    }`}
+                    title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+                  >
+                    {isFavorited ? (
+                      <HeartSolid className="h-4 w-4" />
+                    ) : (
+                      <HeartIcon className="h-4 w-4" />
+                    )}
+                  </button>
+
+                  <button
+                    onClick={handleBookmark}
                     className={`p-1.5 rounded-lg transition-all duration-200 ${
                       isBookmarked 
-                        ? 'text-strapi-green-light bg-green-50 scale-110' 
-                        : 'text-gray-400 hover:text-strapi-green-light hover:bg-gray-50'
+                        ? 'text-erm-primary bg-erm-primary/10 scale-110' 
+                        : 'text-gray-400 hover:text-erm-primary hover:bg-erm-primary/10'
                     }`}
                     title={isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
                   >
@@ -277,28 +337,26 @@ const ProposalCard: React.FC<ProposalCardProps> = ({
                   <div className="relative">
                     <button
                       onClick={toggleDropdown}
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors"
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
                     >
                       <EllipsisHorizontalIcon className="h-4 w-4" />
                     </button>
                     
                     {isDropdownOpen && (
                       <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-30">
-                        {onEdit && (
-                          <button 
-                            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                            onClick={(e) => { e.stopPropagation(); onEdit(proposal.id); setIsDropdownOpen(false); }}
-                          >
-                            <PencilIcon className="h-4 w-4 mr-3" />
-                            Edit
-                          </button>
-                        )}
+                        <button 
+                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                          onClick={handleEdit}
+                        >
+                          <PencilIcon className="h-4 w-4 mr-3" />
+                          Edit Document
+                        </button>
                         <button 
                           className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                           onClick={handleShare}
                         >
                           <ShareIcon className="h-4 w-4 mr-3" />
-                          Share
+                          Share Document
                         </button>
                         <button 
                           className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
@@ -307,24 +365,6 @@ const ProposalCard: React.FC<ProposalCardProps> = ({
                           <ArrowDownTrayIcon className="h-4 w-4 mr-3" />
                           Download
                         </button>
-                        {onArchive && (
-                          <button 
-                            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                            onClick={(e) => { e.stopPropagation(); onArchive(proposal.id); setIsDropdownOpen(false); }}
-                          >
-                            <ArchiveBoxIcon className="h-4 w-4 mr-3" />
-                            Archive
-                          </button>
-                        )}
-                        {onDelete && (
-                          <button 
-                            className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                            onClick={(e) => { e.stopPropagation(); onDelete(proposal.id); setIsDropdownOpen(false); }}
-                          >
-                            <TrashIcon className="h-4 w-4 mr-3" />
-                            Delete
-                          </button>
-                        )}
                       </div>
                     )}
                   </div>
@@ -332,37 +372,41 @@ const ProposalCard: React.FC<ProposalCardProps> = ({
               </div>
 
               {/* Document Title */}
-              <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-strapi-green-dark transition-colors line-clamp-2">
+              <h3 className="text-xl font-bold text-gray-900 mb-4 group-hover:text-erm-primary transition-colors line-clamp-2">
                 {displayUniqueId}
               </h3>
 
               {/* Document Info */}
-              <div className="space-y-2 text-sm text-gray-600">
-                <div className="flex items-center">
-                  <IndustryIcon className="h-4 w-4 mr-2 text-gray-400" />
+              <div className="space-y-3 text-sm text-gray-600">
+                <div className="flex items-center space-x-2">
+                  <BuildingOfficeIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
                   <span className="font-medium">Industry:</span>
-                  <span className="ml-1 truncate">{proposal.Industry || 'General'}</span>
+                  <span className="truncate">{proposal.Industry || 'General'}</span>
                 </div>
-                <div className="flex items-center">
-                  <CalendarDaysIcon className="h-4 w-4 mr-2 text-gray-400" />
-                  <span className="font-medium">Last Updated:</span>
-                  <span className="ml-1">{formatDate(proposal.Last_Stage_Change_Date)}</span>
+                <div className="flex items-center space-x-2">
+                  <CalendarDaysIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                  <span className="font-medium">Updated:</span>
+                  <span>{formatDate(proposal.Last_Stage_Change_Date)}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="font-medium">Client:</span>
+                  <span className="truncate">{proposal.Client_Name || 'N/A'}</span>
                 </div>
               </div>
             </div>
 
             {/* Card Footer */}
-            <div className="relative mt-auto">
+            <div className="mt-auto">
               {/* Stats Bar */}
               <div className="px-6 py-3 bg-gray-50/50 border-t border-gray-100">
                 <div className="flex items-center justify-between text-xs text-gray-500">
                   <div className="flex items-center space-x-4">
-                    <div className="flex items-center">
-                      <EyeIcon className="h-3 w-3 mr-1" />
-                      <span>{mockViews} views</span>
+                    <div className="flex items-center space-x-1">
+                      <EyeIcon className="h-3 w-3" />
+                      <span>{mockViews}</span>
                     </div>
-                    <div className="flex items-center">
-                      <StarIcon className="h-3 w-3 mr-1 text-yellow-400 fill-current" />
+                    <div className="flex items-center space-x-1">
+                      <StarIcon className="h-3 w-3 text-yellow-400 fill-current" />
                       <span>{mockRating}</span>
                     </div>
                   </div>
@@ -374,7 +418,7 @@ const ProposalCard: React.FC<ProposalCardProps> = ({
               <div className="p-6 pt-4">
                 <button
                   onClick={handlePreviewClick}
-                  className={`w-full bg-strapi-green-light hover:bg-strapi-green-dark text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 shadow-sm hover:shadow-md group-hover:scale-105 ${
+                  className={`w-full bg-gradient-to-r from-erm-primary to-erm-dark hover:from-erm-dark hover:to-erm-primary text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl group-hover:scale-105 ${
                     isHovered ? 'animate-pulse' : ''
                   }`}
                 >
@@ -385,12 +429,12 @@ const ProposalCard: React.FC<ProposalCardProps> = ({
                 </button>
               </div>
             </div>
-          </>
+          </div>
         )}
 
-        {/* Loading State Overlay */}
+        {/* Enhanced Loading State Overlay */}
         {isHovered && !isListView && (
-          <div className="absolute inset-0 bg-white/5 backdrop-blur-[1px] pointer-events-none" />
+          <div className="absolute inset-0 bg-white/5 backdrop-blur-[1px] pointer-events-none transition-opacity duration-300" />
         )}
       </div>
 
