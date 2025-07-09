@@ -1,5 +1,5 @@
-// src/components/ProposalCard.tsx - ENHANCED WITH PROFESSIONAL UX & BOOKMARK FUNCTIONALITY
-import React, { useState } from 'react';
+// src/components/ProposalCard.tsx - HYDRATION SAFE VERSION
+import React, { useState, useEffect } from 'react';
 import {
   BookmarkIcon,
   EllipsisHorizontalIcon,
@@ -21,8 +21,8 @@ interface ProposalCardProps {
   proposal: StrapiProposal;
   isListView?: boolean;
   onEdit?: (id: number) => void;
-  onArchive?: (id: number) => void; // Now used for bookmark
-  onDelete?: (id: number) => void; // Now used for share
+  onArchive?: (id: number) => void;
+  onDelete?: (id: number) => void;
   isBookmarked?: boolean;
   showToast?: (title: string, message: string, type?: 'success' | 'info' | 'error') => void;
 }
@@ -31,8 +31,8 @@ const ProposalCard: React.FC<ProposalCardProps> = ({
   proposal, 
   isListView = false,
   onEdit,
-  onArchive, // Bookmark function
-  onDelete, // Share function
+  onArchive,
+  onDelete,
   isBookmarked = false,
   showToast
 }) => {
@@ -40,6 +40,24 @@ const ProposalCard: React.FC<ProposalCardProps> = ({
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
+  
+  // HYDRATION FIX: Use state for client-only values
+  const [clientOnlyData, setClientOnlyData] = useState({
+    mockViews: 0,
+    mockRating: '0.0',
+    mockLastModified: '',
+    isClient: false
+  });
+
+  // HYDRATION FIX: Initialize client-only data after hydration
+  useEffect(() => {
+    setClientOnlyData({
+      mockViews: Math.floor(Math.random() * 500) + 50,
+      mockRating: (Math.random() * 2 + 3).toFixed(1),
+      mockLastModified: "2 hours ago",
+      isClient: true
+    });
+  }, []);
 
   const toggleDropdown = (event: React.MouseEvent) => {
     event.stopPropagation();
@@ -112,12 +130,17 @@ const ProposalCard: React.FC<ProposalCardProps> = ({
 
   const formatDate = (isoString: string) => {
     if (!isoString) return 'N/A';
-    const date = new Date(isoString);
-    return date.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    });
+    try {
+      const date = new Date(isoString);
+      if (isNaN(date.getTime())) return 'N/A';
+      return date.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      });
+    } catch {
+      return 'N/A';
+    }
   };
 
   const getDocumentTypeColor = (type: string) => {
@@ -133,11 +156,6 @@ const ProposalCard: React.FC<ProposalCardProps> = ({
   };
 
   const displayUniqueId = proposal.unique_id || proposal.SF_Number || 'N/A';
-  
-  // Mock data for enhanced features
-  const mockViews = Math.floor(Math.random() * 500) + 50;
-  const mockRating = (Math.random() * 2 + 3).toFixed(1);
-  const mockLastModified = "2 hours ago";
 
   return (
     <>
@@ -191,17 +209,19 @@ const ProposalCard: React.FC<ProposalCardProps> = ({
 
             {/* Right: Stats and Actions */}
             <div className="flex items-center space-x-6">
-              {/* Stats */}
-              <div className="hidden xl:flex items-center space-x-6 text-sm text-gray-500">
-                <div className="flex items-center space-x-2">
-                  <EyeIcon className="h-4 w-4" />
-                  <span>{mockViews}</span>
+              {/* HYDRATION FIX: Only render stats after client hydration */}
+              {clientOnlyData.isClient && (
+                <div className="hidden xl:flex items-center space-x-6 text-sm text-gray-500">
+                  <div className="flex items-center space-x-2">
+                    <EyeIcon className="h-4 w-4" />
+                    <span>{clientOnlyData.mockViews}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <StarIcon className="h-4 w-4 text-yellow-400 fill-current" />
+                    <span>{clientOnlyData.mockRating}</span>
+                  </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <StarIcon className="h-4 w-4 text-yellow-400 fill-current" />
-                  <span>{mockRating}</span>
-                </div>
-              </div>
+              )}
 
               {/* Quick Actions */}
               <div className="flex items-center space-x-2">
@@ -397,22 +417,24 @@ const ProposalCard: React.FC<ProposalCardProps> = ({
 
             {/* Card Footer */}
             <div className="mt-auto">
-              {/* Stats Bar */}
-              <div className="px-6 py-3 bg-gray-50/50 border-t border-gray-100">
-                <div className="flex items-center justify-between text-xs text-gray-500">
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-1">
-                      <EyeIcon className="h-3 w-3" />
-                      <span>{mockViews}</span>
+              {/* HYDRATION FIX: Only render stats after client hydration */}
+              {clientOnlyData.isClient && (
+                <div className="px-6 py-3 bg-gray-50/50 border-t border-gray-100">
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <div className="flex items-center space-x-4">
+                      <div className="flex items-center space-x-1">
+                        <EyeIcon className="h-3 w-3" />
+                        <span>{clientOnlyData.mockViews}</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <StarIcon className="h-3 w-3 text-yellow-400 fill-current" />
+                        <span>{clientOnlyData.mockRating}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-1">
-                      <StarIcon className="h-3 w-3 text-yellow-400 fill-current" />
-                      <span>{mockRating}</span>
-                    </div>
+                    <span className="text-gray-400">Modified {clientOnlyData.mockLastModified}</span>
                   </div>
-                  <span className="text-gray-400">Modified {mockLastModified}</span>
                 </div>
-              </div>
+              )}
 
               {/* Action Button */}
               <div className="p-6 pt-4">
