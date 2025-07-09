@@ -3,6 +3,10 @@
 
 @import 'tailwindcss';
 
+/* Import component-specific styles */
+@import './cms-page.css';
+@import './content-display.css';
+
 /* === ERM DESIGN SYSTEM VARIABLES === */
 @theme {
   /* ERM Brand Colors (from your palette) */
@@ -770,14 +774,6 @@ body.modal-open {
   transform: none !important;
 }
 
-/* Fix for any container that might contain the modal */
-.container,
-.grid,
-.flex,
-.relative,
-.absolute {
-  /* Don't let these containers interfere with modal positioning */
-}
 
 /* Override any z-index conflicts */
 .document-preview-modal {
@@ -1253,5 +1249,193 @@ input[type="range"]::-moz-range-thumb:hover {
   
   .filter-section-header:hover {
     background-color: rgba(0, 122, 95, 0.05);
+  }
+}
+/* Enhanced Toggle Button Styles - Add to globals.css */
+
+/* Claude.ai Inspired Toggle Button */
+.sidebar-toggle-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.sidebar-toggle-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-toggle-button:active {
+  transform: scale(0.95);
+  transition-duration: 0.1s;
+}
+
+.sidebar-toggle-button:focus {
+  outline: none;
+  box-shadow: 
+    0 0 0 2px rgba(255, 255, 255, 0.3),
+    0 0 0 4px rgba(255, 255, 255, 0.1);
+}
+
+/* Icon transition effects */
+.sidebar-toggle-icon {
+  color: white;
+  transition: all 0.2s ease-in-out;
+  width: 20px;
+  height: 20px;
+}
+
+.sidebar-toggle-button:hover .sidebar-toggle-icon {
+  transform: scale(1.1);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+/* Subtle glow effect */
+.sidebar-toggle-button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.sidebar-toggle-button:hover::before {
+  opacity: 1;
+}
+
+/* Active state ring */
+.sidebar-toggle-button.expanded {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: 
+    0 0 0 2px rgba(255, 255, 255, 0.2),
+    0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Micro-interaction animation for icon change */
+.sidebar-toggle-icon-transition {
+  animation: iconFlip 0.3s ease-in-out;
+}
+
+@keyframes iconFlip {
+  0% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(0.8) rotate(-10deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+/* Tooltip for collapsed state */
+.sidebar-toggle-tooltip {
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: 12px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.2s ease;
+  z-index: 1000;
+}
+
+.sidebar-toggle-button:hover .sidebar-toggle-tooltip {
+  opacity: 1;
+  transform: translateY(-50%) translateX(4px);
+}
+
+/* Pulse animation for first-time users */
+.sidebar-toggle-pulse {
+  animation: togglePulse 2s infinite;
+}
+
+@keyframes togglePulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(255, 255, 255, 0);
+  }
+}
+
+/* Mobile specific adjustments */
+@media (max-width: 768px) {
+  .sidebar-toggle-button {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+  }
+  
+  .sidebar-toggle-icon {
+    width: 22px;
+    height: 22px;
+  }
+  
+  .sidebar-toggle-tooltip {
+    display: none; /* Hide tooltips on mobile */
+  }
+}
+
+/* Dark mode adaptations */
+@media (prefers-color-scheme: dark) {
+  .sidebar-toggle-button {
+    background: rgba(30, 41, 59, 0.8);
+    border-color: rgba(71, 85, 105, 0.3);
+  }
+  
+  .sidebar-toggle-button:hover {
+    background: rgba(30, 41, 59, 0.9);
+    border-color: rgba(71, 85, 105, 0.5);
+  }
+  
+  .sidebar-toggle-button.expanded {
+    background: rgba(30, 41, 59, 0.95);
+    border-color: rgba(0, 122, 95, 0.4);
+    box-shadow: 
+      0 0 0 2px rgba(0, 122, 95, 0.2),
+      0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-toggle-button,
+  .sidebar-toggle-icon,
+  .sidebar-toggle-tooltip {
+    transition: none;
+    animation: none;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .sidebar-toggle-button {
+    border-width: 2px;
+    border-color: currentColor;
+  }
+  
+  .sidebar-toggle-button:focus {
+    outline: 3px solid currentColor;
+    outline-offset: 2px;
   }
 }
