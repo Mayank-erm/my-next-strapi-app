@@ -1,16 +1,15 @@
-// COMPREHENSIVE FIX - content-management.tsx
-// src/pages/content-management.tsx - COMPLETE LAYOUT FIX
+// src/pages/content-management.tsx - COMPLETE LAYOUT FIX & BUG FIXES
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Layout from '@/components/Layout';
 import ContentDisplay from '@/components/cms/ContentDisplay';
-import Pagination from '@/components/Pagination';
+import Pagination from '@/components/Pagination'; // Keeping import, but using Load More
 import AdvancedFilterSidebar from '@/components/cms/AdvancedFilterSidebar';
 import ActiveFilterPills from '@/components/cms/ActiveFilterPills';
 import Toast from '@/components/Toast';
 import { MeiliSearch } from 'meilisearch';
 import { useRouter } from 'next/router';
-import { getDocumentUrl } from '@/config/documentMapping';
+import { getBestDocumentUrl } from '@/config/documentMapping'; // Use getBestDocumentUrl
 import { STRAPI_API_URL } from '@/config/apiConfig';
 import { StrapiProposal } from '@/types/strapi';
 import { extractProposalData } from '@/utils/dataHelpers';
@@ -57,8 +56,8 @@ const CmsPage: React.FC = () => {
 
   // State Management
   const [selectedProposalForPreview, setSelectedProposalForPreview] = useState<StrapiProposal | null>(null);
-  const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(true);
-  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+  const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(true); // Desktop advanced filter sidebar toggle
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false); // Mobile advanced filter sidebar overlay toggle
 
   // Toast State
   const [isToastOpen, setIsToastOpen] = useState(false);
@@ -81,7 +80,7 @@ const CmsPage: React.FC = () => {
     states: [],
     cities: [],
     dateRange: [null, null],
-    valueRange: [0, 1000000],
+    valueRange: [0, 1000000], // Default value range
   });
 
   // Content State
@@ -185,10 +184,8 @@ const CmsPage: React.FC = () => {
 
       const fetchedProposals: StrapiProposal[] = (meiliSearchResults.hits || []).map((hit: any) => {
         const extractedData = extractProposalData(hit);
-        let documentUrl = extractedData.documentUrl;
-        if (!documentUrl) {
-          documentUrl = getDocumentUrl(extractedData.SF_Number || extractedData.unique_id, hit.id.toString());
-        }
+        // Ensure documentUrl is correctly set, using getBestDocumentUrl
+        let documentUrl = extractedData.documentUrl || getBestDocumentUrl(extractedData);
 
         return {
           ...extractedData,
@@ -273,23 +270,38 @@ const CmsPage: React.FC = () => {
       states: [],
       cities: [],
       dateRange: [null, null],
-      valueRange: [0, 1000000],
+      valueRange: [0, 1000000], // Reset to default values
     });
     setCurrentPage(1);
     router.replace({ pathname: router.pathname, query: {} }, undefined, { shallow: true });
     showToast('Filters Cleared', 'All filters have been cleared successfully', 'info');
   }, [router, showToast]);
 
-  // Active filters count
+  // Active filters count - FIXED LOGIC
   const activeFiltersCount = useMemo(() => {
     let count = 0;
-    if (urlSearchTerm) count++;
-    if (filters.dateRange[0] && filters.dateRange[1]) count++;
-    if (filters.valueRange[0] !== 0 || filters.valueRange[1] !== 1000000) count++;
+    // Count search term if not empty
+    if (urlSearchTerm.trim()) {
+      count++;
+    }
+    // Count date range if both dates are selected
+    if (filters.dateRange[0] && filters.dateRange[1]) {
+      count++;
+    }
+    // Count value range if different from default
+    if (filters.valueRange[0] !== 0 || filters.valueRange[1] !== 1000000) {
+      count++;
+    }
     
-    Object.values(filters).forEach(filterValue => {
-      if (Array.isArray(filterValue)) {
-        count += filterValue.length;
+    // Count multi-select filters only if they have selected items
+    const multiSelectFilterKeys: Array<keyof AdvancedFilters> = [
+      'clientTypes', 'documentTypes', 'documentSubTypes', 'industries', 
+      'subIndustries', 'services', 'subServices', 'businessUnits', 
+      'regions', 'countries', 'states', 'cities'
+    ];
+    multiSelectFilterKeys.forEach(key => {
+      if (Array.isArray(filters[key]) && (filters[key] as string[]).length > 0) {
+        count++; // Count as one active filter category, not per item
       }
     });
     
@@ -334,7 +346,7 @@ const CmsPage: React.FC = () => {
     }
   }, []);
 
-  // Layout props
+  // Layout props (Passed to the parent Layout component)
   const layoutProps = {
     searchTerm: urlSearchTerm,
     isLoading: isLoading,
@@ -352,10 +364,7 @@ const CmsPage: React.FC = () => {
           id: fullProposalData.data.id,
           documentId: fullProposalData.data.id.toString(),
           value: extractProposalData(fullProposalData.data).value,
-          documentUrl: fullProposalData.data.attributes?.documentUrl || 
-                       getDocumentUrl(fullProposalData.data.attributes?.SF_Number || 
-                                    fullProposalData.data.attributes?.Unique_Id, 
-                                    fullProposalData.data.id.toString()),
+          documentUrl: getBestDocumentUrl(fullProposalData.data.attributes), // Use getBestDocumentUrl
         };
         setSelectedProposalForPreview(fetchedProposal);
         if (router.query.proposalId !== String(proposal.id)) {
@@ -369,7 +378,7 @@ const CmsPage: React.FC = () => {
         setIsLoading(false);
       }
     },
-    activeContentType: 'All',
+    activeContentType: 'All', // These are placeholder for Layout's filter-by options
     activeServiceLines: [],
     activeIndustries: [],
     activeRegions: [],
@@ -381,61 +390,46 @@ const CmsPage: React.FC = () => {
     onDateChange: () => {},
     onSearchInFiltersChange: () => {},
     onClearAllFilters: clearAllFilters,
-    showMainSidebar: true,
+    showMainSidebar: true, // Tell Layout to always show the main navigation sidebar
   };
 
   const totalPages = Math.ceil(totalProposals / ITEMS_PER_PAGE);
 
   return (
     <Layout {...layoutProps}>
-      {/* FIXED: Proper Layout Container */}
-      <div className="cms-layout-container">
-        {/* Advanced Filter Sidebar - FIXED POSITIONING */}
-        <div className={`cms-filter-sidebar ${isFilterSidebarOpen ? 'open' : 'closed'}`}>
-          <div className="h-full overflow-y-auto custom-scrollbar-thin">
+      {/* This container now acts as the content area *next to* the main green sidebar.
+          It then contains the Advanced Filters sidebar and the main content. */}
+      <div className="cms-page-outer-wrapper">
+
+        {/* Advanced Filter Sidebar (left-middle column) */}
+        {/* Uses sticky position on desktop, fixed for mobile overlay */}
+        <aside className={`cms-filter-sidebar ${isFilterSidebarOpen ? 'open' : 'closed'} lg:block`}>
+          <div className="h-full overflow-y-auto custom-scrollbar"> {/* Using generic custom-scrollbar from globals */}
             <AdvancedFilterSidebar
               filters={filters}
               onUpdateFilter={updateFilter}
               onClearAll={clearAllFilters}
               activeFiltersCount={activeFiltersCount}
-              isOpen={isFilterSidebarOpen}
-              onToggle={() => setIsFilterSidebarOpen(!isFilterSidebarOpen)}
+              isOpen={isFilterSidebarOpen} // Controls desktop visibility
+              onToggle={() => setIsFilterSidebarOpen(!isFilterSidebarOpen)} // Desktop toggle
             />
           </div>
-        </div>
+        </aside>
 
-        {/* Main Content Area - FIXED MARGINS */}
-        <div className={`cms-content-area ${isFilterSidebarOpen ? 'with-filter' : 'without-filter'}`}>
-          {/* Header Bar */}
-          <div className="cms-header-bar">
-            <div className="flex items-center justify-between">
-              {/* Left: Simple Title */}
+        {/* Main Content Area (rightmost column, flexible width) */}
+        {/* Its left margin will be handled by the cms-page-outer-wrapper's flex layout */}
+        <main className="cms-main-content">
+          {/* Header Bar for the Content Management Page itself */}
+          <div className="cms-content-header">
+              {/* Filter Controls */}
               <div className="flex items-center space-x-4">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-erm-primary to-erm-dark flex items-center justify-center shadow-md">
-                  <DocumentTextIcon className="h-5 w-5 text-white" />
-                </div>
-                <h1 className="text-2xl font-bold text-gray-900">All Content</h1>
-              </div>
-
-              {/* Right: Filter Controls */}
-              <div className="flex items-center space-x-4">
-                {/* Active Filters Badge */}
-                {activeFiltersCount > 0 && (
-                  <div className="flex items-center space-x-2 bg-erm-primary/10 text-erm-primary px-3 py-1.5 rounded-lg border border-erm-primary/20">
-                    <FunnelIcon className="h-4 w-4" />
-                    <span className="text-sm font-medium">
-                      {activeFiltersCount} active
-                    </span>
-                  </div>
-                )}
-
-                {/* Desktop Filter Toggle */}
+                {/* Desktop Filter Toggle Button */}
                 <button
                   onClick={() => setIsFilterSidebarOpen(!isFilterSidebarOpen)}
                   className={`
                     hidden lg:flex items-center space-x-2 px-4 py-2 rounded-lg border transition-all duration-200 font-medium
-                    ${isFilterSidebarOpen 
-                      ? 'bg-erm-primary text-white border-erm-primary shadow-md hover:bg-erm-dark' 
+                    ${isFilterSidebarOpen
+                      ? 'bg-erm-primary text-white border-erm-primary shadow-md hover:bg-erm-dark'
                       : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
                     }
                   `}
@@ -447,21 +441,20 @@ const CmsPage: React.FC = () => {
                   </span>
                 </button>
 
-                {/* Mobile Filter Toggle */}
+                {/* Mobile Filter Toggle Button (opens overlay) */}
                 <button
-                  onClick={() => setIsMobileFilterOpen(!isMobileFilterOpen)}
+                  onClick={() => setIsMobileFilterOpen(true)}
                   className="lg:hidden p-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
                   title="Toggle mobile filters"
                 >
                   <FunnelIcon className="h-5 w-5 text-gray-600" />
                 </button>
               </div>
-            </div>
           </div>
 
           {/* Error Display */}
           {error && (
-            <div className="cms-error-display">
+            <div className="cms-error-message">
               <div className="flex items-center">
                 <strong className="font-bold mr-2">Error:</strong>
                 <span className="block sm:inline">{error}</span>
@@ -475,8 +468,8 @@ const CmsPage: React.FC = () => {
             </div>
           )}
 
-          {/* Content Display */}
-          <div className="cms-content-wrapper">
+          {/* Content Area for Filter Pills and Document Display */}
+          <div className="cms-content-area-inner custom-scrollbar"> {/* Apply custom-scrollbar here */}
             {/* Active Filter Pills */}
             <ActiveFilterPills
               filters={filters}
@@ -523,29 +516,27 @@ const CmsPage: React.FC = () => {
               </div>
             )}
           </div>
-        </div>
+        </main>
 
-        {/* Mobile Filter Overlay */}
+        {/* Mobile Filter Overlay (full screen overlay for filter sidebar) */}
         {isMobileFilterOpen && (
-          <div className="cms-mobile-overlay" onClick={() => setIsMobileFilterOpen(false)}>
-            <div className="cms-mobile-sidebar" onClick={e => e.stopPropagation()}>
-              <div className="h-full overflow-y-auto custom-scrollbar-thin">
-                <AdvancedFilterSidebar
-                  filters={filters}
-                  onUpdateFilter={updateFilter}
-                  onClearAll={clearAllFilters}
-                  activeFiltersCount={activeFiltersCount}
-                  isOpen={true}
-                  onToggle={() => setIsMobileFilterOpen(false)}
-                  isMobile={true}
-                />
-              </div>
-            </div>
+          <div className="cms-mobile-filter-overlay" onClick={() => setIsMobileFilterOpen(false)}>
+            <aside className="cms-mobile-filter-sidebar" onClick={e => e.stopPropagation()}>
+              <AdvancedFilterSidebar
+                filters={filters}
+                onUpdateFilter={updateFilter}
+                onClearAll={clearAllFilters}
+                activeFiltersCount={activeFiltersCount}
+                isOpen={true} // Always open when in mobile overlay
+                onToggle={() => setIsMobileFilterOpen(false)} // Close mobile overlay (internal toggle)
+                isMobile={true} // Indicate it's in mobile mode
+              />
+            </aside>
           </div>
         )}
-      </div>
+      </div> {/* End of cms-page-outer-wrapper */}
 
-      {/* Document Preview Modal */}
+      {/* Document Preview Modal (Renders via Portal, its DOM position here doesn't matter) */}
       {selectedProposalForPreview && (
         <DocumentPreviewModal
           proposal={selectedProposalForPreview}
@@ -556,7 +547,7 @@ const CmsPage: React.FC = () => {
         />
       )}
 
-      {/* Toast Notifications */}
+      {/* Toast Notifications (Renders via Portal, its DOM position here doesn't matter) */}
       <Toast
         isOpen={isToastOpen}
         onClose={() => setIsToastOpen(false)}

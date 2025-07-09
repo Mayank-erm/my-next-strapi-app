@@ -172,7 +172,7 @@ const Layout: React.FC<LayoutProps> = ({
       </div>
 
       {/* Footer component - only show for non-content-management pages */}
-      {!isContentManagementPage && <Footer />}
+      <Footer />
     </div>
   );
 };

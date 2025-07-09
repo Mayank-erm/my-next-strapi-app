@@ -1,407 +1,210 @@
-/* src/styles/cms-page.css - DEDICATED CMS STYLES TO PREVENT CONFLICTS */
+/* src/styles/cms-page.css - REWRITTEN FOR CORRECT 3-COLUMN LAYOUT AND ALIGNMENT */
 
-/* === CMS PAGE LAYOUT SYSTEM === */
-.cms-page-container {
+/* === CMS PAGE OUTER WRAPPER === */
+/* This div sits *inside* Layout's main content area (next to the green sidebar)
+   and manages the layout of the Advanced Filter sidebar and the main content area. */
+.cms-page-outer-wrapper {
   display: flex;
-  min-height: 100vh;
-  background-color: #f8fafc;
-  position: relative;
+  flex: 1; /* Make it fill the available space in Layout's main content */
+  min-height: calc(100vh - 64px); /* Full height minus fixed Header */
+  background-color: var(--color-background);
+  position: relative; /* For z-index context of its children */
+    /* Added margin-top and padding to match screenshot for the whole page content */
+  margin-top: 20px; /* Space from under the main header */
+  padding-right: 20px; /* Space on the right edge of the page content */
+  padding-bottom: 20px; /* Space at the bottom before footer */
+  /* This container handles the gap from the main green sidebar implicitly by being a child of Layout's flex container */
+}
+/* Mobile adjustments for cms-page-outer-wrapper */
+@media (max-width: 1023px) { /* lg breakpoint */
+  .cms-page-outer-wrapper {
+    margin-top: 10px;
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-bottom: 10px;
+  }
+}
+@media (max-width: 767px) { /* md breakpoint */
+  .cms-page-outer-wrapper {
+    margin-top: 0; /* Adjust for smaller mobile header padding */
+    padding-left: 0;
+    padding-right: 0;
+    padding-bottom: 0;
+    flex-direction: column; /* Stack content vertically on very small screens */
+  }
 }
 
-/* === FILTER SIDEBAR === */
+/* === ADVANCED FILTER SIDEBAR (Left-middle column) === */
 .cms-filter-sidebar {
-  position: fixed;
-  top: 100px; /* Below header */
-  height: calc(100vh - 64px);
+  position: sticky; /* Sticky within its parent scrolling container */
+  top: 0; /* Sticks to the top of the cms-page-outer-wrapper's content area */
+  height: calc(100vh - 64px); /* Full height from below the main app header */
+  width: 320px; /* Fixed width for the filter sidebar when open */
+  flex-shrink: 0; /* Prevents it from shrinking */
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-neutral-200);
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
+  z-index: 10; /* Below main app header (z-index:30) but above main content */
+  transition: width 0.3s ease-in-out, transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+  overflow-y: auto; /* Enable vertical scrolling for filter content */
+  overflow-x: hidden; /* Hide horizontal overflow during transition */
+  transform: translateX(0); /* Default: visible on desktop */
+}
+
+/* State for collapsed desktop filter sidebar */
+.cms-filter-sidebar.closed {
   width: 0;
-  background: white;
-  border-right: 1px solid #e5e7eb;
-  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
-  z-index: 20;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow: hidden;
+  transform: translateX(-100%); /* Slide it completely off-screen to the left */
+  box-shadow: none;
+  margin-right: 0; /* Remove margin when hidden */
 }
 
-.cms-filter-sidebar--open {
-  width: 320px;
-}
-
-.cms-filter-sidebar--closed {
-  width: 0;
-}
-
-/* Mobile filter sidebar */
-@media (max-width: 1023px) {
+/* Hide advanced filter sidebar completely on mobile by default */
+@media (max-width: 1023px) { /* On screens smaller than large (lg) */
   .cms-filter-sidebar {
-    left: 0;
-    width: 0;
-    transform: translateX(-100%);
-  }
-  
-  .cms-filter-sidebar--mobile-open {
-    width: 320px;
-    transform: translateX(0);
+    display: none; /* Hide the desktop fixed sidebar on mobile, mobile overlay takes over */
   }
 }
 
-/* === MAIN CONTENT AREA === */
+/* === MAIN CONTENT AREA (Rightmost column, flexible width) === */
 .cms-main-content {
-  flex: 1;
-  margin-left: 256px; /* Account for main nav sidebar */
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  flex: 1; /* Takes up all remaining space */
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  min-height: calc(100vh - 64px - 40px); /* Ensure it fills height */
+  background-color: var(--color-background);
+  padding: 1.5rem 2rem; /* Consistent padding around content */
+  /* No margin-left here, as it's a direct flex child of cms-page-outer-wrapper */
 }
 
-.cms-main-content--with-sidebar {
-  margin-left: 576px; /* 256px nav + 320px filter */
-}
-
-.cms-main-content--full-width {
-  margin-left: 256px; /* Only main nav */
-}
-
+/* Mobile specific padding for main content area */
 @media (max-width: 1023px) {
-  .cms-main-content,
-  .cms-main-content--with-sidebar,
-  .cms-main-content--full-width {
-    margin-left: 0;
+  .cms-main-content {
+    padding: 0; /* Adjust padding for smaller screens */
+  }
+}
+@media (max-width: 767px) { /* Smaller mobile screens */
+  .cms-main-content {
+    padding: 0.75rem;
   }
 }
 
-/* === HEADER === */
-.cms-header {
-  background: white;
-  border-bottom: 1px solid #e5e7eb;
-  padding: 1rem 2rem;
+/* === HEADER BAR FOR THE CONTENT MANAGEMENT PAGE ITSELF === */
+/* This is the header *within* the cms-main-content, not the global app header */
+.cms-content-header {
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-neutral-200);
+  padding: 1.5rem 2rem; /* Matches parent's padding */
+  /* Use negative margins to stretch the header to the full width of the parent (cms-main-content) */
+  margin: -1.5rem -2rem 1.5rem -2rem; /* Top, Right, Bottom, Left */
   position: sticky;
-  top: 64px; /* Below main header */
-  z-index: 15;
+  top: 0; /* Sticks to the top of its own scrolling container */
+  z-index: 5; /* Lower than fixed sidebars and global header, but above content cards */
   backdrop-filter: blur(8px);
   background-color: rgba(255, 255, 255, 0.95);
+  border-radius: 0.75rem; /* Add border radius as seen in screenshot */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); /* Soft shadow as seen */
+  margin-bottom: 1.5rem; /* Space below header */
 }
 
-.cms-header__content {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
+/* Mobile adjustments for cms-content-header */
+@media (max-width: 1023px) {
+  .cms-content-header {
+    padding: 1rem;
+    margin: -1rem -1rem 1rem -1rem; /* Adjust negative margins for mobile padding */
+  }
+}
+@media (max-width: 767px) {
+  .cms-content-header {
+    padding: 0.75rem;
+    margin: -0.75rem -0.75rem 0.75rem -0.75rem;
+  }
 }
 
-/* === FILTER TOGGLE BUTTON === */
-.cms-filter-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.75rem 1.5rem;
-  background: white;
-  border: 1px solid #d1d5db;
-  border-radius: 0.75rem;
-  color: #374151;
-  font-weight: 500;
-  transition: all 0.2s ease-in-out;
-  cursor: pointer;
-  position: relative;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.cms-filter-toggle:hover {
-  background: #f9fafb;
-  border-color: #9ca3af;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.cms-filter-toggle--active {
-  background: #007A5F;
-  border-color: #007A5F;
-  color: white;
-  box-shadow: 0 4px 12px rgba(0, 122, 95, 0.25);
-}
-
-.cms-filter-toggle--active:hover {
-  background: #00382C;
-  border-color: #00382C;
-}
-
-.cms-filter-badge {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  background: #ef4444;
-  color: white;
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0.25rem 0.5rem;
-  border-radius: 9999px;
-  min-width: 1.25rem;
-  text-align: center;
-  line-height: 1;
-}
-
-/* === ERROR DISPLAY === */
-.cms-error {
-  margin: 1.5rem 2rem;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #dc2626;
+/* === ERROR MESSAGE DISPLAY === */
+.cms-error-message {
+  margin: 1.5rem 0;
+  background: var(--color-error-50);
+  border: 1px solid var(--color-error-200);
+  color: var(--color-error-700);
   padding: 1rem 1.5rem;
   border-radius: 0.75rem;
   position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  animation: slideInFromRight 0.3s ease-out;
 }
 
-.cms-error__content {
-  display: flex;
-  align-items: center;
+/* === INNER CONTENT WRAPPER (for ActiveFilterPills and ContentDisplay) === */
+/* This div provides internal padding and structure for the content below the cms-content-header */
+.cms-content-area-inner {
+  flex: 1; /* Allows the inner content to take remaining height */
+  overflow-y: auto; /* Enable scrolling for the content display area */
+  padding-right: 0.5rem; /* Add some space for scrollbar visual */
+  padding-bottom: 2rem; /* Space at the bottom before pagination/load more */
 }
 
-.cms-error__close {
-  padding: 0.25rem;
-  color: #dc2626;
-  background: none;
-  border: none;
-  cursor: pointer;
-  border-radius: 0.25rem;
-  transition: background-color 0.2s;
-}
 
-.cms-error__close:hover {
-  background: rgba(220, 38, 38, 0.1);
-}
-
-/* === CONTENT AREA === */
-.cms-content-area {
-  flex: 1;
-  padding: 1.5rem 2rem;
-  overflow-y: auto;
-  max-height: calc(100vh - 160px); /* Account for header and navigation */
-}
-
-/* Custom scrollbar for content area */
-.cms-content-area::-webkit-scrollbar {
-  width: 6px;
-}
-
-.cms-content-area::-webkit-scrollbar-track {
-  background: #f1f5f9;
-  border-radius: 3px;
-}
-
-.cms-content-area::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 3px;
-  transition: background 0.3s ease;
-}
-
-.cms-content-area::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-
-/* === PAGINATION === */
-.cms-pagination {
-  margin-top: 2rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid #e5e7eb;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-}
-
-.cms-pagination__info {
-  text-align: center;
-}
-
-/* === MOBILE OVERLAY === */
-.cms-mobile-overlay {
+/* === MOBILE FILTER OVERLAY === */
+/* This element covers the whole screen on mobile when filters are opened */
+.cms-mobile-filter-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 19;
+  background: rgba(0, 0, 0, 0.5); /* Dim overlay */
+  z-index: 999; /* Below global modals but above normal page content */
   backdrop-filter: blur(4px);
-}
-
-@media (min-width: 1024px) {
-  .cms-mobile-overlay {
-    display: none;
-  }
-}
-
-/* === RESPONSIVE ADJUSTMENTS === */
-@media (max-width: 768px) {
-  .cms-header {
-    padding: 1rem;
-  }
-  
-  .cms-content-area {
-    padding: 1rem;
-  }
-  
-  .cms-filter-toggle {
-    padding: 0.625rem 1rem;
-    font-size: 0.875rem;
-  }
-  
-  .cms-filter-toggle .hidden {
-    display: none !important;
-  }
-}
-
-/* === ANIMATION IMPROVEMENTS === */
-@keyframes cms-fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.cms-content-area > * {
-  animation: cms-fade-in 0.3s ease-out;
-}
-
-/* === LOADING STATES === */
-.cms-loading-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(255, 255, 255, 0.8);
   display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10;
-  backdrop-filter: blur(2px);
+  justify-content: flex-start; /* Aligns the sidebar to the left */
 }
 
-.cms-loading-spinner {
-  width: 2rem;
-  height: 2rem;
-  border: 3px solid #e5e7eb;
-  border-top: 3px solid #007A5F;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
+/* Mobile Advanced Filter Sidebar within the overlay */
+.cms-mobile-filter-sidebar {
+  width: 320px; /* Fixed width when open */
+  height: 100%;
+  background: var(--color-surface);
+  box-shadow: 4px 0 15px rgba(0, 0, 0, 0.15);
+  overflow-y: auto;
+  transform: translateX(0); /* Always visible when overlay is active */
+  transition: transform 0.3s ease-in-out;
 }
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* === FOCUS MANAGEMENT === */
-.cms-filter-sidebar:focus-within,
-.cms-main-content:focus-within {
-  outline: none;
-}
-
-/* High contrast mode support */
-@media (prefers-contrast: high) {
-  .cms-filter-toggle {
-    border-width: 2px;
-  }
-  
-  .cms-filter-toggle--active {
-    outline: 2px solid currentColor;
-    outline-offset: 2px;
-  }
-}
-
-/* Reduced motion support */
-@media (prefers-reduced-motion: reduce) {
-  .cms-filter-sidebar,
-  .cms-main-content,
-  .cms-filter-toggle {
-    transition: none;
-  }
-  
-  .cms-content-area > * {
-    animation: none;
-  }
-}
-
-/* === PRINT STYLES === */
-@media print {
-  .cms-filter-sidebar,
-  .cms-header,
-  .cms-mobile-overlay {
-    display: none !important;
-  }
-  
-  .cms-main-content,
-  .cms-main-content--with-sidebar,
-  .cms-main-content--full-width {
-    margin-left: 0 !important;
-    max-width: 100% !important;
-  }
-  
-  .cms-content-area {
-    padding: 0 !important;
-    overflow: visible !important;
-    max-height: none !important;
-  }
-}
+/* === SCROLLBAR UTILITIES (used in globals.css) === */
+/* Ensure the 'custom-scrollbar' class is applied where needed for consistent scrollbar styling */
+/* For example, in the AdvancedFilterSidebar and cms-content-area-inner divs */
 
 /* === DARK MODE SUPPORT === */
 @media (prefers-color-scheme: dark) {
-  .cms-page-container {
-    background-color: #0f172a;
+  .cms-page-outer-wrapper {
+    background-color: var(--color-background);
   }
-  
+
   .cms-filter-sidebar {
-    background: #1e293b;
-    border-color: #334155;
+    background: var(--color-surface);
+    border-color: var(--color-neutral-700);
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.2);
   }
-  
-  .cms-header {
+
+  .cms-main-content {
+    background-color: var(--color-background);
+  }
+
+  .cms-content-header {
     background-color: rgba(30, 41, 59, 0.95);
-    border-color: #334155;
+    border-color: var(--color-neutral-700);
   }
-  
-  .cms-filter-toggle {
-    background: #334155;
-    border-color: #475569;
-    color: #f1f5f9;
-  }
-  
-  .cms-filter-toggle:hover {
-    background: #475569;
-    border-color: #64748b;
-  }
-  
-  .cms-filter-toggle--active {
-    background: #007A5F;
-    border-color: #007A5F;
-  }
-  
-  .cms-error {
+
+  .cms-error-message {
     background: #422006;
     border-color: #92400e;
     color: #fbbf24;
   }
-  
-  .cms-content-area::-webkit-scrollbar-track {
-    background: #1e293b;
-  }
-  
-  .cms-content-area::-webkit-scrollbar-thumb {
-    background: #475569;
-  }
-  
-  .cms-content-area::-webkit-scrollbar-thumb:hover {
-    background: #64748b;
-  }
-  
-  .cms-pagination {
-    border-color: #334155;
+
+  .cms-mobile-filter-sidebar {
+    background: var(--color-surface);
+    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.3);
   }
 }
