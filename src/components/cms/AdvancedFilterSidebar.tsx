@@ -1,4 +1,4 @@
-// src/components/cms/AdvancedFilterSidebar.tsx - PROFESSIONAL SEARCHABLE FILTER SIDEBAR
+// src/components/cms/AdvancedFilterSidebar.tsx - FIXED VERSION WITH SINGLE CLEAR ALL
 import React, { useState, useRef, useEffect } from 'react';
 import {
   XMarkIcon,
@@ -469,7 +469,7 @@ const AdvancedFilterSidebar: React.FC<FilterSidebarProps> = ({
 
   return (
     <div className="h-full flex flex-col bg-white">
-      {/* Header */}
+      {/* Header with SINGLE Clear All Button */}
       <div className="px-4 py-4 border-b border-gray-200 bg-gradient-to-r from-erm-primary/5 to-transparent">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -491,7 +491,7 @@ const AdvancedFilterSidebar: React.FC<FilterSidebarProps> = ({
           )}
         </div>
         
-        {/* Quick Actions */}
+        {/* SINGLE Clear All Section */}
         <div className="flex items-center justify-between mt-3">
           <div className="text-sm text-gray-600">
             {activeFiltersCount > 0 ? (
@@ -502,10 +502,11 @@ const AdvancedFilterSidebar: React.FC<FilterSidebarProps> = ({
               <span>No filters applied</span>
             )}
           </div>
+          {/* ONLY CLEAR ALL BUTTON HERE */}
           {activeFiltersCount > 0 && (
             <button
               onClick={onClearAll}
-              className="flex items-center space-x-1 text-xs text-gray-500 hover:text-red-600 transition-colors"
+              className="flex items-center space-x-1 px-3 py-1.5 text-xs text-white bg-red-500 hover:bg-red-600 rounded-md font-medium transition-colors"
             >
               <ArrowPathIcon className="h-3 w-3" />
               <span>Clear All</span>
@@ -701,26 +702,17 @@ const AdvancedFilterSidebar: React.FC<FilterSidebarProps> = ({
         </FilterSection>
       </div>
 
-      {/* Footer */}
-      <div className="p-4 border-t border-gray-200 bg-gray-50">
-        <div className="flex space-x-2">
+      {/* REMOVED FOOTER WITH ADDITIONAL CLEAR BUTTON - ONLY APPLY BUTTON FOR MOBILE */}
+      {isMobile && (
+        <div className="p-4 border-t border-gray-200 bg-gray-50">
           <button
-            onClick={onClearAll}
-            disabled={activeFiltersCount === 0}
-            className="flex-1 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+            onClick={onToggle}
+            className="w-full px-4 py-2 bg-erm-primary text-white rounded-lg hover:bg-erm-dark transition-colors text-sm font-medium"
           >
-            Clear All
+            Apply Filters
           </button>
-          {isMobile && (
-            <button
-              onClick={onToggle}
-              className="flex-1 px-4 py-2 bg-erm-primary text-white rounded-lg hover:bg-erm-dark transition-colors text-sm font-medium"
-            >
-              Apply Filters
-            </button>
-          )}
         </div>
-      </div>
+      )}
     </div>
   );
 };

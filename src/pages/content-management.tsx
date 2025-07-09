@@ -1,4 +1,6 @@
-// src/pages/content-management.tsx - PROFESSIONAL UX REDESIGN WITH NAVIGATION SIDEBAR
+// COMPREHENSIVE FIX - content-management.tsx
+// src/pages/content-management.tsx - COMPLETE LAYOUT FIX
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Layout from '@/components/Layout';
 import ContentDisplay from '@/components/cms/ContentDisplay';
@@ -17,11 +19,7 @@ import {
   AdjustmentsHorizontalIcon, 
   XMarkIcon, 
   FunnelIcon,
-  DocumentTextIcon,
-  BookmarkIcon,
-  ArrowDownTrayIcon,
-  ShareIcon,
-  EyeIcon
+  DocumentTextIcon
 } from '@heroicons/react/24/outline';
 
 // MeiliSearch Configuration
@@ -33,7 +31,7 @@ const meiliSearchClient = new MeiliSearch({
   apiKey: MEILISEARCH_API_KEY,
 });
 
-const ITEMS_PER_PAGE = 12;
+const ITEMS_PER_PAGE = 24;
 
 // Enhanced Filter Interface
 interface AdvancedFilters {
@@ -99,6 +97,10 @@ const CmsPage: React.FC = () => {
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
   const [bookmarkedItems, setBookmarkedItems] = useState<number[]>([]);
 
+  // Lazy Loading State
+  const [hasNextPage, setHasNextPage] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
   // Debounced search term
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(urlSearchTerm);
 
@@ -114,14 +116,19 @@ const CmsPage: React.FC = () => {
     setIsToastOpen(true);
   }, []);
 
-  // Advanced fetch function with comprehensive filtering
-  const fetchContent = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    setProposals([]);
-    setTotalProposals(0);
+  // Advanced fetch function with comprehensive filtering and lazy loading
+  const fetchContent = useCallback(async (loadMore = false) => {
+    if (loadMore) {
+      setIsLoadingMore(true);
+    } else {
+      setIsLoading(true);
+      setError(null);
+      setProposals([]);
+      setTotalProposals(0);
+    }
 
-    const offset = (currentPage - 1) * ITEMS_PER_PAGE;
+    const page = loadMore ? currentPage + 1 : currentPage;
+    const offset = (page - 1) * ITEMS_PER_PAGE;
 
     try {
       const meiliFilters: string[] = [];
@@ -172,12 +179,6 @@ const CmsPage: React.FC = () => {
         searchOptions.filter = meiliFilters.join(' AND ');
       }
 
-      console.log("Advanced MeiliSearch Query:", {
-        query: debouncedSearchTerm,
-        filters: searchOptions.filter,
-        facets: searchOptions.facets,
-      });
-
       const meiliSearchResults = await meiliSearchClient
         .index('document_stores')
         .search(debouncedSearchTerm, searchOptions);
@@ -198,16 +199,31 @@ const CmsPage: React.FC = () => {
         };
       });
 
-      setProposals(fetchedProposals);
-      setTotalProposals(meiliSearchResults.estimatedTotalHits || 0);
+      if (loadMore) {
+        setProposals(prev => [...prev, ...fetchedProposals]);
+        setCurrentPage(page);
+      } else {
+        setProposals(fetchedProposals);
+        setTotalProposals(meiliSearchResults.estimatedTotalHits || 0);
+      }
+
+      // Check if there are more pages
+      const totalPages = Math.ceil((meiliSearchResults.estimatedTotalHits || 0) / ITEMS_PER_PAGE);
+      setHasNextPage(page < totalPages);
 
     } catch (err: any) {
       console.error('Failed to fetch content from MeiliSearch:', err);
       setError(`Failed to load data: ${err.message}. Please ensure MeiliSearch is running and configured correctly.`);
-      setProposals([]);
-      setTotalProposals(0);
+      if (!loadMore) {
+        setProposals([]);
+        setTotalProposals(0);
+      }
     } finally {
-      setIsLoading(false);
+      if (loadMore) {
+        setIsLoadingMore(false);
+      } else {
+        setIsLoading(false);
+      }
     }
   }, [
     currentPage,
@@ -216,14 +232,22 @@ const CmsPage: React.FC = () => {
     sortBy,
   ]);
 
+  // Load more function for lazy loading
+  const loadMore = useCallback(() => {
+    if (!isLoadingMore && hasNextPage) {
+      fetchContent(true);
+    }
+  }, [fetchContent, isLoadingMore, hasNextPage]);
+
   // Trigger fetch when dependencies change
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchContent();
+      setCurrentPage(1);
+      fetchContent(false);
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [fetchContent]);
+  }, [debouncedSearchTerm, filters, sortBy]);
 
   // Filter update handlers
   const updateFilter = useCallback((filterKey: keyof AdvancedFilters, value: any) => {
@@ -231,7 +255,7 @@ const CmsPage: React.FC = () => {
       ...prev,
       [filterKey]: value,
     }));
-    setCurrentPage(1); // Reset to first page when filtering
+    setCurrentPage(1);
   }, []);
 
   const clearAllFilters = useCallback(() => {
@@ -256,7 +280,7 @@ const CmsPage: React.FC = () => {
     showToast('Filters Cleared', 'All filters have been cleared successfully', 'info');
   }, [router, showToast]);
 
-  // Active filters count - FUNCTIONAL
+  // Active filters count
   const activeFiltersCount = useMemo(() => {
     let count = 0;
     if (urlSearchTerm) count++;
@@ -310,7 +334,7 @@ const CmsPage: React.FC = () => {
     }
   }, []);
 
-  // Layout props - INCLUDE MAIN SIDEBAR
+  // Layout props
   const layoutProps = {
     searchTerm: urlSearchTerm,
     isLoading: isLoading,
@@ -357,22 +381,18 @@ const CmsPage: React.FC = () => {
     onDateChange: () => {},
     onSearchInFiltersChange: () => {},
     onClearAllFilters: clearAllFilters,
-    showMainSidebar: true, // KEEP MAIN SIDEBAR VISIBLE
+    showMainSidebar: true,
   };
 
   const totalPages = Math.ceil(totalProposals / ITEMS_PER_PAGE);
 
   return (
     <Layout {...layoutProps}>
-      <div className="flex min-h-screen bg-gray-50">
+      {/* FIXED: Proper Layout Container */}
+      <div className="cms-layout-container">
         {/* Advanced Filter Sidebar - FIXED POSITIONING */}
-        <div className={`
-          fixed left-25 top-22 h-[calc(100vh-4rem)] bg-white border-r border-gray-200 shadow-lg z-30
-          transition-all duration-300 ease-in-out overflow-hidden
-          ${isFilterSidebarOpen ? 'w-80' : 'w-0'}
-          ${isMobileFilterOpen ? 'block' : 'hidden lg:block'}
-        `}>
-          <div className="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-erm-primary scrollbar-track-gray-100">
+        <div className={`cms-filter-sidebar ${isFilterSidebarOpen ? 'open' : 'closed'}`}>
+          <div className="h-full overflow-y-auto custom-scrollbar-thin">
             <AdvancedFilterSidebar
               filters={filters}
               onUpdateFilter={updateFilter}
@@ -385,52 +405,27 @@ const CmsPage: React.FC = () => {
         </div>
 
         {/* Main Content Area - FIXED MARGINS */}
-        <div className={`
-          flex-1 transition-all duration-300 ease-in-out
-          ${isFilterSidebarOpen ? 'ml-80 lg:ml-96' : 'ml-16 lg:ml-64'}
-        `}>
+        <div className={`cms-content-area ${isFilterSidebarOpen ? 'with-filter' : 'without-filter'}`}>
           {/* Header Bar */}
-          <div className="bg-white border-b border-gray-200 px-8 py-6 sticky top-16 z-20">
+          <div className="cms-header-bar">
             <div className="flex items-center justify-between">
-              {/* Left: Title and Filter Toggle */}
-              <div className="flex items-center space-x-6">
-                <button
-                  onClick={() => setIsFilterSidebarOpen(!isFilterSidebarOpen)}
-                  className="p-3 rounded-xl border border-gray-300 hover:bg-gray-50 transition-all duration-200 lg:hidden"
-                  title="Toggle filters"
-                >
-                  <FunnelIcon className="h-5 w-5 text-gray-600" />
-                </button>
-                
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-erm-primary to-erm-dark flex items-center justify-center shadow-lg">
-                    <DocumentTextIcon className="h-6 w-6 text-white" />
-                  </div>
-                  <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Content Management</h1>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {totalProposals.toLocaleString()} documents available
-                    </p>
-                  </div>
+              {/* Left: Simple Title */}
+              <div className="flex items-center space-x-4">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-erm-primary to-erm-dark flex items-center justify-center shadow-md">
+                  <DocumentTextIcon className="h-5 w-5 text-white" />
                 </div>
+                <h1 className="text-2xl font-bold text-gray-900">All Content</h1>
               </div>
 
-              {/* Right: Stats and Filter Toggle */}
+              {/* Right: Filter Controls */}
               <div className="flex items-center space-x-4">
-                {/* Active Filters Badge - FUNCTIONAL */}
+                {/* Active Filters Badge */}
                 {activeFiltersCount > 0 && (
-                  <div className="flex items-center space-x-3 bg-erm-primary/10 text-erm-primary px-4 py-2 rounded-xl border border-erm-primary/20">
-                    <FunnelIcon className="h-5 w-5" />
-                    <span className="text-sm font-semibold">
-                      {activeFiltersCount} filter{activeFiltersCount !== 1 ? 's' : ''} active
+                  <div className="flex items-center space-x-2 bg-erm-primary/10 text-erm-primary px-3 py-1.5 rounded-lg border border-erm-primary/20">
+                    <FunnelIcon className="h-4 w-4" />
+                    <span className="text-sm font-medium">
+                      {activeFiltersCount} active
                     </span>
-                    <button
-                      onClick={clearAllFilters}
-                      className="ml-2 p-1 rounded-full hover:bg-erm-primary/20 transition-colors"
-                      title="Clear all filters"
-                    >
-                      <XMarkIcon className="h-4 w-4" />
-                    </button>
                   </div>
                 )}
 
@@ -438,15 +433,15 @@ const CmsPage: React.FC = () => {
                 <button
                   onClick={() => setIsFilterSidebarOpen(!isFilterSidebarOpen)}
                   className={`
-                    hidden lg:flex items-center space-x-3 px-6 py-3 rounded-xl border transition-all duration-200 font-medium
+                    hidden lg:flex items-center space-x-2 px-4 py-2 rounded-lg border transition-all duration-200 font-medium
                     ${isFilterSidebarOpen 
-                      ? 'bg-erm-primary text-white border-erm-primary shadow-lg hover:bg-erm-dark' 
+                      ? 'bg-erm-primary text-white border-erm-primary shadow-md hover:bg-erm-dark' 
                       : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
                     }
                   `}
                   title={isFilterSidebarOpen ? "Hide filters" : "Show filters"}
                 >
-                  <AdjustmentsHorizontalIcon className="h-5 w-5" />
+                  <AdjustmentsHorizontalIcon className="h-4 w-4" />
                   <span className="text-sm">
                     {isFilterSidebarOpen ? 'Hide Filters' : 'Show Filters'}
                   </span>
@@ -455,7 +450,7 @@ const CmsPage: React.FC = () => {
                 {/* Mobile Filter Toggle */}
                 <button
                   onClick={() => setIsMobileFilterOpen(!isMobileFilterOpen)}
-                  className="lg:hidden p-3 rounded-xl border border-gray-300 hover:bg-gray-50 transition-colors"
+                  className="lg:hidden p-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
                   title="Toggle mobile filters"
                 >
                   <FunnelIcon className="h-5 w-5 text-gray-600" />
@@ -466,7 +461,7 @@ const CmsPage: React.FC = () => {
 
           {/* Error Display */}
           {error && (
-            <div className="mx-8 mt-6 bg-red-50 border border-red-200 text-red-800 px-6 py-4 rounded-xl relative" role="alert">
+            <div className="cms-error-display">
               <div className="flex items-center">
                 <strong className="font-bold mr-2">Error:</strong>
                 <span className="block sm:inline">{error}</span>
@@ -481,8 +476,8 @@ const CmsPage: React.FC = () => {
           )}
 
           {/* Content Display */}
-          <div className="p-8 overflow-y-auto max-h-[calc(100vh-12rem)]">
-            {/* Active Filter Pills - FUNCTIONAL */}
+          <div className="cms-content-wrapper">
+            {/* Active Filter Pills */}
             <ActiveFilterPills
               filters={filters}
               searchTerm={urlSearchTerm}
@@ -508,24 +503,33 @@ const CmsPage: React.FC = () => {
               showToast={showToast}
             />
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="mt-12 flex justify-center">
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={setCurrentPage}
-                />
+            {/* Load More Button for Lazy Loading */}
+            {hasNextPage && proposals.length > 0 && (
+              <div className="mt-8 flex justify-center">
+                <button
+                  onClick={loadMore}
+                  disabled={isLoadingMore}
+                  className="bg-gradient-to-r from-erm-primary to-erm-dark text-white font-semibold py-3 px-8 rounded-xl hover:shadow-lg transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                >
+                  {isLoadingMore ? (
+                    <div className="flex items-center space-x-2">
+                      <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+                      <span>Loading More...</span>
+                    </div>
+                  ) : (
+                    `Load More Documents`
+                  )}
+                </button>
               </div>
             )}
           </div>
         </div>
 
-        {/* Mobile Filter Overlay - FIXED POSITIONING */}
+        {/* Mobile Filter Overlay */}
         {isMobileFilterOpen && (
-          <div className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40" onClick={() => setIsMobileFilterOpen(false)}>
-            <div className="fixed left-0 top-16 h-[calc(100vh-4rem)] w-80 bg-white border-r border-gray-200 shadow-lg overflow-hidden" onClick={e => e.stopPropagation()}>
-              <div className="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-erm-primary scrollbar-track-gray-100">
+          <div className="cms-mobile-overlay" onClick={() => setIsMobileFilterOpen(false)}>
+            <div className="cms-mobile-sidebar" onClick={e => e.stopPropagation()}>
+              <div className="h-full overflow-y-auto custom-scrollbar-thin">
                 <AdvancedFilterSidebar
                   filters={filters}
                   onUpdateFilter={updateFilter}
