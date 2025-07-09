@@ -907,3 +907,52 @@ body > div,
     display: none !important;
   }
 }
+/* Toast notifications - HIGHEST Z-INDEX */
+.toast-notification,
+[data-toast="true"],
+.fixed.bottom-6.right-6 {
+  z-index: 1000001 !important; /* Higher than modal (999999) */
+  position: fixed !important;
+  bottom: 1.5rem !important;
+  right: 1.5rem !important;
+  isolation: isolate !important;
+}
+
+/* Toast container - ensure it's above modals */
+.toast-container {
+  z-index: 1000001 !important;
+  position: fixed !important;
+  bottom: 1.5rem !important;
+  right: 1.5rem !important;
+}
+
+/* Toast animation fix */
+.animate-slideInFromRight {
+  animation: slideInFromRight 0.3s ease-out;
+}
+
+@keyframes slideInFromRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Ensure toasts appear above everything */
+.toast-notification {
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+/* Toast backdrop to prevent interaction with modal content */
+.toast-backdrop {
+  pointer-events: none;
+}
+
+.toast-backdrop .toast-notification {
+  pointer-events: auto;
+}
