@@ -1,4 +1,4 @@
-// src/components/Sidebar.tsx - PROPER UX STRUCTURE (Full Height Scroll)
+// src/components/Sidebar.tsx - UPDATED WITH TOGGLE BUTTON (Claude.ai Style)
 import React, { useState, useEffect } from 'react';
 import { 
   HomeIcon, 
@@ -8,7 +8,9 @@ import {
   ChevronDownIcon,
   FolderIcon,
   TagIcon,
-  BuildingOfficeIcon
+  BuildingOfficeIcon,
+  Bars3Icon,
+  ChevronLeftIcon
 } from '@heroicons/react/24/outline';
 import { 
   HomeIcon as HomeSolid,
@@ -21,8 +23,7 @@ import { MeiliSearch } from 'meilisearch';
 
 interface SidebarProps {
   isExpanded: boolean;
-  onMouseEnter?: () => void;
-  onMouseLeave?: () => void;
+  onToggle: () => void; // New prop for toggle function
 }
 
 interface SidebarStats {
@@ -49,7 +50,7 @@ const meiliSearchClient = new MeiliSearch({
   apiKey: process.env.NEXT_PUBLIC_MEILISEARCH_API_KEY || 'masterKey',
 });
 
-const Sidebar: React.FC<SidebarProps> = ({ isExpanded, onMouseEnter, onMouseLeave }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isExpanded, onToggle }) => {
   const router = useRouter();
   const currentPath = router.pathname;
   const [showStats, setShowStats] = useState(false);
@@ -233,26 +234,52 @@ const Sidebar: React.FC<SidebarProps> = ({ isExpanded, onMouseEnter, onMouseLeav
   return (
     <aside
       className={`bg-gradient-to-b from-strapi-green-dark to-strapi-green-light shadow-xl transition-all duration-300 ease-in-out
-        ${isExpanded ? 'w-64' : 'w-20 items-center'} 
-        h-[calc(100vh-64px)] fixed top-16 z-20
-        ${isExpanded ? 'left-0' : '-left-full md:left-0'} md:block
+        ${isExpanded ? 'w-64' : 'w-20'} 
+        h-[calc(100vh-64px)] fixed top-16 z-20 left-0
         flex flex-col overflow-y-auto sidebar-scroll
       `}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
     >
       {/* CONTENT CONTAINER */}
       <div className={`flex-1 flex flex-col ${isExpanded ? 'px-4' : 'px-2'}`}>
         
-        {/* Header Section */}
+        {/* Header Section with Toggle Button */}
         <div className="py-6 flex-shrink-0">
-          {isExpanded && (
-            <div className="text-center mb-6">
-              <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center mx-auto mb-3 group hover:bg-white/30 transition-colors">
-                <FolderIcon className="h-6 w-6 text-white group-hover:scale-110 transition-transform" />
+          {/* Claude.ai Inspired Toggle Button */}
+          <div className="flex justify-center mb-4">
+            <button
+              onClick={onToggle}
+              className={`
+                sidebar-toggle-button group
+                ${isExpanded ? 'expanded' : ''}
+              `}
+              title={isExpanded ? "Collapse sidebar" : "Expand sidebar"}
+              aria-label={isExpanded ? "Collapse sidebar" : "Expand sidebar"}
+            >
+              {/* Icon with smooth transition */}
+              <div className="relative flex items-center justify-center">
+                {isExpanded ? (
+                  <ChevronLeftIcon className="sidebar-toggle-icon sidebar-toggle-icon-transition" />
+                ) : (
+                  <Bars3Icon className="sidebar-toggle-icon sidebar-toggle-icon-transition" />
+                )}
               </div>
+              
+              {/* Tooltip for accessibility */}
+              {!isExpanded && (
+                <div className="sidebar-toggle-tooltip">
+                  Click to expand
+                </div>
+              )}
+              
+              {/* Subtle shimmer effect */}
+              <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-30 transition-opacity duration-500 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full"></div>
+            </button>
+          </div>
+
+          {/* Header Content */}
+          {isExpanded && (
+            <div className="text-center mb-6 animate-erm-fade-in">
               <h3 className="text-white font-semibold text-lg">Content Hub</h3>
-              <p className="text-white/70 text-sm">Document Management</p>
             </div>
           )}
         </div>
@@ -286,7 +313,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isExpanded, onMouseEnter, onMouseLeav
 
         {/* Quick Stats Section */}
         {isExpanded && (
-          <div className="flex-shrink-0 mt-8 space-y-3">
+          <div className="flex-shrink-0 mt-8 space-y-3 animate-erm-fade-in">
             <button
               onClick={() => setShowStats(!showStats)}
               className="flex items-center justify-between w-full text-white/90 hover:text-white transition-colors py-2 group"
@@ -305,7 +332,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isExpanded, onMouseEnter, onMouseLeav
             </button>
             
             {showStats && (
-              <div className="space-y-2 animate-fade-in">
+              <div className="space-y-2 animate-erm-fade-in">
                 <StatCard 
                   label="Total Documents" 
                   value={stats.totalDocuments} 
@@ -335,7 +362,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isExpanded, onMouseEnter, onMouseLeav
 
         {/* Recent Documents Section */}
         {isExpanded && (
-          <div className="flex-shrink-0 mt-6 space-y-3">
+          <div className="flex-shrink-0 mt-6 space-y-3 animate-erm-fade-in">
             <button
               onClick={() => setShowRecentDocs(!showRecentDocs)}
               className="flex items-center justify-between w-full text-white/90 hover:text-white transition-colors py-2 group"
@@ -354,7 +381,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isExpanded, onMouseEnter, onMouseLeav
             </button>
             
             {showRecentDocs && (
-              <div className="space-y-1 animate-fade-in">
+              <div className="space-y-1 animate-erm-fade-in">
                 {recentDocuments.length > 0 ? (
                   <>
                     {recentDocuments.map((doc) => (
@@ -384,7 +411,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isExpanded, onMouseEnter, onMouseLeav
 
         {/* System Status at Bottom */}
         {isExpanded && (
-          <div className="flex-shrink-0 pb-4">
+          <div className="flex-shrink-0 pb-4 animate-erm-fade-in">
             <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/20">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
