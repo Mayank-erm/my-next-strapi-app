@@ -9,10 +9,11 @@ import { useRouter } from 'next/router';
 import { ChevronDownIcon, Squares2X2Icon, ListBulletIcon } from '@heroicons/react/24/outline';
 import DocumentPreviewModal from '@/components/DocumentPreviewModal';
 import { MeiliSearch } from 'meilisearch';
-import { getDocumentUrl } from '@/config/documentMapping';
+import { getBestDocumentUrl } from '@/config/documentMapping'; // Ensure this is imported
 import { STRAPI_API_URL } from '@/config/apiConfig';
 import { StrapiProposal } from '@/types/strapi';
 import { extractProposalData } from '@/utils/dataHelpers';
+import Toast from '@/components/Toast'; // Import Toast component
 
 // --- MeiliSearch Configuration ---
 const MEILISEARCH_HOST = process.env.NEXT_PUBLIC_MEILISEARCH_HOST || 'http://localhost:7700';
@@ -57,6 +58,20 @@ const HomePage: React.FC<HomePageProps> = ({
 
   const [isDocumentPreviewOpen, setIsDocumentPreviewOpen] = useState(false);
   const [selectedProposalForPreview, setSelectedProposalForPreview] = useState<StrapiProposal | null>(null);
+
+  // Toast State
+  const [isToastOpen, setIsToastOpen] = useState(false);
+  const [toastTitle, setToastTitle] = useState('');
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'info' | 'error'>('info');
+
+  // Show toast notification
+  const showToast = useCallback((title: string, message: string, type: 'success' | 'info' | 'error' = 'info') => {
+    setToastTitle(title);
+    setToastMessage(message);
+    setToastType(type);
+    setIsToastOpen(true);
+  }, []);
 
   // Enhanced fetch proposals function - FIXED FILTERABLE ATTRIBUTES
   const fetchProposals = useCallback(async (
@@ -107,53 +122,14 @@ const HomePage: React.FC<HomePageProps> = ({
       // Transform MeiliSearch results to StrapiProposal format
       const fetchedProposals: StrapiProposal[] = (meiliSearchResults.hits || []).map((hit: any) => {
         // Extract data from MeiliSearch hit - handle nested filters
-        const proposalData = {
+        const extractedData = extractProposalData(hit); // Use existing helper
+        return {
+          ...extractedData,
           id: hit.id,
           documentId: hit.id.toString(),
-          unique_id: hit.unique_id || hit.Unique_Id || hit.SF_Number || '',
-          SF_Number: hit.SF_Number || hit.unique_id || '',
-          Client_Name: hit.Client_Name || hit.filters?.Client_Name || '',
-          Client_Type: hit.Client_Type || hit.filters?.Client_Type || '',
-          Client_Contact: hit.Client_Contact || '',
-          Client_Contact_Title: hit.Client_Contact_Title || '',
-          Client_Journey: hit.Client_Journey || '',
-          Document_Type: hit.Document_Type || hit.filters?.Document_Type || '',
-          Document_Sub_Type: hit.Document_Sub_Type || hit.filters?.Document_Sub_Type || '',
-          Document_Value_Range: hit.Document_Value_Range || '',
-          Document_Outcome: hit.Document_Outcome || hit.filters?.Document_Outcome || '',
-          Last_Stage_Change_Date: hit.Last_Stage_Change_Date || '',
-          Industry: hit.Industry || hit.filters?.Industry || '',
-          Sub_Industry: hit.Sub_Industry || hit.filters?.Sub_Industry || '',
-          Service: hit.Service || hit.filters?.Service || '',
-          Sub_Service: hit.Sub_Service || hit.filters?.Sub_Service || '',
-          Business_Unit: hit.Business_Unit || hit.filters?.Business_Unit || '',
-          Region: hit.Region || hit.filters?.Region || '',
-          Country: hit.Country || hit.filters?.Country || '',
-          State: hit.State || hit.filters?.State || '',
-          City: hit.City || hit.filters?.City || '',
-          Author: hit.Author || '',
-          PIC: hit.PIC || '',
-          PM: hit.PM || '',
-          Keywords: hit.Keywords || '',
-          Commercial_Program: hit.Commercial_Program || hit.filters?.Commercial_Program || '',
-          Project_Team: hit.Project_Team || null,
-          SMEs: hit.SMEs || null,
-          Competitors: hit.Competitors || '',
-          createdAt: hit.createdAt || new Date().toISOString(),
-          updatedAt: hit.updatedAt || new Date().toISOString(),
-          publishedAt: hit.publishedAt || new Date().toISOString(),
-          Description: hit.Description || [],
-          Attachments: hit.Attachments || null,
-          Pursuit_Team: hit.Pursuit_Team || null,
-          documentUrl: hit.documentUrl || hit.Document_Path || getDocumentUrl(
-            hit.SF_Number || hit.unique_id, 
-            hit.id.toString()
-          ),
-          value: hit.value || 0,
-          proposalName: hit.proposalName || hit.SF_Number || hit.unique_id || '',
-        };
-        
-        return proposalData as StrapiProposal;
+          documentUrl: getBestDocumentUrl(extractedData), // Correctly get document URL
+          value: extractedData.value, // Ensure value is numerical
+        } as StrapiProposal;
       });
 
       setProposals(fetchedProposals);
@@ -199,50 +175,13 @@ const HomePage: React.FC<HomePageProps> = ({
         });
 
       const latestProposalsData: StrapiProposal[] = (latestResults.hits || []).map((hit: any) => {
+        const extractedData = extractProposalData(hit); // Use existing helper
         return {
+          ...extractedData,
           id: hit.id,
           documentId: hit.id.toString(),
-          unique_id: hit.unique_id || hit.Unique_Id || hit.SF_Number || '',
-          SF_Number: hit.SF_Number || hit.unique_id || '',
-          Client_Name: hit.Client_Name || hit.filters?.Client_Name || '',
-          Client_Type: hit.Client_Type || hit.filters?.Client_Type || '',
-          Client_Contact: hit.Client_Contact || '',
-          Client_Contact_Title: hit.Client_Contact_Title || '',
-          Client_Journey: hit.Client_Journey || '',
-          Document_Type: hit.Document_Type || hit.filters?.Document_Type || '',
-          Document_Sub_Type: hit.Document_Sub_Type || hit.filters?.Document_Sub_Type || '',
-          Document_Value_Range: hit.Document_Value_Range || '',
-          Document_Outcome: hit.Document_Outcome || hit.filters?.Document_Outcome || '',
-          Last_Stage_Change_Date: hit.Last_Stage_Change_Date || '',
-          Industry: hit.Industry || hit.filters?.Industry || '',
-          Sub_Industry: hit.Sub_Industry || hit.filters?.Sub_Industry || '',
-          Service: hit.Service || hit.filters?.Service || '',
-          Sub_Service: hit.Sub_Service || hit.filters?.Sub_Service || '',
-          Business_Unit: hit.Business_Unit || hit.filters?.Business_Unit || '',
-          Region: hit.Region || hit.filters?.Region || '',
-          Country: hit.Country || hit.filters?.Country || '',
-          State: hit.State || hit.filters?.State || '',
-          City: hit.City || hit.filters?.City || '',
-          Author: hit.Author || '',
-          PIC: hit.PIC || '',
-          PM: hit.PM || '',
-          Keywords: hit.Keywords || '',
-          Commercial_Program: hit.Commercial_Program || hit.filters?.Commercial_Program || '',
-          Project_Team: hit.Project_Team || null,
-          SMEs: hit.SMEs || null,
-          Competitors: hit.Competitors || '',
-          createdAt: hit.createdAt || new Date().toISOString(),
-          updatedAt: hit.updatedAt || new Date().toISOString(),
-          publishedAt: hit.publishedAt || new Date().toISOString(),
-          Description: hit.Description || [],
-          Attachments: hit.Attachments || null,
-          Pursuit_Team: hit.Pursuit_Team || null,
-          documentUrl: hit.documentUrl || hit.Document_Path || getDocumentUrl(
-            hit.SF_Number || hit.unique_id, 
-            hit.id.toString()
-          ),
-          value: hit.value || 0,
-          proposalName: hit.proposalName || hit.SF_Number || hit.unique_id || '',
+          documentUrl: getBestDocumentUrl(extractedData), // Correctly get document URL
+          value: extractedData.value, // Ensure value is numerical
         } as StrapiProposal;
       });
 
@@ -254,7 +193,7 @@ const HomePage: React.FC<HomePageProps> = ({
       // Don't show error for carousel, just log it
       setLatestProposals([]); // Set empty array as fallback
     }
-  }, []);
+  }, [showToast]); // Added showToast to dependencies
 
   // Effect to fetch data when search/page/sort changes
   useEffect(() => {
@@ -343,9 +282,9 @@ const HomePage: React.FC<HomePageProps> = ({
         </div>
       )}
 
-      {/* Popular Resources Section */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+      {/* Popular Resources Section - Now uses content-display__header for consistency */}
+      <div className="content-display__header mb-6"> {/* Applied the class */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full">
           <div>
             <h2 className="text-2xl font-bold text-text-dark-gray mb-2">
               {searchTerm ? `Search Results (${totalProposals})` : `Popular Resources (${totalProposals})`}
@@ -382,18 +321,22 @@ const HomePage: React.FC<HomePageProps> = ({
             <div className="flex space-x-2 ml-auto sm:ml-0 mt-2 sm:mt-0">
               <button
                 onClick={() => setActiveView('grid')}
-                className={`p-2 border rounded-lg text-gray-700 transition-colors
-                            ${activeView === 'grid' ? 'bg-strapi-green-light text-white shadow-sm' : 'bg-white hover:bg-gray-100'}
-                            focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:ring-offset-2`}
+                className={`content-display__view-button ${
+                  activeView === 'grid' 
+                    ? 'content-display__view-button--active' 
+                    : ''
+                }`}
                 title="Grid view"
               >
                 <Squares2X2Icon className="h-5 w-5" />
               </button>
               <button
                 onClick={() => setActiveView('list')}
-                className={`p-2 border rounded-lg text-gray-700 transition-colors
-                            ${activeView === 'list' ? 'bg-strapi-green-light text-white shadow-sm' : 'bg-white hover:bg-gray-100'}
-                            focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:ring-offset-2`}
+                className={`content-display__view-button ${
+                  activeView === 'list' 
+                    ? 'content-display__view-button--active' 
+                    : ''
+                }`}
                 title="List view"
               >
                 <ListBulletIcon className="h-5 w-5" />
@@ -427,6 +370,7 @@ const HomePage: React.FC<HomePageProps> = ({
                 <ProposalCard 
                   proposal={proposal} 
                   isListView={activeView === 'list'} 
+                  showToast={showToast} // Pass showToast to ProposalCard
                 />
               </div>
             ))}
@@ -474,6 +418,13 @@ const HomePage: React.FC<HomePageProps> = ({
           onClose={closeDocumentPreview}
         />
       )}
+      <Toast
+        isOpen={isToastOpen}
+        onClose={() => setIsToastOpen(false)}
+        title={toastTitle}
+        message={toastMessage}
+        type={toastType}
+      />
     </Layout>
   );
 };
@@ -522,49 +473,16 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async (cont
       .index('document_stores')
       .search(searchQuery, searchOptions);
 
-    initialProposals = (meiliSearchResults.hits || []).map((hit: any) => ({
-      id: hit.id,
-      documentId: hit.id.toString(),
-      unique_id: hit.unique_id || hit.Unique_Id || hit.SF_Number || '',
-      SF_Number: hit.SF_Number || hit.unique_id || '',
-      Client_Name: hit.Client_Name || hit.filters?.Client_Name || '',
-      Document_Type: hit.Document_Type || hit.filters?.Document_Type || '',
-      Industry: hit.Industry || hit.filters?.Industry || '',
-      Region: hit.Region || hit.filters?.Region || '',
-      Service: hit.Service || hit.filters?.Service || '',
-      publishedAt: hit.publishedAt || new Date().toISOString(),
-      createdAt: hit.createdAt || new Date().toISOString(),
-      updatedAt: hit.updatedAt || new Date().toISOString(),
-      documentUrl: hit.documentUrl || hit.Document_Path || '',
-      value: hit.value || 0,
-      // Fill in other required fields with defaults
-      Client_Type: hit.Client_Type || '',
-      Client_Contact: hit.Client_Contact || '',
-      Client_Contact_Title: hit.Client_Contact_Title || '',
-      Client_Journey: hit.Client_Journey || '',
-      Document_Sub_Type: hit.Document_Sub_Type || '',
-      Document_Value_Range: hit.Document_Value_Range || '',
-      Document_Outcome: hit.Document_Outcome || '',
-      Last_Stage_Change_Date: hit.Last_Stage_Change_Date || '',
-      Sub_Industry: hit.Sub_Industry || '',
-      Sub_Service: hit.Sub_Service || '',
-      Business_Unit: hit.Business_Unit || '',
-      Country: hit.Country || '',
-      State: hit.State || '',
-      City: hit.City || '',
-      Author: hit.Author || '',
-      PIC: hit.PIC || '',
-      PM: hit.PM || '',
-      Keywords: hit.Keywords || '',
-      Commercial_Program: hit.Commercial_Program || '',
-      Project_Team: hit.Project_Team || null,
-      SMEs: hit.SMEs || null,
-      Competitors: hit.Competitors || '',
-      Description: hit.Description || [],
-      Attachments: hit.Attachments || null,
-      Pursuit_Team: hit.Pursuit_Team || null,
-      proposalName: hit.proposalName || hit.SF_Number || hit.unique_id || '',
-    }));
+    initialProposals = (meiliSearchResults.hits || []).map((hit: any) => {
+      const extractedData = extractProposalData(hit); // Use extractProposalData
+      return {
+        ...extractedData,
+        id: hit.id,
+        documentId: hit.id.toString(),
+        documentUrl: getBestDocumentUrl(extractedData), // Correctly generate documentUrl
+        value: extractedData.value, // Ensure numerical value
+      } as StrapiProposal;
+    });
 
     initialTotalProposals = meiliSearchResults.estimatedTotalHits || 0;
 
@@ -577,49 +495,16 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async (cont
         attributesToRetrieve: ['*'],
       });
 
-    initialLatestProposals = (latestResults.hits || []).map((hit: any) => ({
-      id: hit.id,
-      documentId: hit.id.toString(),
-      unique_id: hit.unique_id || hit.Unique_Id || hit.SF_Number || '',
-      SF_Number: hit.SF_Number || hit.unique_id || '',
-      Client_Name: hit.Client_Name || hit.filters?.Client_Name || '',
-      Document_Type: hit.Document_Type || hit.filters?.Document_Type || '',
-      Industry: hit.Industry || hit.filters?.Industry || '',
-      Region: hit.Region || hit.filters?.Region || '',
-      Service: hit.Service || hit.filters?.Service || '',
-      publishedAt: hit.publishedAt || new Date().toISOString(),
-      createdAt: hit.createdAt || new Date().toISOString(),
-      updatedAt: hit.updatedAt || new Date().toISOString(),
-      documentUrl: hit.documentUrl || hit.Document_Path || '',
-      value: hit.value || 0,
-      // Fill remaining fields
-      Client_Type: hit.Client_Type || '',
-      Client_Contact: hit.Client_Contact || '',
-      Client_Contact_Title: hit.Client_Contact_Title || '',
-      Client_Journey: hit.Client_Journey || '',
-      Document_Sub_Type: hit.Document_Sub_Type || '',
-      Document_Value_Range: hit.Document_Value_Range || '',
-      Document_Outcome: hit.Document_Outcome || '',
-      Last_Stage_Change_Date: hit.Last_Stage_Change_Date || '',
-      Sub_Industry: hit.Sub_Industry || '',
-      Sub_Service: hit.Sub_Service || '',
-      Business_Unit: hit.Business_Unit || '',
-      Country: hit.Country || '',
-      State: hit.State || '',
-      City: hit.City || '',
-      Author: hit.Author || '',
-      PIC: hit.PIC || '',
-      PM: hit.PM || '',
-      Keywords: hit.Keywords || '',
-      Commercial_Program: hit.Commercial_Program || '',
-      Project_Team: hit.Project_Team || null,
-      SMEs: hit.SMEs || null,
-      Competitors: hit.Competitors || '',
-      Description: hit.Description || [],
-      Attachments: hit.Attachments || null,
-      Pursuit_Team: hit.Pursuit_Team || null,
-      proposalName: hit.proposalName || hit.SF_Number || hit.unique_id || '',
-    }));
+    initialLatestProposals = (latestResults.hits || []).map((hit: any) => {
+      const extractedData = extractProposalData(hit); // Use extractProposalData
+      return {
+        ...extractedData,
+        id: hit.id,
+        documentId: hit.id.toString(),
+        documentUrl: getBestDocumentUrl(extractedData), // Correctly generate documentUrl
+        value: extractedData.value, // Ensure numerical value
+      } as StrapiProposal;
+    });
 
     console.log(`✅ SSR: Loaded ${initialProposals.length} proposals and ${initialLatestProposals.length} latest`);
 

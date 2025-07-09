@@ -11,9 +11,8 @@ import {
   TagIcon,
   EyeIcon,
   StarIcon,
-  HeartIcon
 } from '@heroicons/react/24/outline';
-import { BookmarkIcon as BookmarkSolid, HeartIcon as HeartSolid } from '@heroicons/react/24/solid';
+import { BookmarkIcon as BookmarkSolid } from '@heroicons/react/24/solid';
 import DocumentPreviewModal from './DocumentPreviewModal';
 import { StrapiProposal } from '@/types/strapi';
 
@@ -22,7 +21,7 @@ interface ProposalCardProps {
   isListView?: boolean;
   onEdit?: (id: number) => void;
   onArchive?: (id: number) => void;
-  onDelete?: (id: number) => void;
+  onShare?: (id: number) => void; // Changed from onDelete to onShare
   isBookmarked?: boolean;
   showToast?: (title: string, message: string, type?: 'success' | 'info' | 'error') => void;
 }
@@ -32,14 +31,13 @@ const ProposalCard: React.FC<ProposalCardProps> = ({
   isListView = false,
   onEdit,
   onArchive,
-  onDelete,
+  onShare, // Changed prop name
   isBookmarked = false,
   showToast
 }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const [isFavorited, setIsFavorited] = useState(false);
   
   // HYDRATION FIX: Use state for client-only values
   const [clientOnlyData, setClientOnlyData] = useState({
@@ -80,12 +78,22 @@ const ProposalCard: React.FC<ProposalCardProps> = ({
 
   const handleShare = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (onDelete) {
-      onDelete(proposal.id);
+    if (onShare) { // Use new onShare prop
+      onShare(proposal.id);
     }
-    if (showToast) {
-      showToast('Share Link Generated', `Share link created for ${proposal.unique_id}`, 'success');
-    }
+    const shareLink = proposal.documentUrl || window.location.href; // Fallback to current URL if no document URL
+    navigator.clipboard.writeText(shareLink)
+      .then(() => {
+        if (showToast) {
+          showToast('Link Copied!', `Share link for ${proposal.unique_id} copied to clipboard.`, 'success');
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to copy share link:', err);
+        if (showToast) {
+          showToast('Copy Failed', `Could not copy link for ${proposal.unique_id}.`, 'error');
+        }
+      });
     setIsDropdownOpen(false);
   };
 
@@ -93,6 +101,22 @@ const ProposalCard: React.FC<ProposalCardProps> = ({
     e.stopPropagation();
     if (showToast) {
       showToast('Download Started', `Downloading ${proposal.unique_id}...`, 'info');
+    }
+    // Implement actual download logic here if not handled by parent (e.g., direct <a> tag download)
+    // For now, assuming proposal.documentUrl is directly downloadable
+    if (proposal.documentUrl) {
+      const link = document.createElement('a');
+      link.href = proposal.documentUrl;
+      // Attempt to derive filename from URL if not explicitly available, or use unique_id
+      const filename = proposal.documentUrl.split('/').pop() || (proposal.unique_id + '.pdf'); 
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      if (showToast) {
+        showToast('Download Failed', 'No downloadable URL available for this document.', 'error');
+      }
     }
     setIsDropdownOpen(false);
   };
@@ -106,18 +130,6 @@ const ProposalCard: React.FC<ProposalCardProps> = ({
       showToast('Edit Mode', `Opening ${proposal.unique_id} for editing`, 'info');
     }
     setIsDropdownOpen(false);
-  };
-
-  const handleFavorite = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsFavorited(!isFavorited);
-    if (showToast) {
-      showToast(
-        isFavorited ? 'Removed from Favorites' : 'Added to Favorites',
-        `Document ${isFavorited ? 'removed from' : 'added to'} favorites`,
-        'success'
-      );
-    }
   };
 
   const handlePreviewClick = () => {
@@ -199,10 +211,7 @@ const ProposalCard: React.FC<ProposalCardProps> = ({
                     <span className="font-medium">Updated:</span>
                     <span>{formatDate(proposal.Last_Stage_Change_Date)}</span>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="font-medium">Client:</span>
-                    <span className="truncate max-w-32">{proposal.Client_Name || 'N/A'}</span>
-                  </div>
+                  {/* Removed Client from here */}
                 </div>
               </div>
             </div>
@@ -225,21 +234,7 @@ const ProposalCard: React.FC<ProposalCardProps> = ({
 
               {/* Quick Actions */}
               <div className="flex items-center space-x-2">
-                <button
-                  onClick={handleFavorite}
-                  className={`p-2 rounded-lg transition-all duration-200 ${
-                    isFavorited 
-                      ? 'text-red-500 bg-red-50 scale-110' 
-                      : 'text-gray-400 hover:text-red-500 hover:bg-red-50'
-                  }`}
-                  title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
-                >
-                  {isFavorited ? (
-                    <HeartSolid className="h-5 w-5" />
-                  ) : (
-                    <HeartIcon className="h-5 w-5" />
-                  )}
-                </button>
+                {/* Removed HeartIcon and handleFavorite */}
 
                 <button
                   onClick={handleBookmark}
@@ -267,13 +262,7 @@ const ProposalCard: React.FC<ProposalCardProps> = ({
                   
                   {isDropdownOpen && (
                     <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-30">
-                      <button 
-                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                        onClick={handleEdit}
-                      >
-                        <PencilIcon className="h-4 w-4 mr-3" />
-                        Edit Document
-                      </button>
+                      {/* Removed Edit Document */}
                       <button 
                         className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                         onClick={handleShare}
@@ -322,21 +311,7 @@ const ProposalCard: React.FC<ProposalCardProps> = ({
                 </div>
 
                 <div className="flex items-center space-x-1">
-                  <button
-                    onClick={handleFavorite}
-                    className={`p-1.5 rounded-lg transition-all duration-200 ${
-                      isFavorited 
-                        ? 'text-red-500 bg-red-50 scale-110' 
-                        : 'text-gray-400 hover:text-red-500 hover:bg-red-50'
-                    }`}
-                    title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
-                  >
-                    {isFavorited ? (
-                      <HeartSolid className="h-4 w-4" />
-                    ) : (
-                      <HeartIcon className="h-4 w-4" />
-                    )}
-                  </button>
+                  {/* Removed HeartIcon and handleFavorite */}
 
                   <button
                     onClick={handleBookmark}
@@ -364,13 +339,7 @@ const ProposalCard: React.FC<ProposalCardProps> = ({
                     
                     {isDropdownOpen && (
                       <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-30">
-                        <button 
-                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                          onClick={handleEdit}
-                        >
-                          <PencilIcon className="h-4 w-4 mr-3" />
-                          Edit Document
-                        </button>
+                        {/* Removed Edit Document */}
                         <button 
                           className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                           onClick={handleShare}
@@ -408,10 +377,7 @@ const ProposalCard: React.FC<ProposalCardProps> = ({
                   <span className="font-medium">Updated:</span>
                   <span>{formatDate(proposal.Last_Stage_Change_Date)}</span>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <span className="font-medium">Client:</span>
-                  <span className="truncate">{proposal.Client_Name || 'N/A'}</span>
-                </div>
+                {/* Removed Client from here */}
               </div>
             </div>
 
