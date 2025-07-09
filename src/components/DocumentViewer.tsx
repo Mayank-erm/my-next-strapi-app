@@ -1,4 +1,4 @@
-// src/components/DocumentViewer.tsx - FIXED VERSION WITH PROPER PREVIEW SUPPORT
+// DocumentViewer.tsx - ENHANCED with Office Document Preview Support
 import React, { useRef, useEffect, useState } from 'react';
 import { 
   DocumentTextIcon as SolidDocumentTextIcon, 
@@ -34,12 +34,10 @@ interface DocumentViewerProps {
   attachment?: DocumentAttachment;
 }
 
-// Enhanced file type detection
+// Enhanced file type detection with Office document support
 const getFileType = (mimeType: string, extension: string): string => {
   const mime = mimeType.toLowerCase();
   const ext = extension.toLowerCase().replace('.', '');
-  
-  console.log('🔍 DocumentViewer: Detecting file type:', { mime, ext });
   
   // PDF files
   if (mime.includes('pdf') || ext === 'pdf') return 'pdf';
@@ -77,7 +75,7 @@ const getFileType = (mimeType: string, extension: string): string => {
   return 'unknown';
 };
 
-// FIXED: Enhanced file type info with better preview logic
+// Get comprehensive file type information - UPDATED WITH OFFICE PREVIEW SUPPORT
 const getFileTypeInfo = (mimeType: string, extension: string, attachment?: DocumentAttachment) => {
   const fileType = getFileType(mimeType, extension);
   
@@ -97,14 +95,14 @@ const getFileTypeInfo = (mimeType: string, extension: string, attachment?: Docum
     word: {
       title: 'Microsoft Word Document',
       description: 'Rich text document with advanced formatting capabilities',
-      icon: '📝',
+      icon: '',
       color: 'from-blue-500 to-blue-600',
       bgColor: 'bg-blue-50',
       borderColor: 'border-blue-200',
       textColor: 'text-blue-700',
       features: ['Rich text formatting', 'Tables and images', 'Comments and track changes'],
-      canPreview: false, // Word docs typically can't be previewed directly
-      previewType: 'download'
+      canPreview: true, // CHANGED: Now supports preview
+      previewType: 'office'
     },
     powerpoint: {
       title: 'PowerPoint Presentation',
@@ -115,8 +113,8 @@ const getFileTypeInfo = (mimeType: string, extension: string, attachment?: Docum
       borderColor: 'border-orange-200',
       textColor: 'text-orange-700',
       features: ['Slide presentations', 'Animations and transitions', 'Charts and multimedia'],
-      canPreview: false,
-      previewType: 'download'
+      canPreview: true, // CHANGED: Now supports preview
+      previewType: 'office'
     },
     excel: {
       title: 'Excel Spreadsheet',
@@ -127,8 +125,8 @@ const getFileTypeInfo = (mimeType: string, extension: string, attachment?: Docum
       borderColor: 'border-green-200',
       textColor: 'text-green-700',
       features: ['Data tables and formulas', 'Charts and graphs', 'Multiple worksheets'],
-      canPreview: false,
-      previewType: 'download'
+      canPreview: true, // CHANGED: Now supports preview
+      previewType: 'office'
     },
     image: {
       title: 'Image File',
@@ -219,6 +217,24 @@ const getFileTypeInfo = (mimeType: string, extension: string, attachment?: Docum
   return typeMap[fileType] || typeMap.unknown;
 };
 
+// OFFICE DOCUMENT PREVIEW SERVICES
+const getOfficePreviewUrl = (documentPath: string, fileType: string, viewerService: 'microsoft' | 'google' = 'microsoft'): string => {
+  // Ensure we have a full URL for the document
+  const fullDocumentUrl = documentPath.startsWith('http') 
+    ? documentPath 
+    : `${window.location.origin}${documentPath}`;
+  
+  const encodedUrl = encodeURIComponent(fullDocumentUrl);
+  
+  if (viewerService === 'microsoft') {
+    // Microsoft Office Online Viewer - More reliable for Office docs
+    return `https://view.officeapps.live.com/op/embed.aspx?src=${encodedUrl}`;
+  } else {
+    // Google Docs Viewer - Fallback option
+    return `https://docs.google.com/gview?url=${encodedUrl}&embedded=true`;
+  }
+};
+
 const DocumentViewer: React.FC<DocumentViewerProps> = ({ 
   documentPath, 
   proposalName,
@@ -228,112 +244,78 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [fileType, setFileType] = useState<string>('unknown');
+  const [viewerService, setViewerService] = useState<'microsoft' | 'google'>('microsoft');
+  const [retryCount, setRetryCount] = useState(0);
 
-  // FIXED: Better handling of file properties
   const mimeType = attachment?.mime || 'application/octet-stream';
   const extension = attachment?.ext || documentPath.split('.').pop() || '';
   const fileName = attachment?.name || proposalName;
   const fileSize = attachment?.size || 0;
 
-  // FIXED: Enhanced URL construction with debugging
-  const getEffectiveDocumentUrl = (): string => {
-    console.log('🔗 DocumentViewer: Constructing document URL...');
-    console.log('📄 Document path:', documentPath);
-    console.log('📎 Attachment:', attachment);
-    
-    if (!documentPath) {
-      console.warn('⚠️ No document path provided');
-      return '';
-    }
-
-    // If it's already a full URL, use it
-    if (documentPath.startsWith('http://') || documentPath.startsWith('https://')) {
-      console.log('✅ Using full URL:', documentPath);
-      return documentPath;
-    }
-
-    // If it starts with /, it's a server path
-    if (documentPath.startsWith('/')) {
-      const fullUrl = `${window.location.origin}${documentPath}`;
-      console.log('✅ Constructed server URL:', fullUrl);
-      return fullUrl;
-    }
-
-    // Otherwise, assume it's a relative path
-    const fullUrl = `${window.location.origin}/${documentPath}`;
-    console.log('✅ Constructed relative URL:', fullUrl);
-    return fullUrl;
-  };
-
-  const effectiveDocumentUrl = getEffectiveDocumentUrl();
-
   useEffect(() => {
     const detectedType = getFileType(mimeType, extension);
     setFileType(detectedType);
-    console.log('🎯 DocumentViewer: File type detected:', detectedType, 'for', fileName);
-    console.log('📊 File details:', { mimeType, extension, fileSize, effectiveDocumentUrl });
+    console.log('DocumentViewer: File type detected:', detectedType, 'for', fileName);
+    console.log('DocumentViewer: Document path:', documentPath);
     
-    // For non-previewable files, stop loading immediately
-    const fileInfo = getFileTypeInfo(mimeType, extension, attachment);
-    if (!fileInfo.canPreview) {
-      console.log('❌ File type cannot be previewed:', detectedType);
-      setIsLoading(false);
-      return;
-    }
-
-    // For previewable files, let the iframe/element handle loading
-    console.log('✅ File type can be previewed:', detectedType);
-  }, [mimeType, extension, fileName, effectiveDocumentUrl, attachment]);
-
-  // FIXED: Better iframe load handling
-  useEffect(() => {
-    if (!(['pdf', 'web'].includes(fileType)) || !iframeRef.current) {
-      return;
-    }
-
-    const iframe = iframeRef.current;
-    
-    const handleLoad = () => {
-      console.log('✅ Iframe loaded successfully');
-      setIsLoading(false);
+    // Reset loading state for all previewable files
+    if (['pdf', 'web', 'office'].includes(getFileTypeInfo(mimeType, extension).previewType)) {
+      setIsLoading(true);
       setError(null);
-    };
-    
-    const handleError = (e: any) => {
-      console.error('❌ Iframe load error:', e);
-      setError(`Failed to load document preview. The file may not be accessible or may require download.`);
+    } else {
       setIsLoading(false);
-    };
+    }
+  }, [mimeType, extension, fileName, documentPath]);
 
-    // FIXED: Better event handling
-    iframe.addEventListener('load', handleLoad);
-    iframe.addEventListener('error', handleError);
-
-    // Test if the URL is accessible
-    fetch(effectiveDocumentUrl, { method: 'HEAD' })
-      .then(response => {
-        if (!response.ok) {
-          console.warn('⚠️ Document URL not accessible via fetch:', response.status);
-        }
-      })
-      .catch(fetchError => {
-        console.warn('⚠️ Document URL fetch test failed:', fetchError);
-      });
-
-    // Fallback timeout for loading
-    const timeoutId = setTimeout(() => {
-      if (isLoading) {
-        console.warn('⏱️ Preview load timeout - assuming loaded');
+  // Handle iframe load events for previewable files
+  useEffect(() => {
+    const fileInfo = getFileTypeInfo(mimeType, extension);
+    
+    if (fileInfo.canPreview && iframeRef.current) {
+      const iframe = iframeRef.current;
+      
+      const handleLoad = () => {
+        console.log('DocumentViewer: Iframe loaded successfully');
         setIsLoading(false);
-      }
-    }, 10000); // Increased timeout
+        setError(null);
+      };
+      
+      const handleError = () => {
+        console.error('DocumentViewer: Iframe failed to load');
+        
+        // For Office documents, try switching to Google Viewer as fallback
+        if (fileInfo.previewType === 'office' && viewerService === 'microsoft' && retryCount < 1) {
+          console.log('DocumentViewer: Switching to Google Viewer as fallback');
+          setViewerService('google');
+          setRetryCount(prev => prev + 1);
+          setIsLoading(true);
+          return;
+        }
+        
+        setError('Failed to load document preview. The file may be corrupted or not accessible.');
+        setIsLoading(false);
+      };
 
-    return () => {
-      iframe.removeEventListener('load', handleLoad);
-      iframe.removeEventListener('error', handleError);
-      clearTimeout(timeoutId);
-    };
-  }, [fileType, isLoading, effectiveDocumentUrl]);
+      // Add event listeners
+      iframe.addEventListener('load', handleLoad);
+      iframe.addEventListener('error', handleError);
+
+      // Fallback timeout - longer for Office documents
+      const timeoutDelay = fileInfo.previewType === 'office' ? 15000 : 10000;
+      const timeoutId = setTimeout(() => {
+        if (isLoading) {
+          console.warn('DocumentViewer: Load timeout - assuming loaded');
+          setIsLoading(false);
+        }
+      }, timeoutDelay);
+
+      return () => {
+        iframe.removeEventListener('load', handleLoad);
+        iframe.removeEventListener('error', handleError);
+        clearTimeout(timeoutId);
+      };
+    }
+  }, [fileType, isLoading, mimeType, extension, viewerService, retryCount]);
 
   const fileInfo = getFileTypeInfo(mimeType, extension, attachment);
 
@@ -346,10 +328,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // FIXED: Show debug info in development
-  const isDebug = process.env.NODE_ENV === 'development';
-
-  // Loading state for previewable files
+  // Loading state
   if (isLoading && fileInfo.canPreview) {
     return (
       <div className="flex-1 flex items-center justify-center bg-gray-50 rounded-lg">
@@ -359,20 +338,26 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
             <SolidDocumentTextIcon className="h-6 w-6 text-erm-primary absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
           </div>
           <p className="text-gray-700 font-medium text-lg">Loading document preview...</p>
-          <p className="text-gray-500 text-sm mt-1">This may take a moment</p>
-          {isDebug && (
-            <div className="mt-4 p-2 bg-gray-100 rounded text-xs text-left">
-              <div>URL: {effectiveDocumentUrl}</div>
-              <div>Type: {fileType}</div>
-              <div>MIME: {mimeType}</div>
-            </div>
-          )}
+          <p className="text-gray-500 text-sm mt-1">
+            {fileInfo.previewType === 'office' 
+              ? `Loading ${fileInfo.title} via ${viewerService === 'microsoft' ? 'Microsoft' : 'Google'} viewer...`
+              : 'This may take a moment'
+            }
+          </p>
+          <div className="mt-4 text-xs text-gray-400 max-w-md text-center">
+            <p>URL: {documentPath}</p>
+            <p>Type: {fileType}</p>
+            <p>MIME: {mimeType}</p>
+            {fileInfo.previewType === 'office' && (
+              <p>Viewer: {viewerService === 'microsoft' ? 'Microsoft Office Online' : 'Google Docs'}</p>
+            )}
+          </div>
         </div>
       </div>
     );
   }
 
-  // Error state
+  // Error state with enhanced options for Office docs
   if (error) {
     return (
       <div className="flex-1 flex items-center justify-center bg-red-50 rounded-lg border border-red-200">
@@ -381,22 +366,42 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
             <ExclamationTriangleIcon className="h-8 w-8 text-red-600" />
           </div>
           <h3 className="text-lg font-semibold text-red-800 mb-2">Preview Error</h3>
-          <p className="text-red-600 mb-4">{error}</p>
-          {isDebug && (
-            <div className="mb-4 p-2 bg-red-100 rounded text-xs text-left">
-              <div>URL: {effectiveDocumentUrl}</div>
-              <div>Type: {fileType}</div>
-              <div>MIME: {mimeType}</div>
-            </div>
-          )}
+          <p className="text-red-600 mb-6">{error}</p>
+          <div className="text-xs text-gray-500 mb-4">
+            <p>Path: {documentPath}</p>
+            <p>Type: {fileType}</p>
+            {fileInfo.previewType === 'office' && (
+              <p>Last tried: {viewerService === 'microsoft' ? 'Microsoft Office Online' : 'Google Docs'}</p>
+            )}
+          </div>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            {fileInfo.previewType === 'office' && (
+              <button
+                onClick={() => {
+                  setError(null);
+                  setIsLoading(true);
+                  setRetryCount(0);
+                  setViewerService(viewerService === 'microsoft' ? 'google' : 'microsoft');
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+              >
+                Try {viewerService === 'microsoft' ? 'Google' : 'Microsoft'} Viewer
+              </button>
+            )}
             <button
               onClick={() => {
                 setError(null);
                 setIsLoading(true);
-                // Force iframe reload
+                setRetryCount(0);
                 if (iframeRef.current) {
-                  iframeRef.current.src = effectiveDocumentUrl;
+                  // Force reload the iframe
+                  const currentSrc = iframeRef.current.src;
+                  iframeRef.current.src = '';
+                  setTimeout(() => {
+                    if (iframeRef.current) {
+                      iframeRef.current.src = currentSrc;
+                    }
+                  }, 100);
                 }
               }}
               className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
@@ -404,7 +409,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
               Retry Preview
             </button>
             <a
-              href={effectiveDocumentUrl}
+              href={documentPath}
               download={fileName}
               className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm font-medium"
             >
@@ -417,46 +422,103 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
     );
   }
 
-  // FIXED: Enhanced PDF Preview with better error handling
+  // PDF Preview - Enhanced
   if (fileType === 'pdf' && fileInfo.canPreview) {
+    console.log('DocumentViewer: Rendering PDF iframe with path:', documentPath);
     return (
       <div className="flex-1 bg-white rounded-lg overflow-hidden border border-gray-200">
-        {isDebug && (
-          <div className="p-2 bg-yellow-50 border-b text-xs">
-            <strong>Debug:</strong> Loading PDF from: {effectiveDocumentUrl}
-          </div>
-        )}
         <iframe
           ref={iframeRef}
-          src={effectiveDocumentUrl}
+          src={`${documentPath}#toolbar=1&navpanes=1&scrollbar=1&view=FitH`}
           title={fileName}
           className="w-full h-full border-0"
           allowFullScreen
           onLoad={() => {
-            console.log('✅ PDF iframe loaded');
+            console.log('DocumentViewer: PDF iframe onLoad triggered');
             setIsLoading(false);
+            setError(null);
           }}
           onError={(e) => {
-            console.error('❌ PDF iframe error:', e);
-            setError('PDF preview failed to load. The file may be corrupted or inaccessible.');
+            console.error('DocumentViewer: PDF iframe onError triggered', e);
+            setError('Failed to load PDF document');
+            setIsLoading(false);
           }}
         />
       </div>
     );
   }
 
-  // Web/HTML Preview
+  // OFFICE DOCUMENTS PREVIEW - NEW FEATURE
+  if (fileInfo.previewType === 'office' && fileInfo.canPreview) {
+    const previewUrl = getOfficePreviewUrl(documentPath, fileType, viewerService);
+    console.log('DocumentViewer: Rendering Office document with URL:', previewUrl);
+    
+    return (
+      <div className="flex-1 bg-white rounded-lg overflow-hidden border border-gray-200">
+        {/* Viewer Service Indicator */}
+        <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-600">Preview powered by:</span>
+            <div className="flex items-center space-x-1">
+              <img 
+                src={viewerService === 'microsoft' 
+                  ? 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3QgeD0iMyIgeT0iMyIgd2lkdGg9IjguNCIgaGVpZ2h0PSI4LjQiIGZpbGw9IiNGMjUwMjIiLz4KPHJlY3QgeD0iMTIuNiIgeT0iMyIgd2lkdGg9IjguNCIgaGVpZ2h0PSI4LjQiIGZpbGw9IiM3RkJBMDAiLz4KPHJlY3QgeD0iMyIgeT0iMTIuNiIgd2lkdGg9IjguNCIgaGVpZ2h0PSI4LjQiIGZpbGw9IiMwMEJDRjIiLz4KPHJlY3QgeD0iMTIuNiIgeT0iMTIuNiIgd2lkdGg9IjguNCIgaGVpZ2h0PSI4LjQiIGZpbGw9IiNGRkI5MDAiLz4KPC9zdmc+Cg=='
+                  : 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiIGZpbGw9IiM0Mjg1RjQiLz4KPHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgMThjLTQuNDEgMC04LTMuNTktOC04czMuNTktOCA4LTggOCAzLjU5IDggOC0zLjU5IDgtOCA4eiIgZmlsbD0iI0ZGRiIvPgo8L3N2Zz4K'
+                } 
+                alt={viewerService} 
+                className="w-4 h-4"
+              />
+              <span className="text-sm font-medium text-gray-700">
+                {viewerService === 'microsoft' ? 'Microsoft Office Online' : 'Google Docs'}
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setViewerService(viewerService === 'microsoft' ? 'google' : 'microsoft');
+              setIsLoading(true);
+              setError(null);
+              setRetryCount(0);
+            }}
+            className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+          >
+            Switch Viewer
+          </button>
+        </div>
+        
+        <iframe
+          ref={iframeRef}
+          src={previewUrl}
+          title={fileName}
+          className="w-full h-full border-0"
+          allowFullScreen
+          onLoad={() => {
+            console.log('DocumentViewer: Office document iframe onLoad triggered');
+            setIsLoading(false);
+            setError(null);
+          }}
+          onError={(e) => {
+            console.error('DocumentViewer: Office document iframe onError triggered', e);
+            // Don't immediately error - the viewer services sometimes trigger false errors
+            setTimeout(() => {
+              if (isLoading) {
+                setError(`Failed to load ${fileInfo.title} via ${viewerService === 'microsoft' ? 'Microsoft' : 'Google'} viewer`);
+                setIsLoading(false);
+              }
+            }, 5000);
+          }}
+        />
+      </div>
+    );
+  }
+
+  // Web Preview
   if (fileType === 'web' && fileInfo.canPreview) {
     return (
       <div className="flex-1 bg-white rounded-lg overflow-hidden border border-gray-200">
-        {isDebug && (
-          <div className="p-2 bg-yellow-50 border-b text-xs">
-            <strong>Debug:</strong> Loading HTML from: {effectiveDocumentUrl}
-          </div>
-        )}
         <iframe
           ref={iframeRef}
-          src={effectiveDocumentUrl}
+          src={documentPath}
           title={fileName}
           className="w-full h-full border-0"
           allowFullScreen
@@ -466,27 +528,18 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
     );
   }
 
-  // FIXED: Enhanced Image Preview
+  // Image Preview
   if (fileType === 'image' && fileInfo.canPreview) {
     return (
       <div className="flex-1 bg-gray-50 rounded-lg overflow-hidden border border-gray-200 flex items-center justify-center p-4">
-        {isDebug && (
-          <div className="absolute top-2 left-2 p-2 bg-yellow-50 rounded text-xs z-10">
-            URL: {effectiveDocumentUrl}
-          </div>
-        )}
         <div className="max-w-full max-h-full flex items-center justify-center">
           <img
-            src={effectiveDocumentUrl}
+            src={documentPath}
             alt={fileName}
             className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
-            onLoad={() => {
-              console.log('✅ Image loaded successfully');
-              setIsLoading(false);
-            }}
-            onError={(e) => {
-              console.error('❌ Image load error:', e);
-              setError('Failed to load image. The file may not be accessible.');
+            onLoad={() => setIsLoading(false)}
+            onError={() => {
+              setError('Failed to load image');
               setIsLoading(false);
             }}
           />
@@ -500,16 +553,12 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
     return (
       <div className="flex-1 bg-gray-900 rounded-lg overflow-hidden border border-gray-200 flex items-center justify-center p-4">
         <video
-          src={effectiveDocumentUrl}
+          src={documentPath}
           controls
           className="max-w-full max-h-full rounded-lg"
-          onLoadedData={() => {
-            console.log('✅ Video loaded successfully');
-            setIsLoading(false);
-          }}
-          onError={(e) => {
-            console.error('❌ Video load error:', e);
-            setError('Failed to load video. The file may not be accessible.');
+          onLoadedData={() => setIsLoading(false)}
+          onError={() => {
+            setError('Failed to load video');
             setIsLoading(false);
           }}
         >
@@ -529,13 +578,12 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
           </div>
           <h3 className="text-xl font-bold text-gray-800 mb-4">{fileName}</h3>
           <audio
-            src={effectiveDocumentUrl}
+            src={documentPath}
             controls
             className="w-full mb-4"
             onLoadedData={() => setIsLoading(false)}
-            onError={(e) => {
-              console.error('❌ Audio load error:', e);
-              setError('Failed to load audio file.');
+            onError={() => {
+              setError('Failed to load audio');
               setIsLoading(false);
             }}
           >
@@ -554,24 +602,17 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
     const [textContent, setTextContent] = useState<string>('');
 
     useEffect(() => {
-      fetch(effectiveDocumentUrl)
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
-          return response.text();
-        })
+      fetch(documentPath)
+        .then(response => response.text())
         .then(text => {
-          console.log('✅ Text file loaded successfully');
           setTextContent(text);
           setIsLoading(false);
         })
-        .catch(fetchError => {
-          console.error('❌ Text file load error:', fetchError);
-          setError(`Failed to load text file: ${fetchError.message}`);
+        .catch(() => {
+          setError('Failed to load text file');
           setIsLoading(false);
         });
-    }, [effectiveDocumentUrl]);
+    }, [documentPath]);
 
     return (
       <div className="flex-1 bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -623,14 +664,6 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
               <span className="font-medium text-gray-700">Format:</span>
               <span className="text-gray-900 ml-2 uppercase">{extension.replace('.', '')}</span>
             </div>
-            {isDebug && (
-              <div className="flex justify-between items-center border-t pt-2 mt-2">
-                <span className="font-medium text-gray-700">Debug URL:</span>
-                <span className="text-gray-900 ml-2 text-xs truncate max-w-32" title={effectiveDocumentUrl}>
-                  {effectiveDocumentUrl}
-                </span>
-              </div>
-            )}
           </div>
         </div>
 
@@ -652,7 +685,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
         {/* Action buttons */}
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <a
-            href={effectiveDocumentUrl}
+            href={documentPath}
             download={fileName}
             className={`inline-flex items-center px-6 py-3 bg-gradient-to-r ${fileInfo.color} text-white rounded-xl hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200 font-medium`}
           >
@@ -660,7 +693,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
             Download Document
           </a>
           <button
-            onClick={() => window.open(effectiveDocumentUrl, '_blank')}
+            onClick={() => window.open(documentPath, '_blank')}
             className="inline-flex items-center px-6 py-3 bg-white text-gray-700 border border-gray-300 rounded-xl hover:bg-gray-50 hover:shadow-md transition-all duration-200 font-medium"
           >
             <ArrowTopRightOnSquareIcon className="h-5 w-5 mr-2" />
