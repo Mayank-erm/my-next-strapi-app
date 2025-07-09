@@ -323,12 +323,15 @@ const CmsPage: React.FC = () => {
       case 'share':
         showToast('Share Links Generated', `Share links created for ${selectedCount} document${selectedCount !== 1 ? 's' : ''}`, 'success');
         break;
+      case 'clear-filters': // Handle clear-filters action from empty state
+        clearAllFilters();
+        break;
       default:
         showToast('Action Completed', `${action} performed on ${selectedCount} document${selectedCount !== 1 ? 's' : ''}`, 'info');
     }
     
     setSelectedItems([]);
-  }, [selectedItems, showToast]);
+  }, [selectedItems, showToast, clearAllFilters]);
 
   const handleSelectAll = useCallback((checked: boolean) => {
     if (checked) {
@@ -411,7 +414,7 @@ const CmsPage: React.FC = () => {
               onClearAll={clearAllFilters}
               activeFiltersCount={activeFiltersCount}
               isOpen={isFilterSidebarOpen} // Controls desktop visibility
-              onToggle={() => setIsFilterSidebarOpen(!isFilterSidebarOpen)} // Desktop toggle
+              onToggle={() => setIsFilterSidebarOpen(!isFilterSidebarOpen)} // Desktop toggle (this button remains here as a visual cue in the sidebar itself)
             />
           </div>
         </aside>
@@ -419,39 +422,9 @@ const CmsPage: React.FC = () => {
         {/* Main Content Area (rightmost column, flexible width) */}
         {/* Its left margin will be handled by the cms-page-outer-wrapper's flex layout */}
         <main className="cms-main-content">
-          {/* Header Bar for the Content Management Page itself */}
-          <div className="cms-content-header">
-              {/* Filter Controls */}
-              <div className="flex items-center space-x-4">
-                {/* Desktop Filter Toggle Button */}
-                <button
-                  onClick={() => setIsFilterSidebarOpen(!isFilterSidebarOpen)}
-                  className={`
-                    hidden lg:flex items-center space-x-2 px-4 py-2 rounded-lg border transition-all duration-200 font-medium
-                    ${isFilterSidebarOpen
-                      ? 'bg-erm-primary text-white border-erm-primary shadow-md hover:bg-erm-dark'
-                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
-                    }
-                  `}
-                  title={isFilterSidebarOpen ? "Hide filters" : "Show filters"}
-                >
-                  <AdjustmentsHorizontalIcon className="h-4 w-4" />
-                  <span className="text-sm">
-                    {isFilterSidebarOpen ? 'Hide Filters' : 'Show Filters'}
-                  </span>
-                </button>
-
-                {/* Mobile Filter Toggle Button (opens overlay) */}
-                <button
-                  onClick={() => setIsMobileFilterOpen(true)}
-                  className="lg:hidden p-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
-                  title="Toggle mobile filters"
-                >
-                  <FunnelIcon className="h-5 w-5 text-gray-600" />
-                </button>
-              </div>
-          </div>
-
+          {/* Header Bar for the Content Management Page itself - REMOVED FILTER BUTTON HERE */}
+          {/* The filter button is now handled by ContentDisplay component */}
+         
           {/* Error Display */}
           {error && (
             <div className="cms-error-message">
@@ -494,6 +467,10 @@ const CmsPage: React.FC = () => {
               onBulkAction={handleBulkAction}
               bookmarkedItems={bookmarkedItems}
               showToast={showToast}
+              isFilterSidebarOpen={isFilterSidebarOpen} // Pass down state
+              onToggleFilterSidebar={() => setIsFilterSidebarOpen(!isFilterSidebarOpen)} // Pass down desktop toggle
+              activeFiltersCount={activeFiltersCount} // Pass down count
+              onToggleMobileFilterSidebar={() => setIsMobileFilterOpen(true)} // Pass mobile toggle
             />
 
             {/* Load More Button for Lazy Loading */}

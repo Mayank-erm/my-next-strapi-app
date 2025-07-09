@@ -8,7 +8,8 @@ import {
   ArrowDownTrayIcon,
   ShareIcon,
   EyeIcon,
-  CheckIcon
+  CheckIcon,
+  AdjustmentsHorizontalIcon // Import AdjustmentsHorizontalIcon
 } from '@heroicons/react/24/outline';
 import { BookmarkIcon as BookmarkSolid } from '@heroicons/react/24/solid';
 import ProposalCard from '@/components/ProposalCard';
@@ -28,6 +29,12 @@ interface ContentDisplayProps {
   onBulkAction: (action: string) => void;
   bookmarkedItems?: number[];
   showToast?: (title: string, message: string, type?: 'success' | 'info' | 'error') => void;
+  
+  // New props for filter sidebar control
+  isFilterSidebarOpen: boolean;
+  onToggleFilterSidebar: () => void;
+  activeFiltersCount: number;
+  onToggleMobileFilterSidebar: () => void; // Added for mobile toggle
 }
 
 // Enhanced Bulk Actions Bar Component
@@ -139,6 +146,10 @@ const ContentDisplay: React.FC<ContentDisplayProps> = ({
   onBulkAction,
   bookmarkedItems = [],
   showToast,
+  isFilterSidebarOpen, // New prop
+  onToggleFilterSidebar, // New prop
+  activeFiltersCount, // New prop
+  onToggleMobileFilterSidebar, // New prop
 }) => {
   const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSortBy(e.target.value);
@@ -169,7 +180,6 @@ const ContentDisplay: React.FC<ContentDisplayProps> = ({
 
   return (
     <div className="content-display">
-      {/* SIMPLIFIED Header - REMOVED REDUNDANT CONTENT MANAGEMENT TEXT */}
       <div className="content-display__header">
         <div className="content-display__title">
           <div className="content-display__results-count">
@@ -192,6 +202,47 @@ const ContentDisplay: React.FC<ContentDisplayProps> = ({
         </div>
 
         <div className="content-display__controls">
+          {/* NEW Filter Toggle Button for Desktop */}
+          <button
+            onClick={onToggleFilterSidebar}
+            className={`
+              hidden lg:flex items-center space-x-2 px-4 py-2 rounded-lg border transition-all duration-200 font-medium
+              ${isFilterSidebarOpen
+                ? 'bg-erm-primary text-white border-erm-primary shadow-md hover:bg-erm-dark'
+                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+              }
+            `}
+            title={isFilterSidebarOpen ? "Hide filters" : "Show filters"}
+          >
+            <AdjustmentsHorizontalIcon className="h-4 w-4" />
+            <span className="text-sm">
+              {isFilterSidebarOpen ? 'Hide Filters' : 'Filters'}
+            </span>
+            {activeFiltersCount > 0 && (
+              <span className={`ml-2 px-2 py-0.5 text-xs font-semibold rounded-full ${
+                isFilterSidebarOpen 
+                  ? 'bg-white text-erm-primary' 
+                  : 'bg-erm-primary text-white'
+              }`}>
+                {activeFiltersCount}
+              </span>
+            )}
+          </button>
+
+          {/* Mobile Filter Toggle Button (opens overlay) - kept as is */}
+          <button
+            onClick={onToggleMobileFilterSidebar}
+            className="lg:hidden p-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
+            title="Toggle mobile filters"
+          >
+            <AdjustmentsHorizontalIcon className="h-5 w-5 text-gray-600" />
+            {activeFiltersCount > 0 && (
+              <span className="ml-1 px-2 py-0.5 text-xs font-semibold bg-erm-primary text-white rounded-full">
+                {activeFiltersCount}
+              </span>
+            )}
+          </button>
+
           <div className="content-display__sort">
             <span className="content-display__sort-label">Sort by:</span>
             <div className="content-display__sort-select-wrapper">

@@ -91,35 +91,6 @@
 
 /* === HEADER BAR FOR THE CONTENT MANAGEMENT PAGE ITSELF === */
 /* This is the header *within* the cms-main-content, not the global app header */
-.cms-content-header {
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-neutral-200);
-  padding: 1.5rem 2rem; /* Matches parent's padding */
-  /* Use negative margins to stretch the header to the full width of the parent (cms-main-content) */
-  margin: -1.5rem -2rem 1.5rem -2rem; /* Top, Right, Bottom, Left */
-  position: sticky;
-  top: 0; /* Sticks to the top of its own scrolling container */
-  z-index: 5; /* Lower than fixed sidebars and global header, but above content cards */
-  backdrop-filter: blur(8px);
-  background-color: rgba(255, 255, 255, 0.95);
-  border-radius: 0.75rem; /* Add border radius as seen in screenshot */
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); /* Soft shadow as seen */
-  margin-bottom: 1.5rem; /* Space below header */
-}
-
-/* Mobile adjustments for cms-content-header */
-@media (max-width: 1023px) {
-  .cms-content-header {
-    padding: 1rem;
-    margin: -1rem -1rem 1rem -1rem; /* Adjust negative margins for mobile padding */
-  }
-}
-@media (max-width: 767px) {
-  .cms-content-header {
-    padding: 0.75rem;
-    margin: -0.75rem -0.75rem 0.75rem -0.75rem;
-  }
-}
 
 /* === ERROR MESSAGE DISPLAY === */
 .cms-error-message {
@@ -192,10 +163,6 @@
     background-color: var(--color-background);
   }
 
-  .cms-content-header {
-    background-color: rgba(30, 41, 59, 0.95);
-    border-color: var(--color-neutral-700);
-  }
 
   .cms-error-message {
     background: #422006;
