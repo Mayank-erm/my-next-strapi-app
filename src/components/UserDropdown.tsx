@@ -21,7 +21,7 @@ interface UserDropdownProps {
 
 const UserDropdown: React.FC<UserDropdownProps> = ({ 
   userName = "Mayank Kumar",
-  userEmail = "mayank@erm.com",
+  userEmail = "mayank.kumar@erm.com",
   userAvatar,
   notificationCount = 3
 }) => {
@@ -52,12 +52,6 @@ const UserDropdown: React.FC<UserDropdownProps> = ({
       shortcut: '⌘P'
     },
     {
-      icon: Cog6ToothIcon,
-      label: 'Settings',
-      action: () => console.log('Settings clicked'),
-      shortcut: '⌘,'
-    },
-    {
       icon: QuestionMarkCircleIcon,
       label: 'Help & Support',
       action: () => console.log('Help clicked'),
@@ -76,16 +70,6 @@ const UserDropdown: React.FC<UserDropdownProps> = ({
         onClick={toggleDropdown}
         className="flex items-center space-x-3 px-3 py-2 rounded-xl text-text-dark-gray hover:bg-gray-50 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:ring-offset-2 group"
       >
-        {/* Notification Bell */}
-        <div className="relative">
-          <BellIcon className="h-6 w-6 text-gray-500 group-hover:text-strapi-green-light transition-colors" />
-          {notificationCount > 0 && (
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold animate-pulse">
-              {notificationCount > 9 ? '9+' : notificationCount}
-            </span>
-          )}
-        </div>
-
         {/* Avatar */}
         <div className="relative">
           {userAvatar ? (

@@ -1,40 +1,163 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/pages/api-reference/create-next-app).
+# my-next-strapi-app
 
-## Getting Started
+A professional document management and proposal search platform built with **Next.js**, **Strapi**, **MeiliSearch**, and **Tailwind CSS**.  
+It features advanced search, filtering, document preview (with modal), ratings, bookmarking, and a modern responsive UI.
 
-First, run the development server:
+---
+
+## Features
+
+- **Full-text Search**: Powered by MeiliSearch for fast, faceted document search.
+- **Document Preview Modal**: View and interact with documents in a high-z-index modal overlay.
+- **Rich Filtering**: Filter by type, industry, region, business unit, client type, and more.
+- **Responsive Layout**: Sidebar navigation, header, and footer adapt to all devices.
+- **Carousel**: Highlights latest proposals.
+- **Bookmarking**: Save favorite proposals.
+- **Ratings & Comments**: Rate and comment on documents.
+- **Download & Share**: Download individual or all attachments, copy share links.
+- **Professional Design**: Uses ERM design system tokens and Tailwind CSS for a polished look.
+
+---
+
+## Tech Stack
+
+- **Next.js** (React)
+- **Strapi** (Headless CMS)
+- **MeiliSearch** (Search engine)
+- **Tailwind CSS** (Styling)
+- **Heroicons** (Icons)
+- **TypeScript** (Type safety)
+
+---
+
+## Project Structure
+
+<details>
+<summary>Click to expand</summary>
+
+```
+src/
+  components/
+    Carousel.tsx
+    DescriptionPanel.tsx
+    DescriptionView.tsx
+    DocumentPreviewModal.tsx
+    DocumentViewer.tsx
+    Footer.tsx
+    Header.tsx
+    Layout.tsx
+    Pagination.tsx
+    ProposalCard.tsx
+    Sidebar.tsx
+    SidebarLink.tsx
+    Toast.tsx
+    UserDropdown.tsx
+    cms/
+  config/
+    apiConfig.ts
+    documentMapping.ts
+    searchBusinessRules.ts
+  design-system/
+    tokens.ts
+  hooks/
+  pages/
+    _app.tsx
+    _document.tsx
+    bookmarks.tsx
+    content-management.tsx
+    index.tsx
+  styles/
+    globals.css
+    cms-page.css
+    content-display.css
+  types/
+  utils/
+```
+</details>
+
+---
+
+## Usage Instructions
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/your-org/my-next-strapi-app.git
+cd my-next-strapi-app
+```
+
+### 2. Install dependencies
+
+```bash
+npm install
+```
+
+### 3. Configure Environment Variables
+
+Create a `.env.local` file in the root directory and set the following:
+
+```
+NEXT_PUBLIC_MEILISEARCH_HOST=http://localhost:7700
+NEXT_PUBLIC_MEILISEARCH_API_KEY=masterKey
+STRAPI_API_URL=http://localhost:1337
+```
+
+Adjust the URLs and keys as per your setup.
+
+### 4. Start Required Services
+
+- **Strapi**:  
+  Start your Strapi backend and ensure it is running and accessible at the URL above.
+
+- **MeiliSearch**:  
+  Start MeiliSearch and ensure your documents are indexed under the `document_stores` index.
+
+### 5. Run the Next.js App
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Visit [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `pages/index.tsx`. The page auto-updates as you edit the file.
+---
 
-[API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.ts`.
+## Customization
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes) instead of React pages.
+- **Design tokens**: See `src/design-system/tokens.ts` and `src/styles/globals.css`.
+- **Document mapping**: See `src/config/documentMapping.ts`.
+- **Search rules**: See `src/config/searchBusinessRules.ts`.
 
-This project uses [`next/font`](https://nextjs.org/docs/pages/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## Accessibility & Responsiveness
 
-To learn more about Next.js, take a look at the following resources:
+- Uses semantic HTML, keyboard navigation, and ARIA roles where appropriate.
+- Fully responsive for desktop and mobile.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn-pages-router) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Troubleshooting
 
-## Deploy on Vercel
+- **Search index errors**:  
+  If you see errors about missing facets or index, ensure your MeiliSearch index is correctly configured and populated.
+- **Document modal z-index**:  
+  The modal uses a very high z-index and special CSS to always appear above the header and other content.
+- **Environment variables**:  
+  Double-check your `.env.local` file and Strapi/MeiliSearch URLs.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/pages/building-your-application/deploying) for more details.
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/YourFeature`)
+3. Commit your changes (`git commit -am 'Add some feature'`)
+4. Push to the branch (`git push origin feature/YourFeature`)
+5. Create a new Pull Request
+
+---
+
+## License
+
+[MIT](LICENSE)
