@@ -1,214 +1,48 @@
-// src/components/Header.tsx - FIXED: Z-index issues and ERM styling
+// src/components/Header.tsx - Enhanced with Global Search
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { MagnifyingGlassIcon, XMarkIcon, CommandLineIcon } from '@heroicons/react/24/outline';
-import { MeiliSearch } from 'meilisearch';
-import UserDropdown from './UserDropdown';
+import { MagnifyingGlassIcon, XMarkIcon, CommandLineIcon, ClockIcon, FireIcon } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/router';
 import { StrapiProposal } from '@/types/strapi';
-
-// MeiliSearch client
-const searchClient = new MeiliSearch({
-  host: process.env.NEXT_PUBLIC_MEILISEARCH_HOST || 'http://localhost:7700',
-  apiKey: process.env.NEXT_PUBLIC_MEILISEARCH_API_KEY || 'masterKey',
-});
-
-// Debouncing helper
-const debounce = (func: (...args: any[]) => void, delay: number) => {
-  let timeout: NodeJS.Timeout;
-  return (...args: any[]) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), delay);
-  };
-};
+import { useGlobalSearch } from '@/hooks/useGlobalSearch';
+import UserDropdown from './UserDropdown';
 
 interface HeaderProps {
-  searchTerm: string;
-  isLoading: boolean;
   onResultClick?: (proposal: StrapiProposal) => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, onResultClick }) => {
+const Header: React.FC<HeaderProps> = ({ onResultClick }) => {
   const router = useRouter();
-  const [internalSearchTerm, setInternalSearchTerm] = useState<string>('');
-  const [autocompleteResults, setAutocompleteResults] = useState<StrapiProposal[]>([]);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
+  const [localSearchTerm, setLocalSearchTerm] = useState('');
   const [focusedIndex, setFocusedIndex] = useState(-1);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const [recentSearches, setRecentSearches] = useState<string[]>([]);
   
-  // Popular searches for business content
-  const popularSearches = [
-    { term: 'Environmental Impact Assessment', category: 'Environmental', icon: '🌍' },
-    { term: 'Sustainability Report', category: 'Reporting', icon: '📊' },
-    { term: 'Carbon Footprint Analysis', category: 'Analytics', icon: '📈' },
-    { term: 'ESG Compliance', category: 'Governance', icon: '⚖️' },
-    { term: 'Renewable Energy', category: 'Energy', icon: '⚡' },
-  ];
+  const {
+    searchTerm,
+    searchResults,
+    isSearching,
+    searchHistory,
+    suggestions,
+    searchContext,
+    handleSearch,
+    clearSearch,
+    getAutoSuggestions,
+  } = useGlobalSearch({ onResultClick });
 
   useEffect(() => {
-    if (isSearchModalOpen) {
-      setInternalSearchTerm(searchTerm);
-    }
-  }, [isSearchModalOpen, searchTerm]);
+    setLocalSearchTerm(searchTerm);
+  }, [searchTerm]);
 
-  // Load recent searches
+  // Auto-suggestions when typing
   useEffect(() => {
-    try {
-      if (typeof window !== 'undefined') {
-        const saved = localStorage.getItem('recentSearches');
-        if (saved) {
-          setRecentSearches(JSON.parse(saved));
-        }
-      }
-    } catch (error) {
-      console.warn('Failed to load recent searches:', error);
+    if (localSearchTerm.length > 1) {
+      const timer = setTimeout(() => {
+        getAutoSuggestions(localSearchTerm);
+      }, 300);
+      return () => clearTimeout(timer);
     }
-  }, []);
-
-  // Enhanced search function
-  const performAutocompleteSearch = async (query: string) => {
-    if (query.length === 0) {
-      setAutocompleteResults([]);
-      return;
-    }
-
-    setIsSearching(true);
-    try {
-      const results = await searchClient.index('document_stores').search(query, {
-        limit: 8,
-        attributesToRetrieve: [
-          'id', 'documentId', 'SF_Number', 'Unique_Id', 'Client_Name',
-          'Document_Type', 'Industry', 'Region', 'publishedAt', 'updatedAt'
-        ],
-        attributesToHighlight: ['Unique_Id', 'Client_Name', 'Document_Type'],
-        highlightPreTag: '<mark class="bg-erm-primary bg-opacity-20 text-erm-dark rounded px-1">',
-        highlightPostTag: '</mark>',
-      });
-
-      const transformedResults: StrapiProposal[] = (results.hits || []).map((hit: any) => ({
-        id: hit.id,
-        documentId: hit.id.toString(),
-        unique_id: hit.unique_id || hit.Unique_Id || hit.SF_Number || '',
-        SF_Number: hit.SF_Number || hit.unique_id || '',
-        Client_Name: hit.Client_Name || '',
-        Client_Type: '',
-        Client_Contact: '',
-        Client_Contact_Title: '',
-        Client_Journey: '',
-        Document_Type: hit.Document_Type || '',
-        Document_Sub_Type: '',
-        Document_Value_Range: '',
-        Document_Outcome: '',
-        Last_Stage_Change_Date: '',
-        Industry: hit.Industry || '',
-        Sub_Industry: '',
-        Service: '',
-        Sub_Service: '',
-        Business_Unit: '',
-        Region: hit.Region || '',
-        Country: '',
-        State: '',
-        City: '',
-        Author: '',
-        PIC: '',
-        PM: '',
-        Keywords: '',
-        Commercial_Program: '',
-        Project_Team: null,
-        SMEs: null,
-        Competitors: '',
-        createdAt: hit.createdAt || new Date().toISOString(),
-        updatedAt: hit.updatedAt || new Date().toISOString(),
-        publishedAt: hit.publishedAt || new Date().toISOString(),
-        Description: [],
-        Attachments: null,
-        Pursuit_Team: null,
-        documentUrl: '',
-        value: 0,
-        proposalName: hit.SF_Number || hit.Unique_Id || '',
-        // Add highlighted results for better UX
-        _highlightResults: hit._formatted,
-      }));
-
-      setAutocompleteResults(transformedResults);
-    } catch (error) {
-      console.error("Enhanced search error:", error);
-      setAutocompleteResults([]);
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  const debouncedAutocompleteSearch = useCallback(debounce(performAutocompleteSearch, 300), []);
-
-  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const query = e.target.value;
-    setInternalSearchTerm(query);
-    setFocusedIndex(-1);
-    debouncedAutocompleteSearch(query);
-  };
-
-  const handleResultClick = (proposal: StrapiProposal) => {
-    if (onResultClick) {
-      onResultClick(proposal);
-    }
-    closeSearchModal();
-  };
-
-  const handleSearchSubmit = () => {
-    if (internalSearchTerm.trim()) {
-      // Add to recent searches
-      const updatedSearches = [internalSearchTerm, ...recentSearches.filter(s => s !== internalSearchTerm)].slice(0, 5);
-      setRecentSearches(updatedSearches);
-      
-      try {
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('recentSearches', JSON.stringify(updatedSearches));
-        }
-      } catch (error) {
-        console.warn('Failed to save recent searches:', error);
-      }
-
-      router.push(`/?searchTerm=${encodeURIComponent(internalSearchTerm)}`);
-      closeSearchModal();
-    }
-  };
-
-  const closeSearchModal = () => {
-    setIsSearchModalOpen(false);
-    setAutocompleteResults([]);
-    setFocusedIndex(-1);
-  };
-
-  const handleQuickSearch = (searchText: string) => {
-    setInternalSearchTerm(searchText);
-    setTimeout(() => {
-      debouncedAutocompleteSearch(searchText);
-    }, 100);
-  };
-
-  // Enhanced keyboard navigation
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setFocusedIndex(prev => 
-        prev < autocompleteResults.length - 1 ? prev + 1 : prev
-      );
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setFocusedIndex(prev => prev > 0 ? prev - 1 : -1);
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (focusedIndex >= 0 && autocompleteResults[focusedIndex]) {
-        handleResultClick(autocompleteResults[focusedIndex]);
-      } else {
-        handleSearchSubmit();
-      }
-    } else if (e.key === 'Escape') {
-      closeSearchModal();
-    }
-  };
+  }, [localSearchTerm, getAutoSuggestions]);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -217,11 +51,14 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
         event.preventDefault();
         setIsSearchModalOpen(true);
       }
+      if (event.key === 'Escape' && isSearchModalOpen) {
+        closeSearchModal();
+      }
     };
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, []);
+  }, [isSearchModalOpen]);
 
   // Focus search input when modal opens
   useEffect(() => {
@@ -230,7 +67,7 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
     }
   }, [isSearchModalOpen]);
 
-  // Handle body scroll lock when modal is open
+  // Handle body scroll lock
   useEffect(() => {
     if (isSearchModalOpen) {
       document.body.style.overflow = 'hidden';
@@ -242,11 +79,75 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
     };
   }, [isSearchModalOpen]);
 
+  const closeSearchModal = useCallback(() => {
+    setIsSearchModalOpen(false);
+    setShowSuggestions(false);
+    setFocusedIndex(-1);
+  }, []);
+
+  const handleSearchInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setLocalSearchTerm(value);
+    setFocusedIndex(-1);
+    setShowSuggestions(value.length > 0);
+  }, []);
+
+  const handleSearchSubmit = useCallback((term?: string) => {
+    const searchValue = term || localSearchTerm;
+    if (searchValue.trim()) {
+      handleSearch(searchValue);
+      closeSearchModal();
+    }
+  }, [localSearchTerm, handleSearch, closeSearchModal]);
+
+  const handleResultClick = useCallback((proposal: StrapiProposal) => {
+    if (onResultClick) {
+      onResultClick(proposal);
+    }
+    closeSearchModal();
+  }, [onResultClick, closeSearchModal]);
+
+  // Enhanced keyboard navigation
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    const allOptions = [
+      ...suggestions.slice(0, 5),
+      ...(searchResults?.proposals.slice(0, 5) || [])
+    ];
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setFocusedIndex(prev => prev < allOptions.length - 1 ? prev + 1 : prev);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setFocusedIndex(prev => prev > 0 ? prev - 1 : -1);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (focusedIndex >= 0 && focusedIndex < suggestions.length) {
+        handleSearchSubmit(suggestions[focusedIndex]);
+      } else if (focusedIndex >= suggestions.length && searchResults) {
+        const resultIndex = focusedIndex - suggestions.length;
+        if (searchResults.proposals[resultIndex]) {
+          handleResultClick(searchResults.proposals[resultIndex]);
+        }
+      } else {
+        handleSearchSubmit();
+      }
+    } else if (e.key === 'Escape') {
+      closeSearchModal();
+    }
+  }, [suggestions, searchResults, focusedIndex, handleSearchSubmit, handleResultClick, closeSearchModal]);
+
+  const getContextualPlaceholder = () => {
+    return searchTerm 
+      ? `"${searchTerm}" in ${searchContext.title}`
+      : searchContext.placeholder;
+  };
+
   return (
     <>
       <header className="fixed top-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-b border-neutral-200 shadow-sm">
         <div className="flex items-center justify-between p-4">
-          {/* Commercial Content Hub Logo and Title */}
+          {/* Logo and Title */}
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-erm-primary to-erm-dark flex items-center justify-center shadow-sm">
               <img src="/images/ERM_Vertical_Green_Black_RGB.svg" alt="Logo" className="w-6 h-6 filter brightness-0 invert" />
@@ -266,18 +167,21 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
               >
                 <div className="flex items-center">
                   <div className="flex items-center space-x-3 flex-1">
-                    <MagnifyingGlassIcon className="h-5 w-5 text-neutral-400 group-hover:text-erm-primary transition-colors" />
+                    <div className="flex items-center space-x-2">
+                      <span className="text-2xl">{searchContext.icon}</span>
+                      <MagnifyingGlassIcon className="h-5 w-5 text-neutral-400 group-hover:text-erm-primary transition-colors" />
+                    </div>
                     <div className="flex-1 text-left">
-                      {searchTerm ? (
-                        <div className="flex items-center space-x-2">
-                          <span className="font-medium text-erm-primary">"{searchTerm}"</span>
-                          <span className="text-neutral-400 text-sm">— Press ⌘K to modify</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center space-x-2">
-                          <span className="text-neutral-500 group-hover:text-neutral-700">Search documents, reports, proposals...</span>
-                        </div>
-                      )}
+                      <div className="flex items-center space-x-2">
+                        <span className="text-neutral-500 group-hover:text-neutral-700">
+                          {getContextualPlaceholder()}
+                        </span>
+                        {searchResults && (
+                          <span className="text-xs bg-erm-primary text-white px-2 py-1 rounded-full">
+                            {searchResults.totalHits} results
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   
@@ -286,7 +190,7 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          router.push('/');
+                          clearSearch();
                         }}
                         className="p-1 rounded-full bg-neutral-200 hover:bg-red-100 text-neutral-500 hover:text-red-600 transition-colors"
                         title="Clear search"
@@ -311,7 +215,7 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
         </div>
       </header>
 
-      {/* FIXED: Enhanced Search Modal with proper z-index */}
+      {/* Enhanced Search Modal */}
       {isSearchModalOpen && (
         <div 
           className="fixed inset-0 bg-black/20 backdrop-blur-sm flex justify-center items-start pt-16 pb-10 overflow-y-auto"
@@ -323,20 +227,23 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
           }}
         >
           <div 
-            className="relative bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl w-full max-w-3xl mx-4 my-auto overflow-hidden border border-neutral-200/50" 
+            className="relative bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl w-full max-w-4xl mx-4 my-auto overflow-hidden border border-neutral-200/50" 
             style={{ zIndex: 100000 }}
           >
             
-            {/* Modal Header - Updated with ERM colors */}
+            {/* Modal Header */}
             <div className="p-6 border-b border-neutral-100/50 bg-gradient-to-r from-erm-primary/5 to-transparent">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-3">
                   <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-erm-primary to-erm-dark flex items-center justify-center">
-                    <MagnifyingGlassIcon className="h-4 w-4 text-white" />
+                    <span className="text-xl">{searchContext.icon}</span>
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-neutral-900">Search Documents</h3>
-                    <p className="text-sm text-neutral-500">Find proposals, reports, and business documents</p>
+                    <h3 className="text-xl font-bold text-neutral-900">{searchContext.title}</h3>
+                    <p className="text-sm text-neutral-500">
+                      Searching in {router.pathname === '/' ? 'Dashboard' : router.pathname.replace('/', '').replace('-', ' ')}
+                      {searchResults && ` • ${searchResults.totalHits} documents found`}
+                    </p>
                   </div>
                 </div>
                 <button
@@ -347,24 +254,24 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
                 </button>
               </div>
               
-              {/* Enhanced Search Input - Updated with ERM colors */}
+              {/* Enhanced Search Input */}
               <div className="relative">
                 <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-neutral-400" />
                 <input
                   ref={searchInputRef}
                   type="text"
-                  placeholder="Search proposals, reports, environmental assessments..."
-                  value={internalSearchTerm}
+                  placeholder={searchContext.placeholder}
+                  value={localSearchTerm}
                   onChange={handleSearchInputChange}
                   onKeyDown={handleKeyDown}
                   className="w-full pl-12 pr-12 py-4 bg-neutral-50/50 border border-neutral-200 rounded-2xl focus:ring-2 focus:ring-erm-primary focus:border-erm-primary text-base placeholder-neutral-400 transition-all"
                 />
                 <div className="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
-                  {internalSearchTerm && (
+                  {localSearchTerm && (
                     <button
                       onClick={() => {
-                        setInternalSearchTerm('');
-                        setAutocompleteResults([]);
+                        setLocalSearchTerm('');
+                        setShowSuggestions(false);
                       }}
                       className="p-1 rounded-full hover:bg-neutral-200 text-neutral-400 hover:text-neutral-600"
                       title="Clear"
@@ -381,27 +288,36 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
 
             {/* Modal Body */}
             <div className="max-h-96 overflow-y-auto">
-              {/* Search Results */}
-              {isSearching && internalSearchTerm.length > 0 ? (
+              {/* Loading State */}
+              {isSearching ? (
                 <div className="flex items-center justify-center py-12">
                   <div className="flex items-center space-x-3 text-neutral-600">
                     <div className="animate-spin h-5 w-5 border-2 border-erm-primary border-t-transparent rounded-full"></div>
-                    <span className="font-medium">Searching documents...</span>
+                    <span className="font-medium">Searching {searchContext.title.toLowerCase()}...</span>
                   </div>
                 </div>
-              ) : internalSearchTerm.length > 0 && autocompleteResults.length > 0 ? (
+              ) : localSearchTerm.length > 0 && searchResults ? (
+                /* Search Results */
                 <div>
+                  {/* Results Header */}
                   <div className="px-6 py-3 bg-gradient-to-r from-erm-primary/10 to-transparent border-b border-neutral-100">
-                    <p className="text-xs font-medium text-erm-dark uppercase tracking-wider">
-                      Found {autocompleteResults.length} documents
-                    </p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-medium text-erm-dark uppercase tracking-wider">
+                        Found {searchResults.totalHits} documents in {searchResults.processingTime}ms
+                      </p>
+                      <span className="text-xs text-neutral-500">
+                        Scope: {searchContext.scope}
+                      </span>
+                    </div>
                   </div>
-                  {autocompleteResults.map((result, index) => (
+
+                  {/* Search Results */}
+                  {searchResults.proposals.slice(0, 8).map((result, index) => (
                     <div
                       key={result.id}
                       onClick={() => handleResultClick(result)}
                       className={`p-4 border-b border-neutral-50 cursor-pointer transition-all group ${
-                        index === focusedIndex 
+                        index + suggestions.length === focusedIndex 
                           ? 'bg-erm-primary/10 border-erm-primary/20' 
                           : 'hover:bg-neutral-50/80'
                       }`}
@@ -415,7 +331,7 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
                             <div className="flex-1">
                               <h4 className="text-sm font-semibold text-neutral-900 group-hover:text-erm-dark">
                                 <span dangerouslySetInnerHTML={{ 
-                                  __html: result._highlightResults?.Unique_Id || result.unique_id || result.SF_Number || 'N/A' 
+                                  __html: (result as any)._highlightResults?.Unique_Id || result.unique_id || result.SF_Number || 'N/A' 
                                 }} />
                               </h4>
                               <div className="flex items-center space-x-2 text-xs text-neutral-500 mt-1">
@@ -432,7 +348,7 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
                           <p className="text-xs text-neutral-600">
                             <span className="font-medium">Client:</span>{' '}
                             <span dangerouslySetInnerHTML={{ 
-                              __html: result._highlightResults?.Client_Name || result.Client_Name || 'Business Client' 
+                              __html: (result as any)._highlightResults?.Client_Name || result.Client_Name || 'Business Client' 
                             }} />
                           </p>
                         </div>
@@ -443,42 +359,65 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
                       </div>
                     </div>
                   ))}
+
+                  {/* More Results Button */}
+                  {searchResults.totalHits > 8 && (
+                    <div className="p-4 border-t border-neutral-100 text-center">
+                      <button
+                        onClick={() => {
+                          router.push(`/content-management?searchTerm=${encodeURIComponent(localSearchTerm)}`);
+                          closeSearchModal();
+                        }}
+                        className="text-sm text-erm-primary hover:text-erm-dark font-medium"
+                      >
+                        View all {searchResults.totalHits} results in Content Management →
+                      </button>
+                    </div>
+                  )}
                 </div>
-              ) : internalSearchTerm.length > 0 && autocompleteResults.length === 0 && !isSearching ? (
-                <div className="py-16 text-center text-neutral-500">
-                  <div className="w-20 h-20 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <MagnifyingGlassIcon className="h-10 w-10 text-neutral-400" />
+              ) : showSuggestions && suggestions.length > 0 ? (
+                /* Suggestions */
+                <div>
+                  <div className="px-6 py-3 bg-gradient-to-r from-neutral-50 to-transparent border-b border-neutral-100">
+                    <p className="text-xs font-medium text-neutral-600 uppercase tracking-wider">
+                      Suggestions
+                    </p>
                   </div>
-                  <p className="text-lg font-medium text-neutral-700 mb-2">No documents found</p>
-                  <p className="text-sm text-neutral-500 mb-6">Try different terms like "proposal", "report", or "assessment"</p>
-                  <div className="flex justify-center space-x-2">
-                    <button 
-                      onClick={() => setInternalSearchTerm('')}
-                      className="text-xs bg-neutral-100 hover:bg-neutral-200 text-neutral-700 px-3 py-1 rounded-full transition-colors"
+                  {suggestions.slice(0, 8).map((suggestion, index) => (
+                    <div
+                      key={index}
+                      onClick={() => handleSearchSubmit(suggestion)}
+                      className={`p-3 border-b border-neutral-50 cursor-pointer transition-all group ${
+                        index === focusedIndex 
+                          ? 'bg-erm-primary/10 border-erm-primary/20' 
+                          : 'hover:bg-neutral-50/80'
+                      }`}
                     >
-                      Clear search
-                    </button>
-                    <button 
-                      onClick={() => handleQuickSearch('proposal')}
-                      className="text-xs bg-erm-primary hover:bg-erm-dark text-white px-3 py-1 rounded-full transition-colors"
-                    >
-                      Show proposals
-                    </button>
-                  </div>
+                      <div className="flex items-center space-x-3">
+                        <MagnifyingGlassIcon className="h-4 w-4 text-neutral-400 group-hover:text-erm-primary" />
+                        <span className="text-sm text-neutral-700 group-hover:text-erm-dark">
+                          {suggestion}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : (
-                /* Default state with business-focused sections - Updated with ERM colors */
+                /* Default state with contextual content */
                 <div className="p-6 space-y-8">
-                  {/* Recent Searches */}
-                  {recentSearches.length > 0 && (
+                  {/* Search History */}
+                  {searchHistory.length > 0 && (
                     <div>
                       <div className="flex items-center justify-between mb-4">
-                        <h4 className="text-sm font-semibold text-neutral-700">Recent Searches</h4>
+                        <h4 className="text-sm font-semibold text-neutral-700 flex items-center space-x-2">
+                          <ClockIcon className="h-4 w-4" />
+                          <span>Recent Searches</span>
+                        </h4>
                         <button
                           onClick={() => {
-                            setRecentSearches([]);
+                            // Clear search history
                             if (typeof window !== 'undefined') {
-                              localStorage.removeItem('recentSearches');
+                              localStorage.removeItem('searchHistory');
                             }
                           }}
                           className="text-xs text-neutral-500 hover:text-red-600 hover:underline transition-colors"
@@ -487,42 +426,31 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
                         </button>
                       </div>
                       <div className="space-y-2">
-                        {recentSearches.slice(0, 4).map((search, index) => (
-                          <div key={index} className="flex items-center justify-between group">
-                            <button
-                              onClick={() => handleQuickSearch(search)}
-                              className="flex-1 text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-lg transition-colors flex items-center space-x-2"
-                            >
-                              <MagnifyingGlassIcon className="h-4 w-4 text-neutral-400" />
-                              <span>{search}</span>
-                            </button>
-                            <button
-                              onClick={() => {
-                                const updated = recentSearches.filter((_, i) => i !== index);
-                                setRecentSearches(updated);
-                                if (typeof window !== 'undefined') {
-                                  localStorage.setItem('recentSearches', JSON.stringify(updated));
-                                }
-                              }}
-                              className="opacity-0 group-hover:opacity-100 p-1 text-neutral-400 hover:text-red-600 transition-all"
-                              title="Remove"
-                            >
-                              <XMarkIcon className="h-3 w-3" />
-                            </button>
-                          </div>
+                        {searchHistory.slice(0, 4).map((search, index) => (
+                          <button
+                            key={index}
+                            onClick={() => handleSearchSubmit(search)}
+                            className="flex items-center w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-lg transition-colors space-x-2"
+                          >
+                            <ClockIcon className="h-4 w-4 text-neutral-400" />
+                            <span>{search}</span>
+                          </button>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  {/* Popular Business Searches - Updated with ERM colors */}
+                  {/* Contextual Quick Actions */}
                   <div>
-                    <h4 className="text-sm font-semibold text-neutral-700 mb-4">Popular Document Types</h4>
+                    <h4 className="text-sm font-semibold text-neutral-700 mb-4 flex items-center space-x-2">
+                      <FireIcon className="h-4 w-4" />
+                      <span>Quick Search for {searchContext.title}</span>
+                    </h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {popularSearches.map((search, index) => (
+                      {getQuickSearches().map((search, index) => (
                         <button
                           key={index}
-                          onClick={() => handleQuickSearch(search.term)}
+                          onClick={() => handleSearchSubmit(search.term)}
                           className="text-left p-3 bg-white hover:bg-erm-primary/5 text-neutral-700 hover:text-erm-dark text-sm rounded-xl transition-all duration-200 border border-neutral-100 hover:border-erm-primary/30 group"
                         >
                           <div className="flex items-center justify-between">
@@ -544,7 +472,7 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
               )}
             </div>
 
-            {/* Enhanced Modal Footer - Updated with ERM colors */}
+            {/* Enhanced Modal Footer */}
             <div className="p-4 border-t border-neutral-100/50 bg-neutral-50/30">
               <div className="flex items-center justify-between text-xs text-neutral-500">
                 <div className="flex items-center space-x-4">
@@ -562,9 +490,9 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
                   </span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span>Powered by</span>
+                  <span>Search context:</span>
                   <div className="flex items-center space-x-1 text-erm-primary font-medium">
-                    <span>MeiliSearch</span>
+                    <span>{searchContext.scope}</span>
                   </div>
                 </div>
               </div>
@@ -574,6 +502,35 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
       )}
     </>
   );
+
+  // Helper function to get contextual quick searches
+  function getQuickSearches() {
+    const baseSearches = [
+      { term: 'Environmental Impact Assessment', category: 'Environmental', icon: '🌍' },
+      { term: 'Sustainability Report', category: 'Reporting', icon: '📊' },
+      { term: 'Carbon Footprint Analysis', category: 'Analytics', icon: '📈' },
+      { term: 'ESG Compliance', category: 'Governance', icon: '⚖️' },
+    ];
+
+    switch (searchContext.scope) {
+      case 'dashboard':
+        return [
+          { term: 'Recent proposals', category: 'Recent', icon: '🕒' },
+          { term: 'High value documents', category: 'Value', icon: '💰' },
+          { term: 'Popular this month', category: 'Trending', icon: '🔥' },
+          { term: 'My documents', category: 'Personal', icon: '👤' },
+        ];
+      case 'bookmarks':
+        return [
+          { term: 'Saved reports', category: 'Reports', icon: '💾' },
+          { term: 'Favorite proposals', category: 'Proposals', icon: '⭐' },
+          { term: 'Bookmarked assessments', category: 'Assessments', icon: '🔖' },
+          { term: 'Important documents', category: 'Priority', icon: '🎯' },
+        ];
+      default:
+        return baseSearches;
+    }
+  }
 };
 
 export default Header;
