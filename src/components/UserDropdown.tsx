@@ -22,8 +22,7 @@ interface UserDropdownProps {
 const UserDropdown: React.FC<UserDropdownProps> = ({ 
   userName = "Mayank Kumar",
   userEmail = "mayank.kumar@erm.com",
-  userAvatar,
-  notificationCount = 3
+  userAvatar
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
