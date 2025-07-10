@@ -1,4 +1,4 @@
-// src/pages/index.tsx - COMPLETE VERSION WITH PROFESSIONAL ENHANCEMENTS
+// src/pages/index.tsx - FIXED VERSION WITH ENHANCED SEARCH RESULT HANDLING
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '@/components/Layout';
 import Carousel from '@/components/Carousel';
@@ -14,7 +14,6 @@ import { STRAPI_API_URL } from '@/config/apiConfig';
 import { StrapiProposal } from '@/types/strapi';
 import { extractProposalData } from '@/utils/dataHelpers';
 import Toast from '@/components/Toast'; // Import Toast component
-import { TbBackground } from 'react-icons/tb';
 
 // --- MeiliSearch Configuration ---
 const MEILISEARCH_HOST = process.env.NEXT_PUBLIC_MEILISEARCH_HOST || 'http://localhost:7700';
@@ -46,6 +45,7 @@ const HomePage: React.FC<HomePageProps> = ({
 }) => {
   const router = useRouter();
   const searchTerm = (router.query.searchTerm as string) || '';
+  const urlProposalId = router.query.proposalId ? parseInt(router.query.proposalId as string, 10) : null;
 
   const [proposals, setProposals] = useState<StrapiProposal[]>(initialProposals);
   const [totalProposals, setTotalProposals] = useState<number>(initialTotalProposals);
@@ -73,6 +73,47 @@ const HomePage: React.FC<HomePageProps> = ({
     setToastType(type);
     setIsToastOpen(true);
   }, []);
+
+  // ENHANCED: Fetch complete document data for preview
+  const fetchCompleteDocumentData = async (proposalId: number): Promise<StrapiProposal | null> => {
+    try {
+      console.log('🔍 Fetching complete document data for ID:', proposalId);
+      
+      const strapiApiUrl = process.env.NEXT_PUBLIC_STRAPI_API_URL || 'http://localhost:1337/api';
+      const response = await fetch(`${strapiApiUrl}/document-stores/${proposalId}?populate=*`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch document: ${response.status} ${response.statusText}`);
+      }
+      
+      const apiData = await response.json();
+      console.log('📄 Complete API response:', apiData);
+      
+      // Extract and enhance the proposal data
+      const baseData = extractProposalData(apiData.data);
+      
+      // Create enhanced result with all available data
+      const enhancedResult: StrapiProposal = {
+        ...baseData,
+        id: proposalId,
+        documentId: proposalId.toString(),
+        // Ensure we have the complete attachments data
+        Attachments: apiData.data?.attributes?.Attachments || null,
+        Description: apiData.data?.attributes?.Description || [],
+        Project_Team: apiData.data?.attributes?.Project_Team || null,
+        SMEs: apiData.data?.attributes?.SMEs || null,
+        Pursuit_Team: apiData.data?.attributes?.Pursuit_Team || null,
+        documentUrl: getBestDocumentUrl(apiData.data?.attributes || baseData),
+      } as StrapiProposal;
+      
+      console.log('✅ Enhanced result for preview:', enhancedResult);
+      return enhancedResult;
+      
+    } catch (error) {
+      console.error('❌ Error fetching complete document data:', error);
+      return null;
+    }
+  };
 
   // Enhanced fetch proposals function - FIXED FILTERABLE ATTRIBUTES
   const fetchProposals = useCallback(async (
@@ -206,6 +247,26 @@ const HomePage: React.FC<HomePageProps> = ({
     fetchLatestProposals();
   }, [fetchLatestProposals]);
 
+  // ENHANCED: Handle URL proposalId parameter for direct document access
+  useEffect(() => {
+    if (urlProposalId && !selectedProposalForPreview) {
+      console.log('🔗 URL contains proposalId:', urlProposalId, 'fetching document...');
+      
+      fetchCompleteDocumentData(urlProposalId).then(completeDocument => {
+        if (completeDocument) {
+          console.log('📄 Loaded document from URL parameter');
+          setSelectedProposalForPreview(completeDocument);
+          setIsDocumentPreviewOpen(true);
+        } else {
+          console.warn('⚠️ Could not load document from URL parameter');
+          // Remove invalid proposalId from URL
+          const { proposalId, ...queryWithoutProposalId } = router.query;
+          router.replace({ pathname: router.pathname, query: queryWithoutProposalId }, undefined, { shallow: true });
+        }
+      });
+    }
+  }, [urlProposalId, selectedProposalForPreview, router]);
+
   const handleClearFilters = useCallback(() => {
     router.replace({ pathname: router.pathname, query: {} }, undefined, { shallow: true });
     setSortBy('publishedAt:desc');
@@ -217,21 +278,44 @@ const HomePage: React.FC<HomePageProps> = ({
     setCurrentPage(1);
   }, []);
 
+  // FIXED: Enhanced search result click handler with complete data fetching
   const handleSearchResultClick = useCallback(async (proposal: StrapiProposal) => {
-    setSelectedProposalForPreview(proposal);
-    setIsDocumentPreviewOpen(true);
-    
-    // Update URL to show selected proposal
-    if (router.query.proposalId !== String(proposal.id)) {
+    try {
+      console.log('🎯 Search result clicked on Homepage:', proposal);
+      
+      // Fetch complete document data with attachments
+      const completeDocument = await fetchCompleteDocumentData(proposal.id);
+      
+      if (completeDocument) {
+        console.log('📄 Using complete document data for preview');
+        setSelectedProposalForPreview(completeDocument);
+      } else {
+        console.warn('⚠️ Could not fetch complete document data, using search result');
+        setSelectedProposalForPreview(proposal);
+      }
+      
+      setIsDocumentPreviewOpen(true);
+      
+      // Update URL to show selected proposal
+      if (router.query.proposalId !== String(proposal.id)) {
+        router.push(`/?proposalId=${proposal.id}`, undefined, { shallow: true });
+      }
+      
+    } catch (error) {
+      console.error('❌ Error handling search result click:', error);
+      // Fallback to using the search result as-is
+      setSelectedProposalForPreview(proposal);
+      setIsDocumentPreviewOpen(true);
       router.push(`/?proposalId=${proposal.id}`, undefined, { shallow: true });
     }
   }, [router]);
 
+  // FIXED: Close preview modal and update URL
   const closeDocumentPreview = useCallback(() => {
     setIsDocumentPreviewOpen(false);
     setSelectedProposalForPreview(null);
     
-    // Remove proposalId from URL
+    // Remove proposalId from URL but keep other query parameters
     const { proposalId, ...queryWithoutProposalId } = router.query;
     router.push({ pathname: router.pathname, query: queryWithoutProposalId }, undefined, { shallow: true });
   }, [router]);
@@ -242,7 +326,7 @@ const HomePage: React.FC<HomePageProps> = ({
     <Layout
       searchTerm={searchTerm}
       isLoading={isLoading}
-      onSearchResultClick={handleSearchResultClick}
+      onSearchResultClick={handleSearchResultClick} // FIXED: Pass the proper handler
       activeContentType="Proposals"
       activeServiceLines={[]}
       activeIndustries={[]}

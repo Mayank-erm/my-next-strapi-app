@@ -1,4 +1,4 @@
-// src/components/Header.tsx - CONTEXTUAL SEARCH WITH CONTEXT DROPDOWN
+// src/components/Header.tsx - FIXED VERSION WITH ENHANCED SEARCH RESULT HANDLING
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { MagnifyingGlassIcon, XMarkIcon, CommandLineIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import UserDropdown from './UserDropdown';
@@ -144,67 +144,87 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
     }
   };
 
+  // ENHANCED: Fetch complete document data for preview
+  const fetchCompleteDocumentData = async (proposalId: number): Promise<StrapiProposal | null> => {
+    try {
+      console.log('🔍 Fetching complete document data for ID:', proposalId);
+      
+      const strapiApiUrl = process.env.NEXT_PUBLIC_STRAPI_API_URL || 'http://localhost:1337/api';
+      const response = await fetch(`${strapiApiUrl}/document-stores/${proposalId}?populate=*`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch document: ${response.status} ${response.statusText}`);
+      }
+      
+      const apiData = await response.json();
+      console.log('📄 Complete API response:', apiData);
+      
+      // Extract and enhance the proposal data
+      const baseData = extractProposalData(apiData.data);
+      
+      // Create enhanced result with all available data
+      const enhancedResult: StrapiProposal = {
+        ...baseData,
+        id: proposalId,
+        documentId: proposalId.toString(),
+        // Ensure we have the complete attachments data
+        Attachments: apiData.data?.attributes?.Attachments || null,
+        Description: apiData.data?.attributes?.Description || [],
+        Project_Team: apiData.data?.attributes?.Project_Team || null,
+        SMEs: apiData.data?.attributes?.SMEs || null,
+        Pursuit_Team: apiData.data?.attributes?.Pursuit_Team || null,
+      } as StrapiProposal;
+      
+      console.log('✅ Enhanced result for preview:', enhancedResult);
+      return enhancedResult;
+      
+    } catch (error) {
+      console.error('❌ Error fetching complete document data:', error);
+      return null;
+    }
+  };
+
+  // FIXED: Enhanced result click handler with proper modal opening
   const handleResultClick = async (result: StrapiProposal) => {
     try {
-      // First try to use the callback if provided
-      if (onResultClick) {
-        onResultClick(result);
-        closeSearchModal();
-        return;
-      }
-
-      // Enhanced data fetching for better document preview
-      console.log('🔍 Fetching complete document data for:', result.id);
+      console.log('🎯 Search result clicked:', result);
       
-      try {
-        // Try to fetch complete data from Strapi API with all populated fields
-        const strapiApiUrl = process.env.NEXT_PUBLIC_STRAPI_API_URL || 'http://localhost:1337/api';
-        const response = await fetch(`${strapiApiUrl}/document-stores/${result.id}?populate=*`);
+      // First, fetch complete document data with attachments
+      const completeDocument = await fetchCompleteDocumentData(result.id);
+      
+      if (completeDocument) {
+        console.log('📄 Using complete document data');
         
-        if (response.ok) {
-          const apiData = await response.json();
-          console.log('📄 Raw API response:', apiData);
-          
-          // Extract and enhance the proposal data
-          const baseData = extractProposalData(apiData.data);
-          
-          // Create enhanced result with all available data
-          const enhancedResult: StrapiProposal = {
-            // Start with search result data
-            ...result,
-            // Override with complete API data
-            ...baseData,
-            // Preserve search highlights
-            _highlightResults: result._highlightResults,
-            // Ensure we have an ID
-            id: result.id || baseData.id || 0,
-            documentId: result.documentId || baseData.documentId || result.id?.toString() || '0',
-          };
-          
-          console.log('✅ Enhanced result for preview:', enhancedResult);
-          
-          // Call the result handler with enhanced data
-          if (onResultClick) {
-            onResultClick(enhancedResult);
-          } else {
-            // Navigate to content management with the proposal ID
-            router.push(`/content-management?proposalId=${result.id}`);
-          }
+        // Determine the target page and navigate accordingly
+        if (onResultClick) {
+          // If we have an onResultClick handler (like in Homepage), use it
+          onResultClick(completeDocument);
         } else {
-          console.warn('⚠️ API fetch failed, using search result data');
-          // Use the search result as-is
-          if (onResultClick) {
-            onResultClick(result);
+          // Navigate to the appropriate page with the document
+          const currentPath = router.pathname;
+          
+          if (currentPath === '/') {
+            // Homepage - navigate to itself with proposalId to trigger modal
+            router.push(`/?proposalId=${result.id}`, undefined, { shallow: true });
+          } else if (currentPath === '/content-management') {
+            // Content Management - navigate with proposalId to trigger modal
+            router.push(`/content-management?proposalId=${result.id}`, undefined, { shallow: true });
+          } else if (currentPath === '/bookmarks') {
+            // Bookmarks - navigate to content management with proposalId
+            router.push(`/content-management?proposalId=${result.id}`);
           } else {
+            // Default - navigate to content management
             router.push(`/content-management?proposalId=${result.id}`);
           }
         }
-      } catch (fetchError) {
-        console.error('❌ Error fetching from API:', fetchError);
-        // Fallback to search result data
+      } else {
+        console.warn('⚠️ Could not fetch complete document data, using search result');
+        
+        // Fallback to using search result data
         if (onResultClick) {
           onResultClick(result);
         } else {
+          // Navigate with basic result
           router.push(`/content-management?proposalId=${result.id}`);
         }
       }
@@ -213,6 +233,7 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, isLoading: propIsLoading, o
       
     } catch (error) {
       console.error('❌ Error in handleResultClick:', error);
+      
       // Final fallback
       if (onResultClick) {
         onResultClick(result);

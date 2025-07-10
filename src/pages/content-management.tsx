@@ -1,4 +1,4 @@
-// src/pages/content-management.tsx - COMPLETE LAYOUT FIX & BUG FIXES
+// src/pages/content-management.tsx - FIXED VERSION WITH PROPER SEARCH RESULT HANDLING
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Layout from '@/components/Layout';
@@ -53,6 +53,7 @@ interface AdvancedFilters {
 const CmsPage: React.FC = () => {
   const router = useRouter();
   const urlSearchTerm = (router.query.searchTerm as string) || '';
+  const urlProposalId = router.query.proposalId ? parseInt(router.query.proposalId as string, 10) : null;
 
   // State Management
   const [selectedProposalForPreview, setSelectedProposalForPreview] = useState<StrapiProposal | null>(null);
@@ -115,7 +116,77 @@ const CmsPage: React.FC = () => {
     setIsToastOpen(true);
   }, []);
 
-  // Advanced fetch function with comprehensive filtering and lazy loading
+  // ENHANCED: Fetch complete document data for preview
+  const fetchCompleteDocumentData = async (proposalId: number): Promise<StrapiProposal | null> => {
+    try {
+      console.log('🔍 Fetching complete document data for ID:', proposalId);
+      
+      const strapiApiBaseUrl = STRAPI_API_URL.split('?')[0];
+      const response = await fetch(`${strapiApiBaseUrl}/${proposalId}?populate=*`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch document: ${response.status} ${response.statusText}`);
+      }
+      
+      const apiData = await response.json();
+      console.log('📄 Complete API response:', apiData);
+      
+      // Extract and enhance the proposal data
+      const baseData = extractProposalData(apiData.data);
+      
+      // Create enhanced result with all available data
+      const enhancedResult: StrapiProposal = {
+        ...baseData,
+        id: proposalId,
+        documentId: proposalId.toString(),
+        // Ensure we have the complete attachments data
+        Attachments: apiData.data?.attributes?.Attachments || null,
+        Description: apiData.data?.attributes?.Description || [],
+        Project_Team: apiData.data?.attributes?.Project_Team || null,
+        SMEs: apiData.data?.attributes?.SMEs || null,
+        Pursuit_Team: apiData.data?.attributes?.Pursuit_Team || null,
+        documentUrl: getBestDocumentUrl(apiData.data?.attributes || baseData),
+      } as StrapiProposal;
+      
+      console.log('✅ Enhanced result for preview:', enhancedResult);
+      return enhancedResult;
+      
+    } catch (error) {
+      console.error('❌ Error fetching complete document data:', error);
+      return null;
+    }
+  };
+
+  // FIXED: Handle search result clicks with complete data fetching
+  const handleSearchResultClick = useCallback(async (proposal: StrapiProposal) => {
+    try {
+      console.log('🎯 Search result clicked in CMS:', proposal);
+      
+      // Fetch complete document data with attachments
+      const completeDocument = await fetchCompleteDocumentData(proposal.id);
+      
+      if (completeDocument) {
+        console.log('📄 Using complete document data for preview');
+        setSelectedProposalForPreview(completeDocument);
+      } else {
+        console.warn('⚠️ Could not fetch complete document data, using search result');
+        setSelectedProposalForPreview(proposal);
+      }
+      
+      // Update URL to show selected proposal
+      if (router.query.proposalId !== String(proposal.id)) {
+        router.push(`/content-management?proposalId=${proposal.id}`, undefined, { shallow: true });
+      }
+      
+    } catch (error) {
+      console.error('❌ Error handling search result click:', error);
+      // Fallback to using the search result as-is
+      setSelectedProposalForPreview(proposal);
+      router.push(`/content-management?proposalId=${proposal.id}`, undefined, { shallow: true });
+    }
+  }, [router]);
+
+  // Enhanced fetch function with comprehensive filtering and lazy loading
   const fetchContent = useCallback(async (loadMore = false) => {
     if (loadMore) {
       setIsLoadingMore(true);
@@ -228,6 +299,25 @@ const CmsPage: React.FC = () => {
     filters,
     sortBy,
   ]);
+
+  // ENHANCED: Handle URL proposalId parameter for direct document access
+  useEffect(() => {
+    if (urlProposalId && !selectedProposalForPreview) {
+      console.log('🔗 URL contains proposalId:', urlProposalId, 'fetching document...');
+      
+      fetchCompleteDocumentData(urlProposalId).then(completeDocument => {
+        if (completeDocument) {
+          console.log('📄 Loaded document from URL parameter');
+          setSelectedProposalForPreview(completeDocument);
+        } else {
+          console.warn('⚠️ Could not load document from URL parameter');
+          // Remove invalid proposalId from URL
+          const { proposalId, ...queryWithoutProposalId } = router.query;
+          router.replace({ pathname: router.pathname, query: queryWithoutProposalId }, undefined, { shallow: true });
+        }
+      });
+    }
+  }, [urlProposalId, selectedProposalForPreview, router]);
 
   // Load more function for lazy loading
   const loadMore = useCallback(() => {
@@ -349,38 +439,20 @@ const CmsPage: React.FC = () => {
     }
   }, []);
 
+  // FIXED: Close preview modal and update URL
+  const closePreviewModal = useCallback(() => {
+    setSelectedProposalForPreview(null);
+    
+    // Remove proposalId from URL but keep other query parameters
+    const { proposalId, ...queryWithoutProposalId } = router.query;
+    router.push({ pathname: router.pathname, query: queryWithoutProposalId }, undefined, { shallow: true });
+  }, [router]);
+
   // Layout props (Passed to the parent Layout component)
   const layoutProps = {
     searchTerm: urlSearchTerm,
     isLoading: isLoading,
-    onResultClick: async (proposal: StrapiProposal) => {
-      setIsLoading(true);
-      try {
-        const strapiApiBaseUrl = STRAPI_API_URL.split('?')[0];
-        const response = await fetch(`${strapiApiBaseUrl}/${proposal.id}?populate=*`);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch full proposal details for ID: ${proposal.id}`);
-        }
-        const fullProposalData = await response.json();
-        const fetchedProposal: StrapiProposal = {
-          ...extractProposalData(fullProposalData.data),
-          id: fullProposalData.data.id,
-          documentId: fullProposalData.data.id.toString(),
-          value: extractProposalData(fullProposalData.data).value,
-          documentUrl: getBestDocumentUrl(fullProposalData.data.attributes), // Use getBestDocumentUrl
-        };
-        setSelectedProposalForPreview(fetchedProposal);
-        if (router.query.proposalId !== String(proposal.id)) {
-          router.push(`/content-management?proposalId=${proposal.id}`, undefined, { shallow: true });
-        }
-      } catch (err: any) {
-        console.error("Error fetching full proposal for preview:", err);
-        setError(`Failed to load document for preview: ${err.message}`);
-        router.push('/content-management', undefined, { shallow: true });
-      } finally {
-        setIsLoading(false);
-      }
-    },
+    onResultClick: handleSearchResultClick, // FIXED: Pass the proper handler
     activeContentType: 'All', // These are placeholder for Layout's filter-by options
     activeServiceLines: [],
     activeIndustries: [],
@@ -517,10 +589,7 @@ const CmsPage: React.FC = () => {
       {selectedProposalForPreview && (
         <DocumentPreviewModal
           proposal={selectedProposalForPreview}
-          onClose={() => {
-            setSelectedProposalForPreview(null);
-            router.push('/content-management', undefined, { shallow: true });
-          }}
+          onClose={closePreviewModal}
         />
       )}
 
