@@ -30,7 +30,7 @@ const SEARCH_CONTEXTS: Record<string, SearchContextConfig> = {
     title: 'Dashboard Search',
     description: 'Search recent and trending documents',
     icon: '🏠',
-    placeholder: 'Search recent documents, trends...',
+    placeholder: 'Search recent and trending documents...',
     suggestions: [
       'Environmental Impact Assessment',
       'Sustainability Report',
