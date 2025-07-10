@@ -1,15 +1,15 @@
-// src/pages/content-management.tsx - FIXED VERSION WITH PROPER SEARCH RESULT HANDLING
+// src/pages/content-management.tsx - FINAL FIXED VERSION WITH MODAL AND ATTACHMENT FIXES
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Layout from '@/components/Layout';
 import ContentDisplay from '@/components/cms/ContentDisplay';
-import Pagination from '@/components/Pagination'; // Keeping import, but using Load More
+import Pagination from '@/components/Pagination';
 import AdvancedFilterSidebar from '@/components/cms/AdvancedFilterSidebar';
 import ActiveFilterPills from '@/components/cms/ActiveFilterPills';
 import Toast from '@/components/Toast';
 import { MeiliSearch } from 'meilisearch';
 import { useRouter } from 'next/router';
-import { getBestDocumentUrl } from '@/config/documentMapping'; // Use getBestDocumentUrl
+import { getBestDocumentUrl } from '@/config/documentMapping';
 import { STRAPI_API_URL } from '@/config/apiConfig';
 import { StrapiProposal } from '@/types/strapi';
 import { extractProposalData } from '@/utils/dataHelpers';
@@ -57,8 +57,11 @@ const CmsPage: React.FC = () => {
 
   // State Management
   const [selectedProposalForPreview, setSelectedProposalForPreview] = useState<StrapiProposal | null>(null);
-  const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(true); // Desktop advanced filter sidebar toggle
-  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false); // Mobile advanced filter sidebar overlay toggle
+  const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(true);
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+  
+  // ADDED: State to track URL parameter processing
+  const [hasProcessedUrlParam, setHasProcessedUrlParam] = useState(false);
 
   // Toast State
   const [isToastOpen, setIsToastOpen] = useState(false);
@@ -81,7 +84,7 @@ const CmsPage: React.FC = () => {
     states: [],
     cities: [],
     dateRange: [null, null],
-    valueRange: [0, 1000000], // Default value range
+    valueRange: [0, 1000000],
   });
 
   // Content State
@@ -116,13 +119,25 @@ const CmsPage: React.FC = () => {
     setIsToastOpen(true);
   }, []);
 
-  // ENHANCED: Fetch complete document data for preview
+  // ENHANCED: Fetch complete document data for preview with better attachment handling
   const fetchCompleteDocumentData = async (proposalId: number): Promise<StrapiProposal | null> => {
     try {
       console.log('🔍 Fetching complete document data for ID:', proposalId);
       
       const strapiApiBaseUrl = STRAPI_API_URL.split('?')[0];
-      const response = await fetch(`${strapiApiBaseUrl}/${proposalId}?populate=*`);
+      
+      // Try multiple API endpoint patterns for better compatibility
+      let response = await fetch(`${strapiApiBaseUrl}/${proposalId}?populate[Attachments][populate]=*&populate[Description]=*&populate[Project_Team]=*&populate[SMEs]=*&populate[Pursuit_Team]=*`);
+      
+      if (!response.ok) {
+        console.log('🔄 Trying fallback API call with populate=*');
+        response = await fetch(`${strapiApiBaseUrl}/${proposalId}?populate=*`);
+      }
+      
+      if (!response.ok) {
+        console.log('🔄 Trying basic API call without populate');
+        response = await fetch(`${strapiApiBaseUrl}/${proposalId}`);
+      }
       
       if (!response.ok) {
         throw new Error(`Failed to fetch document: ${response.status} ${response.statusText}`);
@@ -131,24 +146,63 @@ const CmsPage: React.FC = () => {
       const apiData = await response.json();
       console.log('📄 Complete API response:', apiData);
       
+      // Handle different response structures
+      let documentData = apiData;
+      if (apiData.data) {
+        documentData = apiData.data;
+      }
+      
+      // Extract the attributes
+      let attributes = documentData.attributes || documentData;
+      
+      console.log('📋 Document attributes:', attributes);
+      console.log('📎 Raw Attachments data:', attributes.Attachments);
+      
+      // Enhanced attachment processing
+      let processedAttachments = null;
+      if (attributes.Attachments) {
+        if (Array.isArray(attributes.Attachments)) {
+          // Direct array of attachments
+          processedAttachments = attributes.Attachments;
+        } else if (attributes.Attachments.data && Array.isArray(attributes.Attachments.data)) {
+          // Strapi v4 format with data wrapper
+          processedAttachments = attributes.Attachments.data.map((item: any) => ({
+            id: item.id,
+            ...item.attributes,
+            url: item.attributes?.url || `/uploads/${item.attributes?.hash}${item.attributes?.ext}`,
+          }));
+        } else if (typeof attributes.Attachments === 'object') {
+          // Single attachment object
+          processedAttachments = [attributes.Attachments];
+        }
+      }
+      
+      console.log('📎 Processed Attachments:', processedAttachments);
+      
       // Extract and enhance the proposal data
-      const baseData = extractProposalData(apiData.data);
+      const baseData = extractProposalData(documentData);
       
       // Create enhanced result with all available data
       const enhancedResult: StrapiProposal = {
         ...baseData,
         id: proposalId,
         documentId: proposalId.toString(),
-        // Ensure we have the complete attachments data
-        Attachments: apiData.data?.attributes?.Attachments || null,
-        Description: apiData.data?.attributes?.Description || [],
-        Project_Team: apiData.data?.attributes?.Project_Team || null,
-        SMEs: apiData.data?.attributes?.SMEs || null,
-        Pursuit_Team: apiData.data?.attributes?.Pursuit_Team || null,
-        documentUrl: getBestDocumentUrl(apiData.data?.attributes || baseData),
+        // Enhanced attachment processing
+        Attachments: processedAttachments,
+        Description: attributes.Description || [],
+        Project_Team: attributes.Project_Team || null,
+        SMEs: attributes.SMEs || null,
+        Pursuit_Team: attributes.Pursuit_Team || null,
+        documentUrl: getBestDocumentUrl(attributes || baseData),
       } as StrapiProposal;
       
-      console.log('✅ Enhanced result for preview:', enhancedResult);
+      console.log('✅ Enhanced result for preview:', {
+        id: enhancedResult.id,
+        unique_id: enhancedResult.unique_id,
+        attachmentCount: enhancedResult.Attachments ? enhancedResult.Attachments.length : 0,
+        documentUrl: enhancedResult.documentUrl
+      });
+      
       return enhancedResult;
       
     } catch (error) {
@@ -157,10 +211,16 @@ const CmsPage: React.FC = () => {
     }
   };
 
-  // FIXED: Handle search result clicks with complete data fetching
+  // FIXED: Handle search result clicks with better state management
   const handleSearchResultClick = useCallback(async (proposal: StrapiProposal) => {
     try {
       console.log('🎯 Search result clicked in CMS:', proposal);
+      
+      // Prevent multiple rapid clicks
+      if (selectedProposalForPreview) {
+        console.log('⚠️ Modal already open, ignoring click');
+        return;
+      }
       
       // Fetch complete document data with attachments
       const completeDocument = await fetchCompleteDocumentData(proposal.id);
@@ -173,6 +233,9 @@ const CmsPage: React.FC = () => {
         setSelectedProposalForPreview(proposal);
       }
       
+      // Mark as processed to prevent URL param from reopening
+      setHasProcessedUrlParam(true);
+      
       // Update URL to show selected proposal
       if (router.query.proposalId !== String(proposal.id)) {
         router.push(`/content-management?proposalId=${proposal.id}`, undefined, { shallow: true });
@@ -182,9 +245,38 @@ const CmsPage: React.FC = () => {
       console.error('❌ Error handling search result click:', error);
       // Fallback to using the search result as-is
       setSelectedProposalForPreview(proposal);
+      setHasProcessedUrlParam(true);
       router.push(`/content-management?proposalId=${proposal.id}`, undefined, { shallow: true });
     }
-  }, [router]);
+  }, [router, selectedProposalForPreview]);
+
+  // FIXED: Handle URL proposalId parameter for direct document access
+  useEffect(() => {
+    // Only process if we haven't already processed this URL param and there's no modal currently open
+    if (urlProposalId && !selectedProposalForPreview && !hasProcessedUrlParam) {
+      console.log('🔗 URL contains proposalId:', urlProposalId, 'fetching document...');
+      
+      // Mark as processed immediately to prevent re-processing
+      setHasProcessedUrlParam(true);
+      
+      fetchCompleteDocumentData(urlProposalId).then(completeDocument => {
+        if (completeDocument) {
+          console.log('📄 Loaded document from URL parameter');
+          setSelectedProposalForPreview(completeDocument);
+        } else {
+          console.warn('⚠️ Could not load document from URL parameter');
+          // Remove invalid proposalId from URL
+          const { proposalId, ...queryWithoutProposalId } = router.query;
+          router.replace({ pathname: router.pathname, query: queryWithoutProposalId }, undefined, { shallow: true });
+        }
+      });
+    }
+    
+    // Reset the flag when URL param changes or is removed
+    if (!urlProposalId) {
+      setHasProcessedUrlParam(false);
+    }
+  }, [urlProposalId, selectedProposalForPreview, hasProcessedUrlParam, router]);
 
   // Enhanced fetch function with comprehensive filtering and lazy loading
   const fetchContent = useCallback(async (loadMore = false) => {
@@ -255,7 +347,6 @@ const CmsPage: React.FC = () => {
 
       const fetchedProposals: StrapiProposal[] = (meiliSearchResults.hits || []).map((hit: any) => {
         const extractedData = extractProposalData(hit);
-        // Ensure documentUrl is correctly set, using getBestDocumentUrl
         let documentUrl = extractedData.documentUrl || getBestDocumentUrl(extractedData);
 
         return {
@@ -275,7 +366,6 @@ const CmsPage: React.FC = () => {
         setTotalProposals(meiliSearchResults.estimatedTotalHits || 0);
       }
 
-      // Check if there are more pages
       const totalPages = Math.ceil((meiliSearchResults.estimatedTotalHits || 0) / ITEMS_PER_PAGE);
       setHasNextPage(page < totalPages);
 
@@ -299,25 +389,6 @@ const CmsPage: React.FC = () => {
     filters,
     sortBy,
   ]);
-
-  // ENHANCED: Handle URL proposalId parameter for direct document access
-  useEffect(() => {
-    if (urlProposalId && !selectedProposalForPreview) {
-      console.log('🔗 URL contains proposalId:', urlProposalId, 'fetching document...');
-      
-      fetchCompleteDocumentData(urlProposalId).then(completeDocument => {
-        if (completeDocument) {
-          console.log('📄 Loaded document from URL parameter');
-          setSelectedProposalForPreview(completeDocument);
-        } else {
-          console.warn('⚠️ Could not load document from URL parameter');
-          // Remove invalid proposalId from URL
-          const { proposalId, ...queryWithoutProposalId } = router.query;
-          router.replace({ pathname: router.pathname, query: queryWithoutProposalId }, undefined, { shallow: true });
-        }
-      });
-    }
-  }, [urlProposalId, selectedProposalForPreview, router]);
 
   // Load more function for lazy loading
   const loadMore = useCallback(() => {
@@ -360,30 +431,26 @@ const CmsPage: React.FC = () => {
       states: [],
       cities: [],
       dateRange: [null, null],
-      valueRange: [0, 1000000], // Reset to default values
+      valueRange: [0, 1000000],
     });
     setCurrentPage(1);
     router.replace({ pathname: router.pathname, query: {} }, undefined, { shallow: true });
     showToast('Filters Cleared', 'All filters have been cleared successfully', 'info');
   }, [router, showToast]);
 
-  // Active filters count - FIXED LOGIC
+  // Active filters count
   const activeFiltersCount = useMemo(() => {
     let count = 0;
-    // Count search term if not empty
     if (urlSearchTerm.trim()) {
       count++;
     }
-    // Count date range if both dates are selected
     if (filters.dateRange[0] && filters.dateRange[1]) {
       count++;
     }
-    // Count value range if different from default
     if (filters.valueRange[0] !== 0 || filters.valueRange[1] !== 1000000) {
       count++;
     }
     
-    // Count multi-select filters only if they have selected items
     const multiSelectFilterKeys: Array<keyof AdvancedFilters> = [
       'clientTypes', 'documentTypes', 'documentSubTypes', 'industries', 
       'subIndustries', 'services', 'subServices', 'businessUnits', 
@@ -391,7 +458,7 @@ const CmsPage: React.FC = () => {
     ];
     multiSelectFilterKeys.forEach(key => {
       if (Array.isArray(filters[key]) && (filters[key] as string[]).length > 0) {
-        count++; // Count as one active filter category, not per item
+        count++;
       }
     });
     
@@ -413,7 +480,7 @@ const CmsPage: React.FC = () => {
       case 'share':
         showToast('Share Links Generated', `Share links created for ${selectedCount} document${selectedCount !== 1 ? 's' : ''}`, 'success');
         break;
-      case 'clear-filters': // Handle clear-filters action from empty state
+      case 'clear-filters':
         clearAllFilters();
         break;
       default:
@@ -439,13 +506,25 @@ const CmsPage: React.FC = () => {
     }
   }, []);
 
-  // FIXED: Close preview modal and update URL
+  // FIXED: Close preview modal and update URL with proper state management
   const closePreviewModal = useCallback(() => {
+    console.log('🔒 Closing preview modal');
+    
+    // Clear the modal state first
     setSelectedProposalForPreview(null);
+    
+    // Mark that we're intentionally closing (to prevent reopening)
+    setHasProcessedUrlParam(true);
     
     // Remove proposalId from URL but keep other query parameters
     const { proposalId, ...queryWithoutProposalId } = router.query;
-    router.push({ pathname: router.pathname, query: queryWithoutProposalId }, undefined, { shallow: true });
+    router.push({ pathname: router.pathname, query: queryWithoutProposalId }, undefined, { shallow: true })
+      .then(() => {
+        // Reset the flag after URL update is complete
+        setTimeout(() => {
+          setHasProcessedUrlParam(false);
+        }, 100);
+      });
   }, [router]);
 
   // Layout props (Passed to the parent Layout component)
@@ -453,7 +532,7 @@ const CmsPage: React.FC = () => {
     searchTerm: urlSearchTerm,
     isLoading: isLoading,
     onResultClick: handleSearchResultClick, // FIXED: Pass the proper handler
-    activeContentType: 'All', // These are placeholder for Layout's filter-by options
+    activeContentType: 'All',
     activeServiceLines: [],
     activeIndustries: [],
     activeRegions: [],
@@ -465,38 +544,30 @@ const CmsPage: React.FC = () => {
     onDateChange: () => {},
     onSearchInFiltersChange: () => {},
     onClearAllFilters: clearAllFilters,
-    showMainSidebar: true, // Tell Layout to always show the main navigation sidebar
+    showMainSidebar: true,
   };
 
   const totalPages = Math.ceil(totalProposals / ITEMS_PER_PAGE);
 
   return (
     <Layout {...layoutProps}>
-      {/* This container now acts as the content area *next to* the main green sidebar.
-          It then contains the Advanced Filters sidebar and the main content. */}
       <div className="cms-page-outer-wrapper">
-
-        {/* Advanced Filter Sidebar (left-middle column) */}
-        {/* Uses sticky position on desktop, fixed for mobile overlay */}
+        {/* Advanced Filter Sidebar */}
         <aside className={`cms-filter-sidebar ${isFilterSidebarOpen ? 'open' : 'closed'} lg:block`}>
-          <div className="h-full overflow-y-auto custom-scrollbar"> {/* Using generic custom-scrollbar from globals */}
+          <div className="h-full overflow-y-auto custom-scrollbar">
             <AdvancedFilterSidebar
               filters={filters}
               onUpdateFilter={updateFilter}
               onClearAll={clearAllFilters}
               activeFiltersCount={activeFiltersCount}
-              isOpen={isFilterSidebarOpen} // Controls desktop visibility
-              onToggle={() => setIsFilterSidebarOpen(!isFilterSidebarOpen)} // Desktop toggle (this button remains here as a visual cue in the sidebar itself)
+              isOpen={isFilterSidebarOpen}
+              onToggle={() => setIsFilterSidebarOpen(!isFilterSidebarOpen)}
             />
           </div>
         </aside>
 
-        {/* Main Content Area (rightmost column, flexible width) */}
-        {/* Its left margin will be handled by the cms-page-outer-wrapper's flex layout */}
+        {/* Main Content Area */}
         <main className="cms-main-content">
-          {/* Header Bar for the Content Management Page itself - REMOVED FILTER BUTTON HERE */}
-          {/* The filter button is now handled by ContentDisplay component */}
-         
           {/* Error Display */}
           {error && (
             <div className="cms-error-message">
@@ -514,7 +585,7 @@ const CmsPage: React.FC = () => {
           )}
 
           {/* Content Area for Filter Pills and Document Display */}
-          <div className="cms-content-area-inner custom-scrollbar"> {/* Apply custom-scrollbar here */}
+          <div className="cms-content-area-inner custom-scrollbar">
             {/* Active Filter Pills */}
             <ActiveFilterPills
               filters={filters}
@@ -539,10 +610,10 @@ const CmsPage: React.FC = () => {
               onBulkAction={handleBulkAction}
               bookmarkedItems={bookmarkedItems}
               showToast={showToast}
-              isFilterSidebarOpen={isFilterSidebarOpen} // Pass down state
-              onToggleFilterSidebar={() => setIsFilterSidebarOpen(!isFilterSidebarOpen)} // Pass down desktop toggle
-              activeFiltersCount={activeFiltersCount} // Pass down count
-              onToggleMobileFilterSidebar={() => setIsMobileFilterOpen(true)} // Pass mobile toggle
+              isFilterSidebarOpen={isFilterSidebarOpen}
+              onToggleFilterSidebar={() => setIsFilterSidebarOpen(!isFilterSidebarOpen)}
+              activeFiltersCount={activeFiltersCount}
+              onToggleMobileFilterSidebar={() => setIsMobileFilterOpen(true)}
             />
 
             {/* Load More Button for Lazy Loading */}
@@ -567,7 +638,7 @@ const CmsPage: React.FC = () => {
           </div>
         </main>
 
-        {/* Mobile Filter Overlay (full screen overlay for filter sidebar) */}
+        {/* Mobile Filter Overlay */}
         {isMobileFilterOpen && (
           <div className="cms-mobile-filter-overlay" onClick={() => setIsMobileFilterOpen(false)}>
             <aside className="cms-mobile-filter-sidebar" onClick={e => e.stopPropagation()}>
@@ -576,16 +647,16 @@ const CmsPage: React.FC = () => {
                 onUpdateFilter={updateFilter}
                 onClearAll={clearAllFilters}
                 activeFiltersCount={activeFiltersCount}
-                isOpen={true} // Always open when in mobile overlay
-                onToggle={() => setIsMobileFilterOpen(false)} // Close mobile overlay (internal toggle)
-                isMobile={true} // Indicate it's in mobile mode
+                isOpen={true}
+                onToggle={() => setIsMobileFilterOpen(false)}
+                isMobile={true}
               />
             </aside>
           </div>
         )}
-      </div> {/* End of cms-page-outer-wrapper */}
+      </div>
 
-      {/* Document Preview Modal (Renders via Portal, its DOM position here doesn't matter) */}
+      {/* Document Preview Modal */}
       {selectedProposalForPreview && (
         <DocumentPreviewModal
           proposal={selectedProposalForPreview}
@@ -593,7 +664,7 @@ const CmsPage: React.FC = () => {
         />
       )}
 
-      {/* Toast Notifications (Renders via Portal, its DOM position here doesn't matter) */}
+      {/* Toast Notifications */}
       <Toast
         isOpen={isToastOpen}
         onClose={() => setIsToastOpen(false)}
