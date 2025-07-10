@@ -1,4 +1,4 @@
-// src/pages/index.tsx - FIXED VERSION WITH ENHANCED SEARCH RESULT HANDLING
+// src/pages/index.tsx - FINAL FIXED VERSION WITH MODAL AND ATTACHMENT FIXES
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '@/components/Layout';
 import Carousel from '@/components/Carousel';
@@ -9,11 +9,11 @@ import { useRouter } from 'next/router';
 import { ChevronDownIcon, Squares2X2Icon, ListBulletIcon } from '@heroicons/react/24/outline';
 import DocumentPreviewModal from '@/components/DocumentPreviewModal';
 import { MeiliSearch } from 'meilisearch';
-import { getBestDocumentUrl } from '@/config/documentMapping'; // Ensure this is imported
+import { getBestDocumentUrl } from '@/config/documentMapping';
 import { STRAPI_API_URL } from '@/config/apiConfig';
 import { StrapiProposal } from '@/types/strapi';
 import { extractProposalData } from '@/utils/dataHelpers';
-import Toast from '@/components/Toast'; // Import Toast component
+import Toast from '@/components/Toast';
 
 // --- MeiliSearch Configuration ---
 const MEILISEARCH_HOST = process.env.NEXT_PUBLIC_MEILISEARCH_HOST || 'http://localhost:7700';
@@ -60,6 +60,9 @@ const HomePage: React.FC<HomePageProps> = ({
   const [isDocumentPreviewOpen, setIsDocumentPreviewOpen] = useState(false);
   const [selectedProposalForPreview, setSelectedProposalForPreview] = useState<StrapiProposal | null>(null);
 
+  // ADDED: State to track URL parameter processing
+  const [hasProcessedUrlParam, setHasProcessedUrlParam] = useState(false);
+
   // Toast State
   const [isToastOpen, setIsToastOpen] = useState(false);
   const [toastTitle, setToastTitle] = useState('');
@@ -74,13 +77,26 @@ const HomePage: React.FC<HomePageProps> = ({
     setIsToastOpen(true);
   }, []);
 
-  // ENHANCED: Fetch complete document data for preview
+  // ENHANCED: Fetch complete document data for preview with better attachment handling
   const fetchCompleteDocumentData = async (proposalId: number): Promise<StrapiProposal | null> => {
     try {
       console.log('🔍 Fetching complete document data for ID:', proposalId);
       
       const strapiApiUrl = process.env.NEXT_PUBLIC_STRAPI_API_URL || 'http://localhost:1337/api';
-      const response = await fetch(`${strapiApiUrl}/document-stores/${proposalId}?populate=*`);
+      const baseUrl = strapiApiUrl.split('?')[0];
+      
+      // Try multiple API endpoint patterns for better compatibility
+      let response = await fetch(`${baseUrl}/document-stores/${proposalId}?populate[Attachments][populate]=*&populate[Description]=*&populate[Project_Team]=*&populate[SMEs]=*&populate[Pursuit_Team]=*`);
+      
+      if (!response.ok) {
+        console.log('🔄 Trying fallback API call with populate=*');
+        response = await fetch(`${baseUrl}/document-stores/${proposalId}?populate=*`);
+      }
+      
+      if (!response.ok) {
+        console.log('🔄 Trying basic API call without populate');
+        response = await fetch(`${baseUrl}/document-stores/${proposalId}`);
+      }
       
       if (!response.ok) {
         throw new Error(`Failed to fetch document: ${response.status} ${response.statusText}`);
@@ -89,24 +105,63 @@ const HomePage: React.FC<HomePageProps> = ({
       const apiData = await response.json();
       console.log('📄 Complete API response:', apiData);
       
+      // Handle different response structures
+      let documentData = apiData;
+      if (apiData.data) {
+        documentData = apiData.data;
+      }
+      
+      // Extract the attributes
+      let attributes = documentData.attributes || documentData;
+      
+      console.log('📋 Document attributes:', attributes);
+      console.log('📎 Raw Attachments data:', attributes.Attachments);
+      
+      // Enhanced attachment processing
+      let processedAttachments = null;
+      if (attributes.Attachments) {
+        if (Array.isArray(attributes.Attachments)) {
+          // Direct array of attachments
+          processedAttachments = attributes.Attachments;
+        } else if (attributes.Attachments.data && Array.isArray(attributes.Attachments.data)) {
+          // Strapi v4 format with data wrapper
+          processedAttachments = attributes.Attachments.data.map((item: any) => ({
+            id: item.id,
+            ...item.attributes,
+            url: item.attributes?.url || `/uploads/${item.attributes?.hash}${item.attributes?.ext}`,
+          }));
+        } else if (typeof attributes.Attachments === 'object') {
+          // Single attachment object
+          processedAttachments = [attributes.Attachments];
+        }
+      }
+      
+      console.log('📎 Processed Attachments:', processedAttachments);
+      
       // Extract and enhance the proposal data
-      const baseData = extractProposalData(apiData.data);
+      const baseData = extractProposalData(documentData);
       
       // Create enhanced result with all available data
       const enhancedResult: StrapiProposal = {
         ...baseData,
         id: proposalId,
         documentId: proposalId.toString(),
-        // Ensure we have the complete attachments data
-        Attachments: apiData.data?.attributes?.Attachments || null,
-        Description: apiData.data?.attributes?.Description || [],
-        Project_Team: apiData.data?.attributes?.Project_Team || null,
-        SMEs: apiData.data?.attributes?.SMEs || null,
-        Pursuit_Team: apiData.data?.attributes?.Pursuit_Team || null,
-        documentUrl: getBestDocumentUrl(apiData.data?.attributes || baseData),
+        // Enhanced attachment processing
+        Attachments: processedAttachments,
+        Description: attributes.Description || [],
+        Project_Team: attributes.Project_Team || null,
+        SMEs: attributes.SMEs || null,
+        Pursuit_Team: attributes.Pursuit_Team || null,
+        documentUrl: getBestDocumentUrl(attributes || baseData),
       } as StrapiProposal;
       
-      console.log('✅ Enhanced result for preview:', enhancedResult);
+      console.log('✅ Enhanced result for preview:', {
+        id: enhancedResult.id,
+        unique_id: enhancedResult.unique_id,
+        attachmentCount: enhancedResult.Attachments ? enhancedResult.Attachments.length : 0,
+        documentUrl: enhancedResult.documentUrl
+      });
+      
       return enhancedResult;
       
     } catch (error) {
@@ -235,7 +290,7 @@ const HomePage: React.FC<HomePageProps> = ({
       // Don't show error for carousel, just log it
       setLatestProposals([]); // Set empty array as fallback
     }
-  }, [showToast]); // Added showToast to dependencies
+  }, []);
 
   // Effect to fetch data when search/page/sort changes
   useEffect(() => {
@@ -247,10 +302,14 @@ const HomePage: React.FC<HomePageProps> = ({
     fetchLatestProposals();
   }, [fetchLatestProposals]);
 
-  // ENHANCED: Handle URL proposalId parameter for direct document access
+  // FIXED: Handle URL proposalId parameter for direct document access
   useEffect(() => {
-    if (urlProposalId && !selectedProposalForPreview) {
+    // Only process if we haven't already processed this URL param and there's no modal currently open
+    if (urlProposalId && !selectedProposalForPreview && !hasProcessedUrlParam) {
       console.log('🔗 URL contains proposalId:', urlProposalId, 'fetching document...');
+      
+      // Mark as processed immediately to prevent re-processing
+      setHasProcessedUrlParam(true);
       
       fetchCompleteDocumentData(urlProposalId).then(completeDocument => {
         if (completeDocument) {
@@ -265,7 +324,12 @@ const HomePage: React.FC<HomePageProps> = ({
         }
       });
     }
-  }, [urlProposalId, selectedProposalForPreview, router]);
+    
+    // Reset the flag when URL param changes or is removed
+    if (!urlProposalId) {
+      setHasProcessedUrlParam(false);
+    }
+  }, [urlProposalId, selectedProposalForPreview, hasProcessedUrlParam, router]);
 
   const handleClearFilters = useCallback(() => {
     router.replace({ pathname: router.pathname, query: {} }, undefined, { shallow: true });
@@ -278,10 +342,16 @@ const HomePage: React.FC<HomePageProps> = ({
     setCurrentPage(1);
   }, []);
 
-  // FIXED: Enhanced search result click handler with complete data fetching
+  // FIXED: Enhanced search result click handler with better state management
   const handleSearchResultClick = useCallback(async (proposal: StrapiProposal) => {
     try {
       console.log('🎯 Search result clicked on Homepage:', proposal);
+      
+      // Prevent multiple rapid clicks
+      if (selectedProposalForPreview) {
+        console.log('⚠️ Modal already open, ignoring click');
+        return;
+      }
       
       // Fetch complete document data with attachments
       const completeDocument = await fetchCompleteDocumentData(proposal.id);
@@ -296,6 +366,9 @@ const HomePage: React.FC<HomePageProps> = ({
       
       setIsDocumentPreviewOpen(true);
       
+      // Mark as processed to prevent URL param from reopening
+      setHasProcessedUrlParam(true);
+      
       // Update URL to show selected proposal
       if (router.query.proposalId !== String(proposal.id)) {
         router.push(`/?proposalId=${proposal.id}`, undefined, { shallow: true });
@@ -306,18 +379,31 @@ const HomePage: React.FC<HomePageProps> = ({
       // Fallback to using the search result as-is
       setSelectedProposalForPreview(proposal);
       setIsDocumentPreviewOpen(true);
+      setHasProcessedUrlParam(true);
       router.push(`/?proposalId=${proposal.id}`, undefined, { shallow: true });
     }
-  }, [router]);
+  }, [router, selectedProposalForPreview]);
 
-  // FIXED: Close preview modal and update URL
+  // FIXED: Close preview modal and update URL with proper state management
   const closeDocumentPreview = useCallback(() => {
+    console.log('🔒 Closing preview modal');
+    
+    // Clear the modal state first
     setIsDocumentPreviewOpen(false);
     setSelectedProposalForPreview(null);
     
+    // Mark that we're intentionally closing (to prevent reopening)
+    setHasProcessedUrlParam(true);
+    
     // Remove proposalId from URL but keep other query parameters
     const { proposalId, ...queryWithoutProposalId } = router.query;
-    router.push({ pathname: router.pathname, query: queryWithoutProposalId }, undefined, { shallow: true });
+    router.push({ pathname: router.pathname, query: queryWithoutProposalId }, undefined, { shallow: true })
+      .then(() => {
+        // Reset the flag after URL update is complete
+        setTimeout(() => {
+          setHasProcessedUrlParam(false);
+        }, 100);
+      });
   }, [router]);
 
   const totalPages = Math.ceil(totalProposals / ITEMS_PER_PAGE);
@@ -368,7 +454,7 @@ const HomePage: React.FC<HomePageProps> = ({
       )}
 
       {/* Popular Resources Section - Now uses content-display__header for consistency */}
-      <div className="content-display__header" style={{background:'none'}}> {/* Applied the class */}
+      <div className="content-display__header" style={{background:'none'}}>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full">
           <div className="content-display__title">
             <div className="content-display__count-indicator"></div>
@@ -396,7 +482,11 @@ const HomePage: React.FC<HomePageProps> = ({
                 <option value="Client_Name:asc">Client Name (A-Z)</option>
                 <option value="updatedAt:desc">Recently Updated</option>
               </select>
-              <div className="content-display__sort-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" data-slot="icon" className="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"></path></svg></div>
+              <div className="content-display__sort-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" aria-hidden="true" data-slot="icon" className="h-4 w-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"></path>
+                </svg>
+              </div>
             </div>
             
             {/* View toggle */}
@@ -452,7 +542,7 @@ const HomePage: React.FC<HomePageProps> = ({
                 <ProposalCard 
                   proposal={proposal} 
                   isListView={activeView === 'list'} 
-                  showToast={showToast} // Pass showToast to ProposalCard
+                  showToast={showToast}
                 />
               </div>
             ))}
@@ -500,6 +590,8 @@ const HomePage: React.FC<HomePageProps> = ({
           onClose={closeDocumentPreview}
         />
       )}
+      
+      {/* Toast Notifications */}
       <Toast
         isOpen={isToastOpen}
         onClose={() => setIsToastOpen(false)}
