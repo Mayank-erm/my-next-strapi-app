@@ -1,378 +1,244 @@
-// src/hooks/useGlobalSearch.ts - Enhanced Global Search Hook
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useRouter } from 'next/router';
+// src/hooks/useGlobalSearch.ts - FIXED VERSION
+import { useState, useCallback, useRef } from 'react';
 import { MeiliSearch } from 'meilisearch';
 import { StrapiProposal } from '@/types/strapi';
+import { extractProposalData } from '@/utils/dataHelpers';
+import { getBestDocumentUrl } from '@/config/documentMapping';
 
-// Enhanced MeiliSearch client with better configuration
+// MeiliSearch client configuration
 const searchClient = new MeiliSearch({
   host: process.env.NEXT_PUBLIC_MEILISEARCH_HOST || 'http://localhost:7700',
   apiKey: process.env.NEXT_PUBLIC_MEILISEARCH_API_KEY || 'masterKey',
 });
 
-// Search context configuration for different pages
-export type SearchScope = 'global' | 'dashboard' | 'content-management' | 'bookmarks' | 'favorites';
-
-interface SearchContextConfig {
-  scope: SearchScope;
-  title: string;
-  placeholder: string;
-  icon: string;
-  filters?: Record<string, any>;
-  facets?: string[];
-  sortOptions: string[];
-  maxResults: number;
-}
-
-const SEARCH_CONTEXTS: Record<string, SearchContextConfig> = {
-  '/': {
-    scope: 'dashboard',
-    title: 'Dashboard Search',
-    placeholder: 'Search recent documents, trends...',
-    icon: '🏠',
-    filters: {
-      // Dashboard shows recent and high-value content
-      publishedAt: ['>=', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()],
-    },
-    facets: ['Document_Type', 'Industry', 'Region', 'Business_Unit'],
-    sortOptions: ['publishedAt:desc', 'value:desc', 'unique_id:asc'],
-    maxResults: 12,
-  },
-  '/content-management': {
-    scope: 'content-management',
-    title: 'Content Library Search',
-    placeholder: 'Search all documents, reports, proposals...',
-    icon: '📚',
-    filters: {},
-    facets: ['Document_Type', 'Document_Sub_Type', 'Industry', 'Sub_Industry', 'Region', 'Country', 'Business_Unit'],
-    sortOptions: ['publishedAt:desc', 'publishedAt:asc', 'unique_id:asc', 'unique_id:desc', 'value:desc', 'value:asc'],
-    maxResults: 50,
-  },
-  '/bookmarks': {
-    scope: 'bookmarks',
-    title: 'Bookmarked Documents',
-    placeholder: 'Search your bookmarked documents...',
-    icon: '🔖',
-    filters: {
-      // This would be implemented with user-specific bookmark data
-      isBookmarked: true,
-    },
-    facets: ['Document_Type', 'Industry'],
-    sortOptions: ['bookmarked_at:desc', 'publishedAt:desc'],
-    maxResults: 20,
-  },
+// Debouncing helper
+const debounce = (func: (...args: any[]) => void, delay: number) => {
+  let timeout: NodeJS.Timeout;
+  return (...args: any[]) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), delay);
+  };
 };
 
-interface UseGlobalSearchProps {
-  onResultClick?: (proposal: StrapiProposal) => void;
-  customFilters?: Record<string, any>;
+interface UseGlobalSearchResult {
+  searchResults: StrapiProposal[];
+  isSearching: boolean;
+  searchError: string | null;
+  performSearch: (query: string) => Promise<void>;
+  clearSearch: () => void;
 }
 
-interface SearchResult {
-  proposals: StrapiProposal[];
-  totalHits: number;
-  facetDistribution: Record<string, Record<string, number>>;
-  processingTime: number;
-  query: string;
-  scope: SearchScope;
-}
+export const useGlobalSearch = (): UseGlobalSearchResult => {
+  const [searchResults, setSearchResults] = useState<StrapiProposal[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  
+  // Ref to track the latest search to avoid race conditions
+  const searchIdRef = useRef(0);
 
-export const useGlobalSearch = ({ onResultClick, customFilters = {} }: UseGlobalSearchProps = {}) => {
-  const router = useRouter();
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [searchResults, setSearchResults] = useState<SearchResult | null>(null);
-  const [isSearching, setIsSearching] = useState<boolean>(false);
-  const [searchHistory, setSearchHistory] = useState<string[]>([]);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-
-  // Get current search context based on route
-  const searchContext = useMemo((): SearchContextConfig => {
-    const currentPath = router.pathname;
-    return SEARCH_CONTEXTS[currentPath] || {
-      scope: 'global',
-      title: 'Global Search',
-      placeholder: 'Search all documents...',
-      icon: '🔍',
-      filters: {},
-      facets: ['Document_Type', 'Industry', 'Region'],
-      sortOptions: ['publishedAt:desc', 'unique_id:asc'],
-      maxResults: 30,
-    };
-  }, [router.pathname]);
-
-  // Update search term from URL
-  useEffect(() => {
-    const urlSearchTerm = (router.query.searchTerm as string) || '';
-    if (urlSearchTerm !== searchTerm) {
-      setSearchTerm(urlSearchTerm);
-    }
-  }, [router.query.searchTerm]);
-
-  // Load search history from localStorage
-  useEffect(() => {
-    try {
-      if (typeof window !== 'undefined') {
-        const saved = localStorage.getItem('searchHistory');
-        if (saved) {
-          setSearchHistory(JSON.parse(saved));
-        }
-      }
-    } catch (error) {
-      console.warn('Failed to load search history:', error);
-    }
-  }, []);
-
-  // Enhanced search function with context awareness
-  const performSearch = useCallback(async (
-    query: string,
-    sortBy: string = searchContext.sortOptions[0],
-    offset: number = 0,
-    limit: number = searchContext.maxResults
-  ): Promise<SearchResult | null> => {
-    if (!query.trim()) {
-      setSearchResults(null);
-      return null;
+  // Main search function
+  const performSearch = useCallback(async (query: string) => {
+    if (!query || query.trim().length === 0) {
+      setSearchResults([]);
+      setSearchError(null);
+      return;
     }
 
+    // Increment search ID to handle race conditions
+    const currentSearchId = ++searchIdRef.current;
+    
     setIsSearching(true);
+    setSearchError(null);
 
     try {
-      // Build search options based on context and custom filters
+      console.log('🔍 Performing global search:', { query, searchId: currentSearchId });
+
+      // Enhanced search options - SIMPLIFIED AND FIXED
       const searchOptions: any = {
-        offset,
-        limit,
-        sort: [sortBy],
-        facets: searchContext.facets,
+        limit: 10, // Limit results for autocomplete
         attributesToRetrieve: [
-          'Unique_Id','Client_Type','Last_Stage_Change_Date',
-          'Document_Type', 'Document_Sub_Type', 'Industry', 'Sub_Industry','Service',
-          'State', 'Sub_Service','Commercial_Program','Client_Contact_Buying_Center',
-          'Region', 'Country', 'Business_Unit' ,'City',
-          'Description'
+          'id', 'documentId', 'SF_Number', 'Unique_Id', 'unique_id', 'Client_Name',
+          'Document_Type', 'Industry', 'Region', 'publishedAt', 'updatedAt'
         ],
-        attributesToHighlight: [
-          'Unique_Id', 'Client_Type', 'Document_Type', 'Description','Industry'
-        ],
+        attributesToHighlight: ['Unique_Id', 'unique_id', 'SF_Number', 'Client_Name', 'Document_Type'],
         highlightPreTag: '<mark class="bg-erm-primary bg-opacity-20 text-erm-dark rounded px-1">',
         highlightPostTag: '</mark>',
-        attributesToCrop: ['Description'],
-        cropLength: 200,
       };
-
-      // Apply context-specific filters
-      const contextFilters: string[] = [];
-
-      // Dashboard filters
-      if (searchContext.scope === 'dashboard') {
-        contextFilters.push('publishedAt >= "2024-01-01"');
-      }
-
-      // Bookmarks filters (would need user-specific implementation)
-      if (searchContext.scope === 'bookmarks') {
-        // This would be implemented with actual user bookmark data
-        contextFilters.push('isBookmarked = true');
-      }
-
-      // Apply custom filters
-      Object.entries({ ...searchContext.filters, ...customFilters }).forEach(([key, value]) => {
-        if (Array.isArray(value)) {
-          const [operator, filterValue] = value;
-          contextFilters.push(`${key} ${operator} "${filterValue}"`);
-        } else if (typeof value === 'string') {
-          contextFilters.push(`${key} = "${value}"`);
-        } else if (typeof value === 'boolean') {
-          contextFilters.push(`${key} = ${value}`);
-        }
-      });
-
-      if (contextFilters.length > 0) {
-        searchOptions.filter = contextFilters.join(' AND ');
-      }
-
-      console.log(`🔍 Performing ${searchContext.scope} search:`, {
-        query,
-        context: searchContext.scope,
-        filters: searchOptions.filter,
-        facets: searchOptions.facets
-      });
 
       const results = await searchClient.index('document_stores').search(query, searchOptions);
 
-      // Transform results
-      const transformedProposals: StrapiProposal[] = (results.hits || []).map((hit: any) => ({
-        id: hit.id,
-        documentId: hit.id.toString(),
-        unique_id: hit.unique_id || hit.Unique_Id || hit.SF_Number || '',
-        SF_Number: hit.SF_Number || hit.unique_id || '',
-        Client_Name: hit.Client_Name || '',
-        Client_Type: hit.Client_Type || '',
-        Client_Contact: hit.Client_Contact || '',
-        Client_Contact_Title: hit.Client_Contact_Title || '',
-        Client_Journey: hit.Client_Journey || '',
-        Document_Type: hit.Document_Type || '',
-        Document_Sub_Type: hit.Document_Sub_Type || '',
-        Document_Value_Range: hit.Document_Value_Range || '',
-        Document_Outcome: hit.Document_Outcome || '',
-        Last_Stage_Change_Date: hit.Last_Stage_Change_Date || '',
-        Industry: hit.Industry || '',
-        Sub_Industry: hit.Sub_Industry || '',
-        Service: hit.Service || '',
-        Sub_Service: hit.Sub_Service || '',
-        Business_Unit: hit.Business_Unit || '',
-        Region: hit.Region || '',
-        Country: hit.Country || '',
-        State: hit.State || '',
-        City: hit.City || '',
-        Author: hit.Author || '',
-        PIC: hit.PIC || '',
-        PM: hit.PM || '',
-        Keywords: hit.Keywords || '',
-        Commercial_Program: hit.Commercial_Program || '',
-        Project_Team: hit.Project_Team || null,
-        SMEs: hit.SMEs || null,
-        Competitors: hit.Competitors || '',
-        createdAt: hit.createdAt || new Date().toISOString(),
-        updatedAt: hit.updatedAt || new Date().toISOString(),
-        publishedAt: hit.publishedAt || new Date().toISOString(),
-        Description: hit.Description || [],
-        Attachments: hit.Attachments || null,
-        Pursuit_Team: hit.Pursuit_Team || null,
-        documentUrl: hit.documentUrl || '',
-        value: hit.value || 0,
-        proposalName: hit.proposalName || hit.SF_Number || hit.Unique_Id || '',
-        // Include highlighted results for UI
-        _highlightResults: hit._formatted,
-      }));
-
-      const searchResult: SearchResult = {
-        proposals: transformedProposals,
-        totalHits: results.estimatedTotalHits || 0,
-        facetDistribution: results.facetDistribution || {},
-        processingTime: results.processingTimeMs || 0,
-        query,
-        scope: searchContext.scope,
-      };
-
-      setSearchResults(searchResult);
-
-      // Add to search history
-      if (query.trim()) {
-        const updatedHistory = [query, ...searchHistory.filter(h => h !== query)].slice(0, 10);
-        setSearchHistory(updatedHistory);
-        try {
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('searchHistory', JSON.stringify(updatedHistory));
-          }
-        } catch (error) {
-          console.warn('Failed to save search history:', error);
-        }
+      // Check if this search is still the latest one
+      if (currentSearchId !== searchIdRef.current) {
+        console.log('🔄 Search cancelled - newer search in progress');
+        return;
       }
 
-      return searchResult;
+      console.log('📊 Search Results:', {
+        hits: results.hits?.length || 0,
+        total: results.estimatedTotalHits,
+        processingTime: results.processingTimeMs
+      });
 
-    } catch (error) {
-      console.error(`❌ ${searchContext.scope} search error:`, error);
-      setSearchResults(null);
-      return null;
+      // FIXED: Transform results with proper error handling
+      const transformedResults: StrapiProposal[] = (results.hits || []).map((hit: any, index: number) => {
+        try {
+          console.log(`🔧 Processing hit ${index}:`, hit);
+
+          // FIXED: Safe property access with fallbacks
+          const id = hit.id || hit.documentId || index + 1;
+          const unique_id = hit.unique_id || hit.Unique_Id || hit.SF_Number || `doc-${id}`;
+          const documentId = hit.documentId || (id ? id.toString() : `${index + 1}`);
+
+          // Create base proposal object with safe defaults
+          const baseProposal: StrapiProposal = {
+            id: typeof id === 'number' ? id : parseInt(id as string, 10) || index + 1,
+            documentId: documentId,
+            unique_id: unique_id,
+            SF_Number: hit.SF_Number || hit.unique_id || unique_id,
+            Client_Name: hit.Client_Name || 'Unknown Client',
+            Client_Type: hit.Client_Type || '',
+            Client_Contact: hit.Client_Contact || '',
+            Client_Contact_Title: hit.Client_Contact_Title || '',
+            Client_Journey: hit.Client_Journey || '',
+            Document_Type: hit.Document_Type || 'Document',
+            Document_Sub_Type: hit.Document_Sub_Type || '',
+            Document_Value_Range: hit.Document_Value_Range || '',
+            Document_Outcome: hit.Document_Outcome || '',
+            Last_Stage_Change_Date: hit.Last_Stage_Change_Date || hit.updatedAt || new Date().toISOString(),
+            Industry: hit.Industry || 'General',
+            Sub_Industry: hit.Sub_Industry || '',
+            Service: hit.Service || '',
+            Sub_Service: hit.Sub_Service || '',
+            Business_Unit: hit.Business_Unit || '',
+            Region: hit.Region || 'Global',
+            Country: hit.Country || '',
+            State: hit.State || '',
+            City: hit.City || '',
+            Author: hit.Author || '',
+            PIC: hit.PIC || '',
+            PM: hit.PM || '',
+            Keywords: hit.Keywords || '',
+            Commercial_Program: hit.Commercial_Program || '',
+            Project_Team: hit.Project_Team || null,
+            SMEs: hit.SMEs || null,
+            Competitors: hit.Competitors || '',
+            createdAt: hit.createdAt || new Date().toISOString(),
+            updatedAt: hit.updatedAt || new Date().toISOString(),
+            publishedAt: hit.publishedAt || new Date().toISOString(),
+            Description: hit.Description || [],
+            Attachments: hit.Attachments || null,
+            Pursuit_Team: hit.Pursuit_Team || null,
+            documentUrl: '', // Will be set below
+            value: typeof hit.value === 'number' ? hit.value : 0,
+            proposalName: hit.proposalName || unique_id,
+            // Add highlighted results for better UX
+            _highlightResults: hit._formatted || {},
+          };
+
+          // Generate document URL using the helper function
+          baseProposal.documentUrl = getBestDocumentUrl(baseProposal);
+
+          console.log(`✅ Successfully processed hit ${index}:`, {
+            id: baseProposal.id,
+            unique_id: baseProposal.unique_id,
+            documentUrl: baseProposal.documentUrl
+          });
+
+          return baseProposal;
+
+        } catch (hitError) {
+          console.error(`❌ Error processing hit ${index}:`, hitError, hit);
+          
+          // Return a fallback proposal to prevent the entire search from failing
+          const fallbackId = index + 1;
+          return {
+            id: fallbackId,
+            documentId: fallbackId.toString(),
+            unique_id: `fallback-${fallbackId}`,
+            SF_Number: `fallback-${fallbackId}`,
+            Client_Name: 'Error Processing Document',
+            Client_Type: '',
+            Client_Contact: '',
+            Client_Contact_Title: '',
+            Client_Journey: '',
+            Document_Type: 'Document',
+            Document_Sub_Type: '',
+            Document_Value_Range: '',
+            Document_Outcome: '',
+            Last_Stage_Change_Date: new Date().toISOString(),
+            Industry: 'General',
+            Sub_Industry: '',
+            Service: '',
+            Sub_Service: '',
+            Business_Unit: '',
+            Region: 'Global',
+            Country: '',
+            State: '',
+            City: '',
+            Author: '',
+            PIC: '',
+            PM: '',
+            Keywords: '',
+            Commercial_Program: '',
+            Project_Team: null,
+            SMEs: null,
+            Competitors: '',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            publishedAt: new Date().toISOString(),
+            Description: [],
+            Attachments: null,
+            Pursuit_Team: null,
+            documentUrl: '',
+            value: 0,
+            proposalName: `fallback-${fallbackId}`,
+            _highlightResults: {},
+          } as StrapiProposal;
+        }
+      });
+
+      console.log(`✅ Successfully transformed ${transformedResults.length} search results`);
+      setSearchResults(transformedResults);
+
+    } catch (error: any) {
+      // Only set error if this is still the latest search
+      if (currentSearchId === searchIdRef.current) {
+        console.error('❌ Global search error:', error);
+        let errorMessage = 'Search failed. Please try again.';
+        
+        if (error.message.includes('index_not_found')) {
+          errorMessage = 'Search index not found. Please ensure documents are indexed.';
+        } else if (error.message.includes('connection') || error.message.includes('fetch')) {
+          errorMessage = 'Cannot connect to search service. Please check if MeiliSearch is running.';
+        }
+        
+        setSearchError(errorMessage);
+        setSearchResults([]);
+      }
     } finally {
-      setIsSearching(false);
+      // Only update loading state if this is still the latest search
+      if (currentSearchId === searchIdRef.current) {
+        setIsSearching(false);
+      }
     }
-  }, [searchContext, customFilters, searchHistory]);
+  }, []);
 
-  // Get search suggestions based on facets and history
-  const getSuggestions = useCallback(async (query: string): Promise<string[]> => {
-    if (query.length < 2) {
-      return searchHistory.slice(0, 5);
-    }
+  // Debounced search function for better UX
+  const debouncedSearch = useCallback(debounce(performSearch, 300), [performSearch]);
 
-    try {
-      // Get suggestions from search results facets
-      const results = await searchClient.index('document_stores').search(query, {
-        limit: 0,
-        facets: ['Document_Type', 'Industry', 'Client_Type', 'Document_Sub_Type'],
-      });
-
-      const suggestions: string[] = [];
-      
-      // Extract suggestions from facets
-      Object.entries(results.facetDistribution || {}).forEach(([facet, values]) => {
-        Object.keys(values).forEach(value => {
-          if (value.toLowerCase().includes(query.toLowerCase()) && !suggestions.includes(value)) {
-            suggestions.push(value);
-          }
-        });
-      });
-
-      // Add relevant search history
-      const historyMatches = searchHistory.filter(h => 
-        h.toLowerCase().includes(query.toLowerCase()) && !suggestions.includes(h)
-      );
-
-      return [...suggestions.slice(0, 5), ...historyMatches.slice(0, 3)];
-
-    } catch (error) {
-      console.error('Error getting suggestions:', error);
-      return searchHistory.slice(0, 5);
-    }
-  }, [searchHistory]);
-
-  // Update URL with search term
-  const updateSearchUrl = useCallback((term: string) => {
-    const query = { ...router.query };
-    if (term) {
-      query.searchTerm = term;
-    } else {
-      delete query.searchTerm;
-    }
-    
-    router.replace({
-      pathname: router.pathname,
-      query,
-    }, undefined, { shallow: true });
-  }, [router]);
-
-  // Handle search submission
-  const handleSearch = useCallback((term: string) => {
-    setSearchTerm(term);
-    updateSearchUrl(term);
-    performSearch(term);
-  }, [updateSearchUrl, performSearch]);
-
-  // Clear search
   const clearSearch = useCallback(() => {
-    setSearchTerm('');
-    setSearchResults(null);
-    updateSearchUrl('');
-  }, [updateSearchUrl]);
-
-  // Get auto-suggestions
-  const getAutoSuggestions = useCallback(async (query: string) => {
-    const suggestions = await getSuggestions(query);
-    setSuggestions(suggestions);
-    return suggestions;
-  }, [getSuggestions]);
+    // Increment search ID to cancel any in-progress searches
+    searchIdRef.current++;
+    setSearchResults([]);
+    setSearchError(null);
+    setIsSearching(false);
+  }, []);
 
   return {
-    // Search state
-    searchTerm,
     searchResults,
     isSearching,
-    searchHistory,
-    suggestions,
-    
-    // Search context
-    searchContext,
-    
-    // Search functions
-    performSearch,
-    handleSearch,
+    searchError,
+    performSearch: debouncedSearch, // Use debounced version
     clearSearch,
-    getAutoSuggestions,
-    
-    // Result handling
-    onResultClick: onResultClick || (() => {}),
-    
-    // URL management
-    updateSearchUrl,
   };
 };

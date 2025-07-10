@@ -1,4 +1,4 @@
-// src/hooks/useSearchContext.ts - Context-aware search hook
+// src/hooks/useSearchContext.ts - FIXED VERSION THAT RESPECTS PAGE CONTEXT
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { MeiliSearch } from 'meilisearch';
@@ -28,24 +28,24 @@ const SEARCH_CONTEXTS: Record<string, SearchContextConfig> = {
   '/': {
     context: 'dashboard',
     title: 'Dashboard Search',
-    description: 'Search recent and popular documents',
+    description: 'Search recent and trending documents',
     icon: '🏠',
     placeholder: 'Search recent documents, trends...',
     suggestions: [
-      'Recent environmental reports',
-      'Popular sustainability proposals',
-      'Latest carbon assessments',
-      'Trending ESG documents'
+      'Environmental Impact Assessment',
+      'Sustainability Report',
+      'Carbon Footprint Analysis',
+      'ESG Compliance Document',
+      'Renewable Energy Proposal'
     ],
     filters: {
-      // Dashboard shows recent and popular content
       sort: ['publishedAt:desc'],
       limit: 6,
     }
   },
   '/content-management': {
     context: 'content-management',
-    title: 'Content Library Search',
+    title: 'Content Library',
     description: 'Search all documents and reports',
     icon: '📚',
     placeholder: 'Search all documents, reports, proposals...',
@@ -57,7 +57,6 @@ const SEARCH_CONTEXTS: Record<string, SearchContextConfig> = {
       'Renewable Energy Proposal'
     ],
     filters: {
-      // Content management shows all content
       sort: ['publishedAt:desc'],
       limit: 10,
     }
@@ -69,14 +68,13 @@ const SEARCH_CONTEXTS: Record<string, SearchContextConfig> = {
     icon: '🔖',
     placeholder: 'Search your bookmarked documents...',
     suggestions: [
-      'My saved reports',
-      'Bookmarked proposals',
-      'Saved assessments',
-      'Favorite documents'
+      'Environmental Impact Assessment',
+      'Sustainability Report',
+      'Carbon Footprint Analysis',
+      'ESG Compliance Document',
+      'Renewable Energy Proposal'
     ],
     filters: {
-      // Bookmarks would filter by user's bookmarked items
-      // This would need to be implemented with user-specific data
       sort: ['bookmarked_at:desc'],
       limit: 8,
     }
@@ -98,7 +96,7 @@ interface UseSearchContextReturn {
   performContextualSearch: (query: string) => Promise<void>;
   clearSearch: () => void;
   
-  // Context switching
+  // Context switching - FIXED: No longer forces navigation
   switchToGlobalSearch: () => void;
   getContextualPlaceholder: () => string;
   getContextualSuggestions: () => string[];
@@ -125,18 +123,32 @@ export const useSearchContext = (): UseSearchContextReturn => {
     };
   }, [router.pathname]);
 
-  // Update search term from URL
+  // Update search term from URL and check for global mode
   useEffect(() => {
     const urlSearchTerm = (router.query.searchTerm as string) || '';
+    const isGlobalMode = router.query.globalSearch === 'true';
+    
     if (urlSearchTerm !== searchTerm) {
       setSearchTerm(urlSearchTerm);
     }
-  }, [router.query.searchTerm]);
+    
+    // Update contextual search state based on URL parameter
+    setIsContextualSearch(!isGlobalMode);
+  }, [router.query.searchTerm, router.query.globalSearch]);
 
   // Perform contextual search
   const performContextualSearch = useCallback(async (query: string) => {
     if (!query.trim()) {
       setSearchResults([]);
+      return;
+    }
+
+    // Check if we're in global search mode
+    const isGlobalMode = router.query.globalSearch === 'true' || !isContextualSearch;
+    
+    if (isGlobalMode) {
+      // Use global search
+      performGlobalSearch(query);
       return;
     }
 
@@ -231,6 +243,7 @@ export const useSearchContext = (): UseSearchContextReturn => {
         documentUrl: '',
         value: 0,
         proposalName: hit.SF_Number || hit.Unique_Id || '',
+        // Add highlighted results for better UX
         _highlightResults: hit._formatted,
       }));
 
@@ -244,14 +257,14 @@ export const useSearchContext = (): UseSearchContextReturn => {
     } finally {
       setIsSearching(false);
     }
-  }, [searchContext]);
+  }, [searchContext, router.query.globalSearch, isContextualSearch]);
 
-  // Clear search
+  // Clear search - STAYS ON CURRENT PAGE
   const clearSearch = useCallback(() => {
     setSearchTerm('');
     setSearchResults([]);
     
-    // Clear URL search parameter
+    // Clear URL search parameter but stay on current page
     const { searchTerm: _, ...queryWithoutSearch } = router.query;
     router.replace({
       pathname: router.pathname,
@@ -259,22 +272,130 @@ export const useSearchContext = (): UseSearchContextReturn => {
     }, undefined, { shallow: true });
   }, [router]);
 
-  // Switch to global search (navigate to content management with search term)
+  // Switch to global search - FIXED: Actually removes contextual filters
   const switchToGlobalSearch = useCallback(() => {
-    if (searchTerm) {
-      router.push(`/content-management?searchTerm=${encodeURIComponent(searchTerm)}`);
-    } else {
-      router.push('/content-management');
-    }
+    console.log('🌐 Switching to global search mode');
     setIsContextualSearch(false);
+    
+    // If there's a search term, perform global search on current page
+    if (searchTerm) {
+      // Update URL to indicate global search mode
+      const currentQuery = { ...router.query };
+      currentQuery.globalSearch = 'true';
+      
+      router.replace({
+        pathname: router.pathname,
+        query: currentQuery
+      }, undefined, { shallow: true });
+      
+      // Perform search WITHOUT contextual filters by using 'global' context
+      performGlobalSearch(searchTerm);
+    } else {
+      // Just mark as global mode for future searches
+      const currentQuery = { ...router.query };
+      currentQuery.globalSearch = 'true';
+      
+      router.replace({
+        pathname: router.pathname,
+        query: currentQuery
+      }, undefined, { shallow: true });
+    }
   }, [router, searchTerm]);
+
+  // Perform global search without contextual filters
+  const performGlobalSearch = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+
+    try {
+      // Global search options - NO contextual filters
+      const searchOptions: any = {
+        limit: 10, // Standard limit for global search
+        sort: ['publishedAt:desc'],
+        attributesToRetrieve: [
+          'id', 'documentId', 'SF_Number', 'Unique_Id', 'Client_Name',
+          'Document_Type', 'Industry', 'Region', 'publishedAt', 'updatedAt'
+        ],
+        attributesToHighlight: ['Unique_Id', 'Client_Name', 'Document_Type'],
+        highlightPreTag: '<mark class="bg-erm-primary bg-opacity-20 text-erm-dark rounded px-1">',
+        highlightPostTag: '</mark>',
+        // NO FILTERS - this is the key difference for global search
+      };
+
+      console.log('🌐 Performing global search:', {
+        query,
+        options: searchOptions
+      });
+
+      const results = await searchClient.index('document_stores').search(query, searchOptions);
+
+      const transformedResults: StrapiProposal[] = (results.hits || []).map((hit: any) => ({
+        id: hit.id,
+        documentId: hit.id.toString(),
+        unique_id: hit.unique_id || hit.Unique_Id || hit.SF_Number || '',
+        SF_Number: hit.SF_Number || hit.unique_id || '',
+        Client_Name: hit.Client_Name || '',
+        Client_Type: '',
+        Client_Contact: '',
+        Client_Contact_Title: '',
+        Client_Journey: '',
+        Document_Type: hit.Document_Type || '',
+        Document_Sub_Type: '',
+        Document_Value_Range: '',
+        Document_Outcome: '',
+        Last_Stage_Change_Date: '',
+        Industry: hit.Industry || '',
+        Sub_Industry: '',
+        Service: '',
+        Sub_Service: '',
+        Business_Unit: '',
+        Region: hit.Region || '',
+        Country: '',
+        State: '',
+        City: '',
+        Author: '',
+        PIC: '',
+        PM: '',
+        Keywords: '',
+        Commercial_Program: '',
+        Project_Team: null,
+        SMEs: null,
+        Competitors: '',
+        createdAt: hit.createdAt || new Date().toISOString(),
+        updatedAt: hit.updatedAt || new Date().toISOString(),
+        publishedAt: hit.publishedAt || new Date().toISOString(),
+        Description: [],
+        Attachments: null,
+        Pursuit_Team: null,
+        documentUrl: '',
+        value: 0,
+        proposalName: hit.SF_Number || hit.Unique_Id || '',
+        _highlightResults: hit._formatted,
+      }));
+
+      setSearchResults(transformedResults);
+
+      console.log(`✅ Found ${transformedResults.length} global search results`);
+
+    } catch (error) {
+      console.error('❌ Global search error:', error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
 
   // Get contextual placeholder
   const getContextualPlaceholder = useCallback((): string => {
-    return isContextualSearch 
-      ? searchContext.placeholder 
-      : 'Search all documents...';
-  }, [isContextualSearch, searchContext.placeholder]);
+    if (!isContextualSearch || router.query.globalSearch === 'true') {
+      return 'Search all documents...';
+    }
+    return searchContext.placeholder;
+  }, [isContextualSearch, searchContext.placeholder, router.query.globalSearch]);
 
   // Get contextual suggestions
   const getContextualSuggestions = useCallback((): string[] => {

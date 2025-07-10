@@ -1,300 +1,327 @@
-// src/utils/dataHelpers.ts - ENHANCED WITH ATTACHMENT SUPPORT
+// src/utils/dataHelpers.ts - FIXED VERSION WITH SAFE DATA EXTRACTION
+import { StrapiProposal } from '@/types/strapi';
 
-import { StrapiProposal, StrapiAttachment } from '@/types/strapi';
+/**
+ * Safely extracts proposal data from various sources (Strapi API, MeiliSearch, etc.)
+ * with comprehensive error handling and fallbacks
+ */
+export function extractProposalData(data: any): Partial<StrapiProposal> {
+  if (!data) {
+    console.warn('extractProposalData: No data provided');
+    return {};
+  }
 
-// Function to parse monetary range string into a number (taking the lower bound for filtering)
-const parseValueRange = (rangeStr: string | undefined | null): number => {
-  if (!rangeStr) return 0;
-  const match = rangeStr.match(/^(\d+)([KM]?)/i); // Extract number and K/M suffix
-  if (match) {
-    let value = parseFloat(match[1]);
-    const suffix = match[2]?.toUpperCase();
-    if (suffix === 'K') value *= 1000;
-    if (suffix === 'M') value *= 1000000;
+  try {
+    // Handle different data structures
+    let sourceData = data;
+    
+    // If it's a Strapi API response, extract attributes
+    if (data.attributes) {
+      sourceData = { ...data.attributes, id: data.id };
+    }
+    
+    // If it's nested further (some Strapi responses)
+    if (data.data && data.data.attributes) {
+      sourceData = { ...data.data.attributes, id: data.data.id };
+    }
+
+    // Safe getter function with fallbacks
+    const safeGet = (key: string, fallback: any = '') => {
+      return sourceData[key] ?? fallback;
+    };
+
+    // Safe number getter
+    const safeGetNumber = (key: string, fallback: number = 0): number => {
+      const value = sourceData[key];
+      if (typeof value === 'number') return value;
+      if (typeof value === 'string') {
+        const parsed = parseFloat(value);
+        return isNaN(parsed) ? fallback : parsed;
+      }
+      return fallback;
+    };
+
+    // Safe date getter
+    const safeGetDate = (key: string, fallback?: string): string => {
+      const value = sourceData[key];
+      if (typeof value === 'string' && value) {
+        // Validate it's a proper date
+        const date = new Date(value);
+        if (!isNaN(date.getTime())) {
+          return value;
+        }
+      }
+      return fallback || new Date().toISOString();
+    };
+
+    // Extract unique identifier with multiple fallbacks
+    const getUniqueId = (): string => {
+      return safeGet('unique_id') || 
+             safeGet('Unique_Id') || 
+             safeGet('SF_Number') || 
+             safeGet('proposalName') ||
+             safeGet('documentId') ||
+             (sourceData.id ? `doc-${sourceData.id}` : 'unknown');
+    };
+
+    // Extract and return the proposal data
+    const extractedData: Partial<StrapiProposal> = {
+      // Core identifiers
+      id: safeGetNumber('id'),
+      documentId: safeGet('documentId') || safeGet('id', '').toString(),
+      unique_id: getUniqueId(),
+      SF_Number: safeGet('SF_Number') || getUniqueId(),
+      proposalName: safeGet('proposalName') || getUniqueId(),
+
+      // Client information
+      Client_Name: safeGet('Client_Name', 'Unknown Client'),
+      Client_Type: safeGet('Client_Type'),
+      Client_Contact: safeGet('Client_Contact'),
+      Client_Contact_Title: safeGet('Client_Contact_Title'),
+      Client_Journey: safeGet('Client_Journey'),
+
+      // Document information
+      Document_Type: safeGet('Document_Type', 'Document'),
+      Document_Sub_Type: safeGet('Document_Sub_Type'),
+      Document_Value_Range: safeGet('Document_Value_Range'),
+      Document_Outcome: safeGet('Document_Outcome'),
+
+      // Geographic and organizational
+      Industry: safeGet('Industry', 'General'),
+      Sub_Industry: safeGet('Sub_Industry'),
+      Service: safeGet('Service'),
+      Sub_Service: safeGet('Sub_Service'),
+      Business_Unit: safeGet('Business_Unit'),
+      Region: safeGet('Region', 'Global'),
+      Country: safeGet('Country'),
+      State: safeGet('State'),
+      City: safeGet('City'),
+
+      // Personnel
+      Author: safeGet('Author'),
+      PIC: safeGet('PIC'),
+      PM: safeGet('PM'),
+
+      // Metadata
+      Keywords: safeGet('Keywords'),
+      Commercial_Program: safeGet('Commercial_Program'),
+      Competitors: safeGet('Competitors'),
+
+      // Complex fields with safe defaults
+      Project_Team: sourceData.Project_Team || null,
+      SMEs: sourceData.SMEs || null,
+      Pursuit_Team: sourceData.Pursuit_Team || null,
+      Description: Array.isArray(sourceData.Description) ? sourceData.Description : [],
+      Attachments: sourceData.Attachments || null,
+
+      // Dates with safe parsing
+      createdAt: safeGetDate('createdAt'),
+      updatedAt: safeGetDate('updatedAt'),
+      publishedAt: safeGetDate('publishedAt'),
+      Last_Stage_Change_Date: safeGetDate('Last_Stage_Change_Date', safeGetDate('updatedAt')),
+
+      // Numeric values
+      value: safeGetNumber('value', 0),
+
+      // Document URL will be handled by getBestDocumentUrl
+      documentUrl: safeGet('documentUrl', ''),
+    };
+
+    console.log('✅ Successfully extracted proposal data:', {
+      id: extractedData.id,
+      unique_id: extractedData.unique_id,
+      Client_Name: extractedData.Client_Name,
+      Document_Type: extractedData.Document_Type
+    });
+
+    return extractedData;
+
+  } catch (error) {
+    console.error('❌ Error extracting proposal data:', error, data);
+    
+    // Return minimal fallback data
+    return {
+      id: 0,
+      documentId: '0',
+      unique_id: 'error-document',
+      SF_Number: 'error-document',
+      proposalName: 'Error Processing Document',
+      Client_Name: 'Error Processing Client',
+      Document_Type: 'Document',
+      Industry: 'General',
+      Region: 'Global',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      publishedAt: new Date().toISOString(),
+      Last_Stage_Change_Date: new Date().toISOString(),
+      value: 0,
+      documentUrl: '',
+      Description: [],
+      Project_Team: null,
+      SMEs: null,
+      Pursuit_Team: null,
+      Attachments: null,
+      Client_Type: '',
+      Client_Contact: '',
+      Client_Contact_Title: '',
+      Client_Journey: '',
+      Document_Sub_Type: '',
+      Document_Value_Range: '',
+      Document_Outcome: '',
+      Sub_Industry: '',
+      Service: '',
+      Sub_Service: '',
+      Business_Unit: '',
+      Country: '',
+      State: '',
+      City: '',
+      Author: '',
+      PIC: '',
+      PM: '',
+      Keywords: '',
+      Commercial_Program: '',
+      Competitors: '',
+    };
+  }
+}
+
+/**
+ * Safely converts any value to a string representation
+ */
+export function safeToString(value: any, fallback: string = ''): string {
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+  
+  if (typeof value === 'string') {
     return value;
   }
-  return 0; // Default to 0 if parsing fails
-};
-
-// Helper to process attachments from Strapi response
-const processAttachments = (attachments: any): StrapiAttachment[] | null => {
-  if (!attachments) return null;
   
-  // Handle both array and single attachment
-  const attachmentArray = Array.isArray(attachments) ? attachments : [attachments];
-  
-  return attachmentArray.map((attachment: any) => {
-    // Handle nested data structure from Strapi
-    const data = attachment.attributes || attachment;
-    
-    return {
-      id: attachment.id || data.id || Math.random(),
-      name: data.name || 'Unknown Document',
-      alternativeText: data.alternativeText || null,
-      caption: data.caption || null,
-      width: data.width || null,
-      height: data.height || null,
-      formats: data.formats || null,
-      hash: data.hash || 'unknown',
-      ext: data.ext || '.pdf',
-      mime: data.mime || 'application/pdf',
-      size: data.size || 0,
-      url: data.url || `/uploads/${data.hash || 'unknown'}${data.ext || '.pdf'}`,
-      previewUrl: data.previewUrl || null,
-      provider: data.provider || 'local',
-      provider_metadata: data.provider_metadata || null,
-      createdAt: data.createdAt || new Date().toISOString(),
-      updatedAt: data.updatedAt || new Date().toISOString(),
-      // Enhanced metadata
-      documentType: data.documentType || 'primary',
-      category: data.category || null,
-      tags: data.tags || [],
-      downloadCount: data.downloadCount || 0,
-      lastAccessed: data.lastAccessed || null,
-    } as StrapiAttachment;
-  });
-};
-
-// Helper to process team members from Strapi response
-const processTeamMembers = (teamData: any): any => {
-  if (!teamData) return null;
-  
-  // If it's a string, return as-is for backward compatibility
-  if (typeof teamData === 'string') return teamData;
-  
-  // If it's an array, process team members
-  if (Array.isArray(teamData)) {
-    return teamData.map((member: any) => {
-      const data = member.attributes || member;
-      return {
-        id: member.id || data.id,
-        name: data.name || 'Unknown',
-        email: data.email || null,
-        role: data.role || null,
-        department: data.department || null,
-        expertise: data.expertise || [],
-        avatar: data.avatar ? processAttachments([data.avatar])?.[0] : null,
-        createdAt: data.createdAt || new Date().toISOString(),
-        updatedAt: data.updatedAt || new Date().toISOString(),
-      };
-    });
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return value.toString();
   }
   
-  return teamData;
-};
-
-// Enhanced helper to extract data with full attachment support
-export const extractProposalData = (item: any): Omit<StrapiProposal, 'id' | 'documentId'> => {
-  const data = item.attributes || item; // Use attributes if present (Strapi API), otherwise the item itself (MeiliSearch hit)
-
-  // Process attachments from the data
-  const processedAttachments = data.Attachments ? processAttachments(data.Attachments) : null;
-
-  // Enhanced data extraction with all fields
-  return {
-    unique_id: data.Unique_Id || data.unique_id || data.SF_Number || '',
-    SF_Number: data.SF_Number || data.Unique_Id || data.unique_id || '',
-    
-    // Client information
-    Client_Name: data.Client_Name || '',
-    Client_Type: data.Client_Type || '',
-    Client_Contact: data.Client_Contact || '',
-    Client_Contact_Title: data.Client_Contact_Title || '',
-    Client_Journey: data.Client_Journey || '',
-    
-    // Document classification
-    Document_Type: data.Document_Type || '',
-    Document_Sub_Type: data.Document_Sub_Type || '',
-    Document_Value_Range: data.Document_Value_Range || '',
-    Document_Outcome: data.Document_Outcome || '',
-    Last_Stage_Change_Date: data.Last_Stage_Change_Date || '',
-    
-    // Industry and service
-    Industry: data.Industry || '',
-    Sub_Industry: data.Sub_Industry || '',
-    Service: data.Service || '',
-    Sub_Service: data.Sub_Service || '',
-    Business_Unit: data.Business_Unit || '',
-    
-    // Geographic
-    Region: data.Region || '',
-    Country: data.Country || '',
-    State: data.State || '',
-    City: data.City || '',
-    
-    // Team and responsibility
-    Author: data.Author || '',
-    PIC: data.PIC || '',
-    PM: data.PM || '',
-    
-    // Content and metadata
-    Keywords: data.Keywords || '',
-    Commercial_Program: data.Commercial_Program || '',
-    Competitors: data.Competitors || '',
-    
-    // Enhanced team processing
-    Project_Team: processTeamMembers(data.Project_Team),
-    SMEs: processTeamMembers(data.SMEs),
-    Pursuit_Team: processTeamMembers(data.Pursuit_Team),
-    
-    // Timestamps
-    createdAt: data.createdAt || new Date().toISOString(),
-    updatedAt: data.updatedAt || new Date().toISOString(),
-    publishedAt: data.publishedAt || new Date().toISOString(),
-    
-    // Rich content
-    Description: data.Description || [],
-    
-    // ENHANCED: Processed attachments
-    Attachments: processedAttachments,
-    
-    // Document URLs - prefer attachment URLs if available
-    documentUrl: processedAttachments?.[0]?.url || data.url || data.documentUrl || null,
-    documentPath: data.documentPath || null,
-    
-    // Computed fields
-    value: parseValueRange(data.Document_Value_Range),
-    proposalName: data.proposalName || data.SF_Number || data.unique_id || '',
-    
-    // Enhanced metadata
-    viewCount: data.viewCount || 0,
-    downloadCount: data.downloadCount || 0,
-    rating: data.rating || 0,
-    ratingCount: data.ratingCount || 0,
-    lastViewed: data.lastViewed || null,
-    isFavorite: data.isFavorite || false,
-    isArchived: data.isArchived || false,
-    
-    // Privacy and access
-    confidentialityLevel: data.confidentialityLevel || 'internal',
-    accessPermissions: data.accessPermissions || [],
-    
-    // Document lifecycle
-    status: data.status || 'published',
-    reviewDate: data.reviewDate || null,
-    expiryDate: data.expiryDate || null,
-    
-    // Search optimization
-    searchableContent: data.searchableContent || '',
-    relatedDocuments: data.relatedDocuments || [],
-    
-    // Workflow
-    approvalStatus: data.approvalStatus || 'approved',
-    approvedBy: data.approvedBy || null,
-    approvalDate: data.approvalDate || null,
-    rejectionReason: data.rejectionReason || null,
-    
-    // Legacy compatibility fields
-    opportunityNumber: data.opportunityNumber || '',
-    opportunity_number: data.opportunity_number || '',
-    proposal_name: data.proposal_name || '',
-    client_name: data.client_name || '',
-    service_line: data.service_line || '',
-    region: data.region || '',
-    document_type: data.document_type || '',
-    document_sub_type: data.document_sub_type || '',
-  };
-};
-
-// Helper to get file type from attachment
-export const getFileTypeFromAttachment = (attachment: StrapiAttachment): string => {
-  const mimeType = attachment.mime.toLowerCase();
-  const extension = attachment.ext.toLowerCase();
-  
-  if (mimeType.includes('pdf') || extension === '.pdf') return 'pdf';
-  if (mimeType.includes('word') || extension.includes('doc')) return 'word';
-  if (mimeType.includes('excel') || extension.includes('xls')) return 'excel';
-  if (mimeType.includes('powerpoint') || extension.includes('ppt')) return 'powerpoint';
-  if (mimeType.includes('image')) return 'image';
-  if (mimeType.includes('video')) return 'video';
-  if (mimeType.includes('audio')) return 'audio';
-  if (mimeType.includes('text')) return 'text';
-  if (extension === '.html' || extension === '.htm') return 'web';
-  
-  return 'unknown';
-};
-
-// Helper to format file size
-export const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-};
-
-// Helper to get primary attachment (usually the first one)
-export const getPrimaryAttachment = (proposal: StrapiProposal): StrapiAttachment | null => {
-  if (!proposal.Attachments || proposal.Attachments.length === 0) return null;
-  
-  // Look for primary document type first
-  const primaryDoc = proposal.Attachments.find(att => att.documentType === 'primary');
-  if (primaryDoc) return primaryDoc;
-  
-  // Otherwise return the first attachment
-  return proposal.Attachments[0];
-};
-
-// Helper to group attachments by type
-export const groupAttachmentsByType = (attachments: StrapiAttachment[]) => {
-  const grouped = {
-    primary: [] as StrapiAttachment[],
-    supporting: [] as StrapiAttachment[],
-    reference: [] as StrapiAttachment[],
-    other: [] as StrapiAttachment[],
-  };
-  
-  attachments.forEach(attachment => {
-    const type = attachment.documentType || 'other';
-    if (type in grouped) {
-      (grouped as any)[type].push(attachment);
-    } else {
-      grouped.other.push(attachment);
+  if (typeof value === 'object') {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return fallback;
     }
-  });
+  }
   
-  return grouped;
-};
+  return String(value);
+}
 
-// Helper to validate attachment before upload
-export const validateAttachment = (file: File): { valid: boolean; error?: string } => {
-  const maxSize = 50 * 1024 * 1024; // 50MB
-  const allowedTypes = [
-    'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.ms-excel',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'application/vnd.ms-powerpoint',
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    'text/plain',
-    'text/csv',
-    'text/html',
-    'image/jpeg',
-    'image/png',
-    'image/gif',
-    'image/bmp',
-    'image/svg+xml',
-    'image/webp',
-    'video/mp4',
-    'video/avi',
-    'video/mov',
-    'video/wmv',
-    'video/webm',
-    'audio/mp3',
-    'audio/wav',
-    'audio/flac',
-    'audio/aac',
-    'audio/ogg',
-  ];
-  
-  if (file.size > maxSize) {
-    return { valid: false, error: 'File size exceeds 50MB limit' };
+/**
+ * Safely extracts a numeric value from any input
+ */
+export function safeToNumber(value: any, fallback: number = 0): number {
+  if (typeof value === 'number' && !isNaN(value)) {
+    return value;
   }
   
-  if (!allowedTypes.includes(file.type)) {
-    return { valid: false, error: 'File type not supported' };
+  if (typeof value === 'string') {
+    const parsed = parseFloat(value);
+    return isNaN(parsed) ? fallback : parsed;
   }
   
-  return { valid: true };
-};
+  return fallback;
+}
+
+/**
+ * Safely extracts a date string from any input
+ */
+export function safeToDate(value: any, fallback?: string): string {
+  if (typeof value === 'string' && value.trim()) {
+    const date = new Date(value);
+    if (!isNaN(date.getTime())) {
+      return value;
+    }
+  }
+  
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return value.toISOString();
+  }
+  
+  return fallback || new Date().toISOString();
+}
+
+/**
+ * Validates if a proposal object has the minimum required fields
+ */
+export function isValidProposal(proposal: any): proposal is StrapiProposal {
+  return (
+    proposal &&
+    (typeof proposal.id === 'number' || typeof proposal.id === 'string') &&
+    typeof proposal.unique_id === 'string' &&
+    typeof proposal.Client_Name === 'string' &&
+    typeof proposal.Document_Type === 'string'
+  );
+}
+
+/**
+ * Cleans and normalizes proposal data for consistent display
+ */
+export function normalizeProposalData(proposal: Partial<StrapiProposal>): StrapiProposal {
+  const normalized: StrapiProposal = {
+    // Required fields with safe defaults
+    id: safeToNumber(proposal.id, 0),
+    documentId: safeToString(proposal.documentId || proposal.id, '0'),
+    unique_id: safeToString(proposal.unique_id, 'unknown'),
+    SF_Number: safeToString(proposal.SF_Number || proposal.unique_id, ''),
+    proposalName: safeToString(proposal.proposalName || proposal.unique_id, ''),
+    
+    // Client fields
+    Client_Name: safeToString(proposal.Client_Name, 'Unknown Client'),
+    Client_Type: safeToString(proposal.Client_Type),
+    Client_Contact: safeToString(proposal.Client_Contact),
+    Client_Contact_Title: safeToString(proposal.Client_Contact_Title),
+    Client_Journey: safeToString(proposal.Client_Journey),
+    
+    // Document fields
+    Document_Type: safeToString(proposal.Document_Type, 'Document'),
+    Document_Sub_Type: safeToString(proposal.Document_Sub_Type),
+    Document_Value_Range: safeToString(proposal.Document_Value_Range),
+    Document_Outcome: safeToString(proposal.Document_Outcome),
+    
+    // Geographic and organizational
+    Industry: safeToString(proposal.Industry, 'General'),
+    Sub_Industry: safeToString(proposal.Sub_Industry),
+    Service: safeToString(proposal.Service),
+    Sub_Service: safeToString(proposal.Sub_Service),
+    Business_Unit: safeToString(proposal.Business_Unit),
+    Region: safeToString(proposal.Region, 'Global'),
+    Country: safeToString(proposal.Country),
+    State: safeToString(proposal.State),
+    City: safeToString(proposal.City),
+    
+    // Personnel
+    Author: safeToString(proposal.Author),
+    PIC: safeToString(proposal.PIC),
+    PM: safeToString(proposal.PM),
+    
+    // Metadata
+    Keywords: safeToString(proposal.Keywords),
+    Commercial_Program: safeToString(proposal.Commercial_Program),
+    Competitors: safeToString(proposal.Competitors),
+    
+    // Complex fields
+    Project_Team: proposal.Project_Team || null,
+    SMEs: proposal.SMEs || null,
+    Pursuit_Team: proposal.Pursuit_Team || null,
+    Description: Array.isArray(proposal.Description) ? proposal.Description : [],
+    Attachments: proposal.Attachments || null,
+    
+    // Dates
+    createdAt: safeToDate(proposal.createdAt),
+    updatedAt: safeToDate(proposal.updatedAt),
+    publishedAt: safeToDate(proposal.publishedAt),
+    Last_Stage_Change_Date: safeToDate(proposal.Last_Stage_Change_Date || proposal.updatedAt),
+    
+    // Numeric and URL
+    value: safeToNumber(proposal.value, 0),
+    documentUrl: safeToString(proposal.documentUrl),
+  };
+  
+  return normalized;
+}
