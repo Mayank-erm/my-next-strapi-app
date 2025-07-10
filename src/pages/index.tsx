@@ -14,6 +14,7 @@ import { STRAPI_API_URL } from '@/config/apiConfig';
 import { StrapiProposal } from '@/types/strapi';
 import { extractProposalData } from '@/utils/dataHelpers';
 import Toast from '@/components/Toast'; // Import Toast component
+import { TbBackground } from 'react-icons/tb';
 
 // --- MeiliSearch Configuration ---
 const MEILISEARCH_HOST = process.env.NEXT_PUBLIC_MEILISEARCH_HOST || 'http://localhost:7700';
@@ -283,11 +284,12 @@ const HomePage: React.FC<HomePageProps> = ({
       )}
 
       {/* Popular Resources Section - Now uses content-display__header for consistency */}
-      <div className="content-display__header mb-6"> {/* Applied the class */}
+      <div className="content-display__header" style={{background:'none'}}> {/* Applied the class */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full">
-          <div>
-            <h2 className="text-2xl font-bold text-text-dark-gray mb-2">
-              {searchTerm ? `Search Results (${totalProposals})` : `Popular Resources (${totalProposals})`}
+          <div className="content-display__title">
+            <div className="content-display__count-indicator"></div>
+            <h2 className="content-display__count-text">
+              {searchTerm ? `Search Results (${totalProposals})` : `${totalProposals} Popular Resources `}
             </h2>
             {searchTerm && (
               <p className="text-sm text-gray-600">
@@ -296,15 +298,13 @@ const HomePage: React.FC<HomePageProps> = ({
             )}
           </div>
           
-          <div className="flex items-center space-x-4 text-text-medium-gray text-sm flex-wrap mt-4 sm:mt-0">
-            <span className="font-semibold">Sort by:</span>
-            <div className="relative">
+          <div className="content-display__controls">
+            <span className="content-display__sort-label">Sort by:</span>
+            <div className="content-display__sort-select-wrapper">
               <select
                 value={sortBy}
                 onChange={handleSortByChange}
-                className="p-2 border rounded-lg bg-white appearance-none pr-8 cursor-pointer
-                           focus:outline-none focus:ring-2 focus:ring-strapi-green-light focus:border-transparent"
-              >
+                className="content-display__sort-select">
                 <option value="publishedAt:desc">Published Date (Newest)</option>
                 <option value="publishedAt:asc">Published Date (Oldest)</option>
                 <option value="unique_id:asc">Document ID (A-Z)</option>
@@ -312,13 +312,11 @@ const HomePage: React.FC<HomePageProps> = ({
                 <option value="Client_Name:asc">Client Name (A-Z)</option>
                 <option value="updatedAt:desc">Recently Updated</option>
               </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                <ChevronDownIcon className="h-4 w-4" />
-              </div>
+              <div className="content-display__sort-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" data-slot="icon" className="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"></path></svg></div>
             </div>
             
             {/* View toggle */}
-            <div className="flex space-x-2 ml-auto sm:ml-0 mt-2 sm:mt-0">
+            <div className="content-display__view-toggle">
               <button
                 onClick={() => setActiveView('grid')}
                 className={`content-display__view-button ${
