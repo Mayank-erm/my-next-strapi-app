@@ -158,7 +158,7 @@ const ActiveFilterPills: React.FC<ActiveFilterPillsProps> = ({
           {activeFilterItems.map((item) => (
             <div
               key={item.key}
-              className="group flex items-center space-x-2 bg-white border border-erm-primary/30 text-erm-primary px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-erm-primary hover:text-white transition-all duration-200 cursor-pointer shadow-sm"
+              className="group flex items-center space-x-2 bg-white border border-erm-primary/30 text-erm-primary px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer shadow-sm"
               onClick={item.onRemove}
               title={`Remove ${item.label}: ${item.value}`}
             >

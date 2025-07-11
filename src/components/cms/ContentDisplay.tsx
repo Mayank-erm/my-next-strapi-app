@@ -103,7 +103,7 @@ const EnhancedBulkActionsBar: React.FC<{
       <div className="content-bulk-actions__buttons">
         <button
           onClick={() => handleBulkAction('bookmark')}
-          className="content-bulk-actions__button content-bulk-actions__button--primary"
+          className="flex items-center px-4 py-2 bg-erm-bookmark text-white rounded-lg hover:bg-erm-dark transition-colors text-sm font-medium focus:outline-none focus:ring-2 focus:ring-erm-primary focus:ring-offset-2 shadow-md"
           title="Bookmark selected documents"
         >
           <BookmarkIcon className="h-4 w-4" />
@@ -112,7 +112,7 @@ const EnhancedBulkActionsBar: React.FC<{
         
         <button
           onClick={() => handleBulkAction('download')}
-          className="content-bulk-actions__button content-bulk-actions__button--blue"
+          className="flex items-center px-4 py-2 bg-erm-primary text-white rounded-lg hover:bg-erm-dark transition-colors text-sm font-medium focus:outline-none focus:ring-2 focus:ring-erm-primary focus:ring-offset-2 shadow-md"
           title="Download selected documents"
         >
           <ArrowDownTrayIcon className="h-4 w-4" />
@@ -121,7 +121,7 @@ const EnhancedBulkActionsBar: React.FC<{
         
         <button
           onClick={() => handleBulkAction('share')}
-          className="content-bulk-actions__button content-bulk-actions__button--purple"
+          className="flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium focus:outline-none focus:ring-2 focus:ring-gray-300 shadow-sm"
           title="Share selected documents"
         >
           <ShareIcon className="h-4 w-4" />

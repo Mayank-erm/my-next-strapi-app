@@ -193,6 +193,10 @@ button.bg-strapi-green-light:hover {
   --tw-ring-color: var(--color-erm-primary) !important;
 }
 
+.bg-erm-bookmark {
+  background-color: #c40043 !important;
+}
+
 /* === ERM SEARCH ENHANCEMENTS === */
 
 /* Search modal backdrop */
