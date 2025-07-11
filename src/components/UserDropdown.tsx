@@ -1,11 +1,9 @@
-// src/components/UserDropdown.tsx - MODERN VERSION
+// src/components/UserDropdown.tsx - SIMPLIFIED VERSION WITH ONLY 4 MENU ITEMS
 import React, { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import { 
-  UserCircleIcon, 
-  Cog6ToothIcon, 
   ArrowLeftOnRectangleIcon, 
   ChevronDownIcon,
-  BellIcon,
   UserIcon,
   QuestionMarkCircleIcon,
   SunIcon,
@@ -16,7 +14,6 @@ interface UserDropdownProps {
   userName?: string;
   userEmail?: string;
   userAvatar?: string;
-  notificationCount?: number;
 }
 
 const UserDropdown: React.FC<UserDropdownProps> = ({ 
@@ -27,6 +24,7 @@ const UserDropdown: React.FC<UserDropdownProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -43,20 +41,19 @@ const UserDropdown: React.FC<UserDropdownProps> = ({
   const toggleDropdown = () => setIsOpen(!isOpen);
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
 
-  const menuItems = [
-    {
-      icon: UserIcon,
-      label: 'My Profile',
-      action: () => console.log('Profile clicked'),
-      shortcut: '⌘P'
-    },
-    {
-      icon: QuestionMarkCircleIcon,
-      label: 'Help & Support',
-      action: () => console.log('Help clicked'),
-      shortcut: '⌘?'
-    }
-  ];
+  const handleNavigation = (path: string) => {
+    setIsOpen(false);
+    router.push(path);
+  };
+
+  const handleSignOut = () => {
+    setIsOpen(false);
+    // Add your sign out logic here
+    console.log('User signed out');
+    // Example: Clear auth tokens, redirect to login, etc.
+    // router.push('/login');
+    alert('Signed out successfully');
+  };
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
@@ -137,36 +134,34 @@ const UserDropdown: React.FC<UserDropdownProps> = ({
 
           {/* Menu Items */}
           <div className="py-2">
-            {menuItems.map((item, index) => (
-              <button
-                key={index}
-                onClick={() => {
-                  item.action();
-                  setIsOpen(false);
-                }}
-                className="flex items-center justify-between w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-strapi-green-dark transition-colors group"
-              >
-                <div className="flex items-center space-x-3">
-                  <item.icon className="h-5 w-5 text-gray-500 group-hover:text-strapi-green-light transition-colors" />
-                  <span className="font-medium">{item.label}</span>
-                </div>
-                <span className="text-xs text-gray-400 font-mono">{item.shortcut}</span>
-              </button>
-            ))}
+            {/* My Profile */}
+            <button
+              onClick={() => handleNavigation('/profile')}
+              className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-strapi-green-dark transition-colors group"
+            >
+              <UserIcon className="h-5 w-5 text-gray-500 group-hover:text-strapi-green-light transition-colors mr-3" />
+              <span className="font-medium">My Profile</span>
+            </button>
+
+            {/* Help & Support */}
+            <button
+              onClick={() => handleNavigation('/help-support')}
+              className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-strapi-green-dark transition-colors group"
+            >
+              <QuestionMarkCircleIcon className="h-5 w-5 text-gray-500 group-hover:text-strapi-green-light transition-colors mr-3" />
+              <span className="font-medium">Help & Support</span>
+            </button>
 
             {/* Dark Mode Toggle */}
             <button
-              onClick={() => {
-                toggleDarkMode();
-                setIsOpen(false);
-              }}
+              onClick={toggleDarkMode}
               className="flex items-center justify-between w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-strapi-green-dark transition-colors group"
             >
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center">
                 {isDarkMode ? (
-                  <SunIcon className="h-5 w-5 text-gray-500 group-hover:text-strapi-green-light transition-colors" />
+                  <SunIcon className="h-5 w-5 text-gray-500 group-hover:text-strapi-green-light transition-colors mr-3" />
                 ) : (
-                  <MoonIcon className="h-5 w-5 text-gray-500 group-hover:text-strapi-green-light transition-colors" />
+                  <MoonIcon className="h-5 w-5 text-gray-500 group-hover:text-strapi-green-light transition-colors mr-3" />
                 )}
                 <span className="font-medium">
                   {isDarkMode ? 'Light Mode' : 'Dark Mode'}
@@ -178,13 +173,10 @@ const UserDropdown: React.FC<UserDropdownProps> = ({
             </button>
           </div>
 
-          {/* Footer */}
+          {/* Sign Out */}
           <div className="border-t border-gray-100 pt-2">
             <button
-              onClick={() => {
-                alert('Logged out');
-                setIsOpen(false);
-              }}
+              onClick={handleSignOut}
               className="flex items-center w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors group"
             >
               <ArrowLeftOnRectangleIcon className="h-5 w-5 mr-3 group-hover:text-red-700" />
