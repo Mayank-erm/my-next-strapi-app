@@ -1,4 +1,5 @@
-// src/components/cms/AdvancedFilterSidebar.tsx - FIXED VERSION WITH SINGLE CLEAR ALL
+// src/components/cms/AdvancedFilterSidebar.tsx - CLEAN FIXED VERSION
+
 import React, { useState, useRef, useEffect } from 'react';
 import {
   XMarkIcon,
@@ -8,7 +9,6 @@ import {
   MagnifyingGlassIcon,
   CheckIcon,
   CalendarDaysIcon,
-  CurrencyDollarIcon,
   BuildingOfficeIcon,
   MapPinIcon,
   DocumentTextIcon,
@@ -16,6 +16,24 @@ import {
   ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import { Bars3Icon } from '@heroicons/react/24/solid';
+import DateRangeFilter from './DateRangeFilter';
+import RangeSliderFilter from './RangeSliderFilter';
+
+// Import the FilterOptions interface
+export interface FilterOptions {
+  clientTypes: string[];
+  documentTypes: string[];
+  documentSubTypes: string[];
+  industries: string[];
+  subIndustries: string[];
+  services: string[];
+  subServices: string[];
+  businessUnits: string[];
+  regions: string[];
+  countries: string[];
+  states: string[];
+  cities: string[];
+}
 
 interface AdvancedFilters {
   clientTypes: string[];
@@ -42,67 +60,23 @@ interface FilterSidebarProps {
   isOpen: boolean;
   onToggle: () => void;
   isMobile?: boolean;
+  
+  // NEW PROPS FOR DYNAMIC OPTIONS
+  filterOptions?: FilterOptions;
+  isLoadingOptions?: boolean;
+  onRefreshOptions?: () => void;
+  filterOptionsError?: string | null;
 }
 
-// Mock data - In production, this would come from your API
-const FILTER_OPTIONS = {
-  clientTypes: [
-    'Corporate', 'Government', 'Non-Profit', 'SME', 'Startup', 'Public Sector',
-    'Private Sector', 'International', 'Domestic', 'Fortune 500'
-  ],
-  documentTypes: [
-    'Proposal', 'Report', 'Assessment', 'Study', 'Analysis', 'Presentation',
-    'Contract', 'Agreement', 'Compliance Document', 'Technical Report'
-  ],
-  documentSubTypes: [
-    'Environmental Impact', 'Sustainability', 'Carbon Assessment', 'ESG Report',
-    'Due Diligence', 'Feasibility Study', 'Risk Assessment', 'Audit Report'
-  ],
-  industries: [
-    'Energy', 'Manufacturing', 'Technology', 'Healthcare', 'Financial Services',
-    'Retail', 'Construction', 'Transportation', 'Agriculture', 'Mining'
-  ],
-  subIndustries: [
-    'Renewable Energy', 'Oil & Gas', 'Nuclear', 'Solar', 'Wind', 'Hydroelectric',
-    'Automotive', 'Aerospace', 'Pharmaceuticals', 'Biotechnology'
-  ],
-  services: [
-    'Environmental Consulting', 'Sustainability', 'Risk Management', 'Compliance',
-    'Data Analytics', 'Strategy', 'Implementation', 'Monitoring'
-  ],
-  subServices: [
-    'Carbon Footprinting', 'Life Cycle Assessment', 'Environmental Monitoring',
-    'Regulatory Compliance', 'Stakeholder Engagement', 'Training'
-  ],
-  businessUnits: [
-    'ERM Americas', 'ERM Europe', 'ERM Asia Pacific', 'ERM Africa',
-    'Climate Change', 'Sustainability', 'Risk Management'
-  ],
-  regions: [
-    'North America', 'Europe', 'Asia Pacific', 'Latin America', 'Middle East',
-    'Africa', 'Caribbean', 'Oceania'
-  ],
-  countries: [
-    'United States', 'Canada', 'United Kingdom', 'Germany', 'France',
-    'Australia', 'Japan', 'China', 'India', 'Brazil'
-  ],
-  states: [
-    'California', 'New York', 'Texas', 'Florida', 'Illinois', 'Pennsylvania',
-    'Ohio', 'Georgia', 'North Carolina', 'Michigan'
-  ],
-  cities: [
-    'New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix', 'Philadelphia',
-    'San Antonio', 'San Diego', 'Dallas', 'San Jose'
-  ],
-};
-
+// SearchableMultiSelect component
 interface SearchableMultiSelectProps {
   options: string[];
   selectedValues: string[];
   onChange: (values: string[]) => void;
   placeholder: string;
   icon?: React.ElementType;
-  maxDisplayItems?: number;
+  isLoading?: boolean;
+  onRefresh?: () => void;
 }
 
 const SearchableMultiSelect: React.FC<SearchableMultiSelectProps> = ({
@@ -111,16 +85,17 @@ const SearchableMultiSelect: React.FC<SearchableMultiSelectProps> = ({
   onChange,
   placeholder,
   icon: Icon,
-  maxDisplayItems = 50,
+  isLoading = false,
+  onRefresh,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const filteredOptions = options.filter(option =>
-    option.toLowerCase().includes(searchTerm.toLowerCase())
-  ).slice(0, maxDisplayItems);
+  const filteredOptions = options
+    .filter(option => option.toLowerCase().includes(searchTerm.toLowerCase()))
+    .slice(0, 50);
 
   const handleToggleOption = (option: string) => {
     if (selectedValues.includes(option)) {
@@ -156,37 +131,41 @@ const SearchableMultiSelect: React.FC<SearchableMultiSelectProps> = ({
     }
   }, [isOpen]);
 
+  const displayText = selectedValues.length === 0 
+    ? placeholder 
+    : selectedValues.length === 1 
+      ? selectedValues[0]
+      : `${selectedValues.length} selected`;
+
   return (
     <div className="relative" ref={dropdownRef}>
       <button
         type="button"
         className="flex items-center justify-between w-full px-4 py-3 bg-white border border-gray-300 rounded-lg hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-erm-primary focus:border-erm-primary transition-all duration-200"
         onClick={() => setIsOpen(!isOpen)}
+        disabled={isLoading}
       >
         <div className="flex items-center flex-1 min-w-0">
           {Icon && <Icon className="h-4 w-4 text-gray-500 mr-2 flex-shrink-0" />}
           <span className="text-left text-sm text-gray-700 truncate">
-            {selectedValues.length === 0 
-              ? placeholder 
-              : selectedValues.length === 1 
-                ? selectedValues[0]
-                : `${selectedValues.length} selected`
-            }
+            {isLoading ? 'Loading options...' : displayText}
           </span>
         </div>
         <div className="flex items-center space-x-2 ml-2">
-          {selectedValues.length > 0 && (
+          {selectedValues.length > 0 && !isLoading && (
             <span className="bg-erm-primary text-white text-xs px-2 py-1 rounded-full font-medium">
               {selectedValues.length}
             </span>
+          )}
+          {isLoading && (
+            <div className="animate-spin h-4 w-4 border-2 border-erm-primary border-t-transparent rounded-full"></div>
           )}
           <ChevronDownIcon className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
         </div>
       </button>
 
-      {isOpen && (
+      {isOpen && !isLoading && (
         <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-80 flex flex-col">
-          {/* Search Header */}
           <div className="p-3 border-b border-gray-100">
             <div className="relative">
               <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -200,26 +179,36 @@ const SearchableMultiSelect: React.FC<SearchableMultiSelectProps> = ({
               />
             </div>
             
-            {/* Action Buttons */}
-            <div className="flex justify-between mt-2">
-              <button
-                onClick={handleSelectAll}
-                disabled={filteredOptions.length === 0}
-                className="text-xs text-erm-primary hover:text-erm-dark font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Select All ({filteredOptions.length})
-              </button>
-              <button
-                onClick={handleClearAll}
-                disabled={selectedValues.length === 0}
-                className="text-xs text-gray-500 hover:text-red-600 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Clear All
-              </button>
+            <div className="flex justify-between items-center mt-2">
+              <div className="space-x-2">
+                <button
+                  onClick={handleSelectAll}
+                  disabled={filteredOptions.length === 0}
+                  className="text-xs text-erm-primary hover:text-erm-dark font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Select All ({filteredOptions.length})
+                </button>
+                <button
+                  onClick={handleClearAll}
+                  disabled={selectedValues.length === 0}
+                  className="text-xs text-gray-500 hover:text-red-600 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Clear All
+                </button>
+              </div>
+              {onRefresh && (
+                <button
+                  onClick={onRefresh}
+                  className="text-xs text-gray-500 hover:text-erm-primary font-medium flex items-center"
+                  title="Refresh options"
+                >
+                  <ArrowPathIcon className="h-3 w-3 mr-1" />
+                  Refresh
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Options List */}
           <div className="flex-1 overflow-y-auto">
             {filteredOptions.length === 0 ? (
               <div className="p-4 text-center text-gray-500 text-sm">
@@ -265,146 +254,6 @@ const SearchableMultiSelect: React.FC<SearchableMultiSelectProps> = ({
   );
 };
 
-interface DateRangePickerProps {
-  dateRange: [Date | null, Date | null];
-  onChange: (range: [Date | null, Date | null]) => void;
-}
-
-const DateRangePicker: React.FC<DateRangePickerProps> = ({ dateRange, onChange }) => {
-  const [startDate, endDate] = dateRange;
-
-  const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newDate = e.target.value ? new Date(e.target.value) : null;
-    onChange([newDate, endDate]);
-  };
-
-  const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newDate = e.target.value ? new Date(e.target.value) : null;
-    onChange([startDate, newDate]);
-  };
-
-  const formatDateForInput = (date: Date | null) => {
-    if (!date) return '';
-    const year = date.getFullYear();
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const day = date.getDate().toString().padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
-  return (
-    <div className="space-y-3">
-      <div>
-        <label className="block text-xs font-medium text-gray-600 mb-1">From Date</label>
-        <input
-          type="date"
-          value={formatDateForInput(startDate)}
-          onChange={handleStartDateChange}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-erm-primary focus:border-erm-primary"
-        />
-      </div>
-      <div>
-        <label className="block text-xs font-medium text-gray-600 mb-1">To Date</label>
-        <input
-          type="date"
-          value={formatDateForInput(endDate)}
-          onChange={handleEndDateChange}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-erm-primary focus:border-erm-primary"
-        />
-      </div>
-      {startDate && endDate && (
-        <div className="text-xs text-gray-600 bg-gray-50 px-2 py-1 rounded">
-          {startDate.toLocaleDateString()} - {endDate.toLocaleDateString()}
-        </div>
-      )}
-    </div>
-  );
-};
-
-interface RangeSliderProps {
-  range: [number, number];
-  onChange: (range: [number, number]) => void;
-  min: number;
-  max: number;
-  step: number;
-  formatValue?: (value: number) => string;
-}
-
-const RangeSlider: React.FC<RangeSliderProps> = ({
-  range,
-  onChange,
-  min,
-  max,
-  step,
-  formatValue = (value) => value.toLocaleString(),
-}) => {
-  const [localMin, localMax] = range;
-
-  const handleMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newMin = Number(e.target.value);
-    onChange([newMin, Math.max(newMin, localMax)]);
-  };
-
-  const handleMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newMax = Number(e.target.value);
-    onChange([localMin, Math.max(localMin, newMax)]);
-  };
-
-  const formatCurrency = (value: number) => {
-    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-    if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
-    return `${value.toLocaleString()}`;
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between text-xs text-gray-600">
-        <span>{formatCurrency(localMin)}</span>
-        <span>{formatCurrency(localMax)}</span>
-      </div>
-      
-      <div className="relative">
-        <input
-          type="range"
-          min={min}
-          max={max}
-          step={step}
-          value={localMin}
-          onChange={handleMinChange}
-          className="absolute w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-        />
-        <input
-          type="range"
-          min={min}
-          max={max}
-          step={step}
-          value={localMax}
-          onChange={handleMaxChange}
-          className="absolute w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-        />
-      </div>
-      
-      <div className="flex space-x-2">
-        <input
-          type="number"
-          value={localMin}
-          onChange={handleMinChange}
-          min={min}
-          max={max}
-          className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-erm-primary"
-        />
-        <input
-          type="number"
-          value={localMax}
-          onChange={handleMaxChange}
-          min={min}
-          max={max}
-          className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-erm-primary"
-        />
-      </div>
-    </div>
-  );
-};
-
 const AdvancedFilterSidebar: React.FC<FilterSidebarProps> = ({
   filters,
   onUpdateFilter,
@@ -413,6 +262,10 @@ const AdvancedFilterSidebar: React.FC<FilterSidebarProps> = ({
   isOpen,
   onToggle,
   isMobile = false,
+  filterOptions,
+  isLoadingOptions = false,
+  onRefreshOptions,
+  filterOptionsError,
 }) => {
   const [expandedSections, setExpandedSections] = useState({
     client: true,
@@ -469,7 +322,6 @@ const AdvancedFilterSidebar: React.FC<FilterSidebarProps> = ({
 
   return (
     <div className="h-full flex flex-col bg-white">
-      {/* Header with SINGLE Clear All Button */}
       <div className="px-4 py-4 border-b border-gray-200 bg-gradient-to-r from-erm-primary/5 to-transparent">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -478,7 +330,9 @@ const AdvancedFilterSidebar: React.FC<FilterSidebarProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-bold text-gray-900">Advanced Filters</h2>
-              <p className="text-xs text-gray-500">Refine your search results</p>
+              <p className="text-xs text-gray-500">
+                {isLoadingOptions ? 'Loading options...' : 'Live data from search index'}
+              </p>
             </div>
           </div>
           {isMobile && (
@@ -491,7 +345,6 @@ const AdvancedFilterSidebar: React.FC<FilterSidebarProps> = ({
           )}
         </div>
         
-        {/* SINGLE Clear All Section */}
         <div className="flex items-center justify-between mt-3">
           <div className="text-sm text-gray-600">
             {activeFiltersCount > 0 ? (
@@ -502,22 +355,38 @@ const AdvancedFilterSidebar: React.FC<FilterSidebarProps> = ({
               <span>No filters applied</span>
             )}
           </div>
-          {/* ONLY CLEAR ALL BUTTON HERE */}
-          {activeFiltersCount > 0 && (
-            <button
-              onClick={onClearAll}
-              className="flex items-center space-x-1 px-3 py-1.5 text-xs text-white bg-red-500 hover:bg-red-600 rounded-md font-medium transition-colors"
-            >
-              <ArrowPathIcon className="h-3 w-3" />
-              <span>Clear All</span>
-            </button>
-          )}
+          <div className="flex items-center space-x-2">
+            {onRefreshOptions && (
+              <button
+                onClick={onRefreshOptions}
+                disabled={isLoadingOptions}
+                className="flex items-center space-x-1 px-2 py-1 text-xs text-gray-500 hover:text-erm-primary rounded transition-colors disabled:opacity-50"
+                title="Refresh filter options"
+              >
+                <ArrowPathIcon className={`h-3 w-3 ${isLoadingOptions ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">Refresh</span>
+              </button>
+            )}
+            {activeFiltersCount > 0 && (
+              <button
+                onClick={onClearAll}
+                className="flex items-center space-x-1 px-3 py-1.5 text-xs text-white bg-red-500 hover:bg-red-600 rounded-md font-medium transition-colors"
+              >
+                <ArrowPathIcon className="h-3 w-3" />
+                <span>Clear All</span>
+              </button>
+            )}
+          </div>
         </div>
+
+        {filterOptionsError && (
+          <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700 flex items-start">
+            <span>{filterOptionsError}</span>
+          </div>
+        )}
       </div>
 
-      {/* Filter Content */}
       <div className="flex-1 overflow-y-auto">
-        {/* Client Information */}
         <FilterSection
           title="Client Information"
           icon={BuildingOfficeIcon}
@@ -526,15 +395,16 @@ const AdvancedFilterSidebar: React.FC<FilterSidebarProps> = ({
           count={filters.clientTypes.length}
         >
           <SearchableMultiSelect
-            options={FILTER_OPTIONS.clientTypes}
+            options={filterOptions?.clientTypes || []}
             selectedValues={filters.clientTypes}
             onChange={(values) => onUpdateFilter('clientTypes', values)}
             placeholder="Select client types..."
             icon={BuildingOfficeIcon}
+            isLoading={isLoadingOptions}
+            onRefresh={onRefreshOptions}
           />
         </FilterSection>
 
-        {/* Document Classification */}
         <FilterSection
           title="Document Classification"
           icon={DocumentTextIcon}
@@ -546,27 +416,29 @@ const AdvancedFilterSidebar: React.FC<FilterSidebarProps> = ({
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-2">Document Type</label>
               <SearchableMultiSelect
-                options={FILTER_OPTIONS.documentTypes}
+                options={filterOptions?.documentTypes || []}
                 selectedValues={filters.documentTypes}
                 onChange={(values) => onUpdateFilter('documentTypes', values)}
                 placeholder="Select document types..."
                 icon={DocumentTextIcon}
+                isLoading={isLoadingOptions}
+                onRefresh={onRefreshOptions}
               />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-2">Document Sub-Type</label>
               <SearchableMultiSelect
-                options={FILTER_OPTIONS.documentSubTypes}
+                options={filterOptions?.documentSubTypes || []}
                 selectedValues={filters.documentSubTypes}
                 onChange={(values) => onUpdateFilter('documentSubTypes', values)}
                 placeholder="Select sub-types..."
                 icon={TagIcon}
+                isLoading={isLoadingOptions}
               />
             </div>
           </div>
         </FilterSection>
 
-        {/* Business & Service */}
         <FilterSection
           title="Business & Service"
           icon={Bars3Icon}
@@ -578,52 +450,56 @@ const AdvancedFilterSidebar: React.FC<FilterSidebarProps> = ({
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-2">Industry</label>
               <SearchableMultiSelect
-                options={FILTER_OPTIONS.industries}
+                options={filterOptions?.industries || []}
                 selectedValues={filters.industries}
                 onChange={(values) => onUpdateFilter('industries', values)}
                 placeholder="Select industries..."
+                isLoading={isLoadingOptions}
               />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-2">Sub-Industry</label>
               <SearchableMultiSelect
-                options={FILTER_OPTIONS.subIndustries}
+                options={filterOptions?.subIndustries || []}
                 selectedValues={filters.subIndustries}
                 onChange={(values) => onUpdateFilter('subIndustries', values)}
                 placeholder="Select sub-industries..."
+                isLoading={isLoadingOptions}
               />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-2">Service</label>
               <SearchableMultiSelect
-                options={FILTER_OPTIONS.services}
+                options={filterOptions?.services || []}
                 selectedValues={filters.services}
                 onChange={(values) => onUpdateFilter('services', values)}
                 placeholder="Select services..."
+                isLoading={isLoadingOptions}
               />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-2">Sub-Service</label>
               <SearchableMultiSelect
-                options={FILTER_OPTIONS.subServices}
+                options={filterOptions?.subServices || []}
                 selectedValues={filters.subServices}
                 onChange={(values) => onUpdateFilter('subServices', values)}
                 placeholder="Select sub-services..."
+                isLoading={isLoadingOptions}
               />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-2">Business Unit</label>
               <SearchableMultiSelect
-                options={FILTER_OPTIONS.businessUnits}
+                options={filterOptions?.businessUnits || []}
                 selectedValues={filters.businessUnits}
                 onChange={(values) => onUpdateFilter('businessUnits', values)}
                 placeholder="Select business units..."
+                isLoading={isLoadingOptions}
               />
             </div>
           </div>
         </FilterSection>
 
-        {/* Location */}
         <FilterSection
           title="Location"
           icon={MapPinIcon}
@@ -635,44 +511,47 @@ const AdvancedFilterSidebar: React.FC<FilterSidebarProps> = ({
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-2">Region</label>
               <SearchableMultiSelect
-                options={FILTER_OPTIONS.regions}
+                options={filterOptions?.regions || []}
                 selectedValues={filters.regions}
                 onChange={(values) => onUpdateFilter('regions', values)}
                 placeholder="Select regions..."
                 icon={MapPinIcon}
+                isLoading={isLoadingOptions}
               />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-2">Country</label>
               <SearchableMultiSelect
-                options={FILTER_OPTIONS.countries}
+                options={filterOptions?.countries || []}
                 selectedValues={filters.countries}
                 onChange={(values) => onUpdateFilter('countries', values)}
                 placeholder="Select countries..."
+                isLoading={isLoadingOptions}
               />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-2">State</label>
               <SearchableMultiSelect
-                options={FILTER_OPTIONS.states}
+                options={filterOptions?.states || []}
                 selectedValues={filters.states}
                 onChange={(values) => onUpdateFilter('states', values)}
                 placeholder="Select states..."
+                isLoading={isLoadingOptions}
               />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-2">City</label>
               <SearchableMultiSelect
-                options={FILTER_OPTIONS.cities}
+                options={filterOptions?.cities || []}
                 selectedValues={filters.cities}
                 onChange={(values) => onUpdateFilter('cities', values)}
                 placeholder="Select cities..."
+                isLoading={isLoadingOptions}
               />
             </div>
           </div>
         </FilterSection>
 
-        {/* Date & Value Range */}
         <FilterSection
           title="Date & Value Range"
           icon={CalendarDaysIcon}
@@ -683,33 +562,34 @@ const AdvancedFilterSidebar: React.FC<FilterSidebarProps> = ({
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-2">Last Stage Change Date</label>
-              <DateRangePicker
+              <DateRangeFilter
                 dateRange={filters.dateRange}
-                onChange={(range) => onUpdateFilter('dateRange', range)}
+                setDateRange={(range) => onUpdateFilter('dateRange', range)}
               />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-2">Document Value Range</label>
-              <RangeSlider
-                range={filters.valueRange}
-                onChange={(range) => onUpdateFilter('valueRange', range)}
+              <RangeSliderFilter
+                label="Value Range"
                 min={0}
                 max={1000000}
                 step={10000}
+                range={filters.valueRange}
+                setRange={(range) => onUpdateFilter('valueRange', range)}
+                isCurrency={true}
               />
             </div>
           </div>
         </FilterSection>
       </div>
 
-      {/* REMOVED FOOTER WITH ADDITIONAL CLEAR BUTTON - ONLY APPLY BUTTON FOR MOBILE */}
       {isMobile && (
         <div className="p-4 border-t border-gray-200 bg-gray-50">
           <button
             onClick={onToggle}
             className="w-full px-4 py-2 bg-erm-primary text-white rounded-lg hover:bg-erm-dark transition-colors text-sm font-medium"
           >
-            Apply Filters
+            Apply Filters ({activeFiltersCount})
           </button>
         </div>
       )}

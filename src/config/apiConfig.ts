@@ -13,4 +13,4 @@ export const MEILISEARCH_API_KEY = '89ebfcd885b07a82f0dca202a786aab4bf11be07'; /
 // Strapi API Configuration
 // Updated to include 'populate=*' to ensure all nested relations are fetched
 // Changed 'localhost' to '127.0.0.1' for potential environment compatibility issues
-export const STRAPI_API_URL = 'http://https://enduring-thrill-157cd6ce3b.strapiapp.com/api/document-stores?populate=*';
+export const STRAPI_API_URL = 'https://enduring-thrill-157cd6ce3b.strapiapp.com/api/document-stores?populate=*';
