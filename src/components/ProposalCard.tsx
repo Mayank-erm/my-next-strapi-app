@@ -26,7 +26,7 @@ interface ProposalCardProps {
   showToast?: (title: string, message: string, type?: 'success' | 'info' | 'error') => void;
 }
 
-const ProposalCard: React.FC<ProposalCardProps> = ({ 
+const ProposalCard: React.FC<ProposalCardProps> = React.memo(({ // Wrapped with React.memo
   proposal, 
   isListView = false,
   onEdit,
@@ -435,6 +435,6 @@ const ProposalCard: React.FC<ProposalCardProps> = ({
       )}
     </>
   );
-};
+});
 
 export default ProposalCard;

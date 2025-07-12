@@ -7,10 +7,10 @@
  */
 
 // MeiliSearch Configuration
-export const MEILISEARCH_HOST = 'http://localhost:7700';
-export const MEILISEARCH_API_KEY = 'masterKey'; // Consider using environment variables for production
+export const MEILISEARCH_HOST = 'https://ms-710c634cf8ae-26528.lon.meilisearch.io';
+export const MEILISEARCH_API_KEY = '89ebfcd885b07a82f0dca202a786aab4bf11be07'; // Consider using environment variables for production
 
 // Strapi API Configuration
 // Updated to include 'populate=*' to ensure all nested relations are fetched
 // Changed 'localhost' to '127.0.0.1' for potential environment compatibility issues
-export const STRAPI_API_URL = 'http://127.0.0.1:1337/api/document-stores?populate=*';
+export const STRAPI_API_URL = 'http://https://enduring-thrill-157cd6ce3b.strapiapp.com/api/document-stores?populate=*';
