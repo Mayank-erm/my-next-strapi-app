@@ -73,7 +73,7 @@ const formatFileSize = (bytes: number): string => {
 // Helper to get document URL - Updated for uploads folder
 const getDocumentUrl = (attachment: DocumentAttachment): string => {
   // For local development, construct URL based on upload folder
-  if (attachment.url.startsWith('/uploads/')) {
+  if (attachment.url) {
     return attachment.url; // Direct URL from Strapi
   }
   

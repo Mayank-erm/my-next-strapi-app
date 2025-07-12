@@ -10,7 +10,7 @@ export default function App({ Component, pageProps }: AppProps) {
       <Head>
         <title>Commercial Content Hub</title>
         <meta name="description" content="Commercial Content Hub for Proposals" />
-        <link rel="icon" href="/favicon.ico" /> {/* You might want to update this favicon */}
+        <link rel="icon" href="/faviconV2.png" /> {/* You might want to update this favicon */}
       </Head>
       <Component {...pageProps} />
     </>

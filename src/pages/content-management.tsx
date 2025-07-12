@@ -22,8 +22,8 @@ import {
 } from '@heroicons/react/24/outline';
 
 // MeiliSearch Configuration
-const MEILISEARCH_HOST = 'http://localhost:7700';
-const MEILISEARCH_API_KEY = 'masterKey';
+const MEILISEARCH_HOST = process.env.NEXT_PUBLIC_MEILISEARCH_HOST || 'http://localhost:7700';
+const MEILISEARCH_API_KEY = process.env.NEXT_PUBLIC_MEILISEARCH_API_KEY || 'masterKey';
 
 const meiliSearchClient = new MeiliSearch({
   host: MEILISEARCH_HOST,
